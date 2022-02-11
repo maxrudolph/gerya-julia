@@ -14,7 +14,7 @@ struct BoundaryConditions
     right::Int
 end
 
-function form_stokes(grid::CartesianGrid,eta_s::Matrix,eta_n::Matrix,bc::BoundaryConditions,gx::Float64,gy::Float64)
+function form_stokes(grid::CartesianGrid,eta_s::Matrix,eta_n::Matrix,rho::Matrix,bc::BoundaryConditions,gx::Float64,gy::Float64)
     k::Int = 1 # index into dof arrays
     nx = grid.nx
     ny = grid.ny
@@ -279,16 +279,43 @@ function form_stokes(grid::CartesianGrid,eta_s::Matrix,eta_n::Matrix,bc::Boundar
     return L,R    
 end
 
-function unpack(solution, grid::CartesianGrid)
-    P = zeros(Float64,(grid.ny,grid.nx))
-    vx = zeros(Float64,(grid.ny,grid.nx))
-    vy = zeros(Float64,(grid.ny,grid.nx))
-    ny = grid.ny
-     for j in 1:grid.nx
-        for i in 1:grid.ny                
-            vx[i,j] = solution[vxdof(i,j,grid.ny)]
-            vy[i,j] = solution[vydof(i,j,grid.ny)]
-            P[i,j]  = solution[pdof(i,j,grid.ny)]            
+function unpack(solution, grid::CartesianGrid; ghost::Bool=false)
+    if ghost
+        nx1 = grid.nx+1
+        ny1 = grid.ny+1
+        P = zeros(Float64,(ny1,nx1))
+        vx = zeros(Float64,(ny1,nx1))
+        vy = zeros(Float64,(ny1,nx1))
+        ny = grid.ny
+        for j in 1:grid.nx
+            for i in 1:grid.ny                
+                vx[i,j] = solution[vxdof(i,j,grid.ny)]
+                vy[i,j] = solution[vydof(i,j,grid.ny)]
+                P[i,j]  = solution[pdof(i,j,grid.ny)]            
+            end
+        end
+        # right boundary
+        j=nx1
+        for i in 1:grid.ny
+              vx[i,j] = 0.0
+              vy[i,j] = vy[i,j-1];# free slip
+        end
+        i=ny1
+        for j in 1:grid.nx
+               vx[i,j] = vx[i-1,j];# free-slip along bottom
+               vy[i,j] = 0.0
+        end
+    else
+        P = zeros(Float64,(grid.ny,grid.nx))
+        vx = zeros(Float64,(grid.ny,grid.nx))
+        vy = zeros(Float64,(grid.ny,grid.nx))
+        ny = grid.ny
+         for j in 1:grid.nx
+            for i in 1:grid.ny                
+                vx[i,j] = solution[vxdof(i,j,grid.ny)]
+                vy[i,j] = solution[vydof(i,j,grid.ny)]
+                P[i,j]  = solution[pdof(i,j,grid.ny)]            
+            end
         end
     end
     return vx,vy,P
