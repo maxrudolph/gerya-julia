@@ -320,3 +320,15 @@ function unpack(solution, grid::CartesianGrid; ghost::Bool=false)
     end
     return vx,vy,P
 end
+
+function compute_timestep(grid::CartesianGrid,vxc::Matrix,vyc::Matrix;dtmax::Float64=Inf,cfl::Float64=0.5)
+    # compute the maximum timestep based on cell-centered velocities in vxc and vyc and the cfl number.
+    for i in 2:grid.ny
+        for j in 2:grid.nx
+            dx = grid.x[j]-grid.x[j-1]
+            dy = grid.y[i]-grid.y[i-1]
+            dtmax = min( dtmax , cfl*dx/abs(vxc[i,j]) , cfl*dy/abs(vyc[i,j]) )                            
+        end
+    end
+    return dtmax
+end
