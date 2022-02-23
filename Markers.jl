@@ -14,6 +14,7 @@ mutable struct Markers
         cell = Array{Int,2}(undef,2,N)
         rho = Array{Float64,1}(undef,N)
         eta = Array{Float64,1}(undef,N)
+        T = Array{Float64,1}(undef,N)
         
         k=1
         for i in 1:(grid.ny-1)
