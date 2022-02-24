@@ -1,21 +1,39 @@
 mutable struct Markers    
     x::Array{Float64,2}
     cell::Array{Int,2}
-    rho::Array{Float64,1}
-    eta::Array{Float64,1}
-    T::Array{Float64,1}
+    scalarFields::Dict
+    scalars::Array{Float64,2}
+    integerFields::Dict
+    integers::Array{Int16,2} # note - this could be changed if larger numbers need to be stored...
+
     nmark::Integer
     
-    function Markers(grid::CartesianGrid; nmx::Integer=5,nmy::Integer=5,random::Bool=false)
+    function Markers(grid::CartesianGrid,scalarFieldNames,integerFieldNames; nmx::Integer=5,nmy::Integer=5,random::Bool=false)
         N = nmx*nmy*grid.nx*grid.ny
         mdx = grid.W/nmx/(grid.nx-1)
         mdy = grid.H/nmy/(grid.ny-1)
-                
+        
+        n_fields = length(scalarFieldNames)
+        scalarFields = Dict()
+        ind=1
+        for field in scalarFieldNames
+           scalarFields[field] = ind
+           ind += 1
+        end
+        
+        n_ifields = length(integerFieldNames)
+        integerFields = Dict()
+        ind=1
+        for field in integerFieldNames
+            integerFields[field] = ind
+            ind += 1
+        end
+        
         x = Array{Float64,2}(undef,2,N)
         cell = Array{Int,2}(undef,2,N)
-        rho = Array{Float64,1}(undef,N)
-        eta = Array{Float64,1}(undef,N)
-        T = Array{Float64,1}(undef,N)
+        
+        scalars = Array{Float64,2}(undef,n_fields,N)
+        integers = Array{Int16,2}(undef,n_ifields,N)
         
         k=1
         for i in 1:(grid.ny-1)
@@ -26,14 +44,13 @@ mutable struct Markers
                         x[2,k] = mdy/2. + mdy*(ii-1) + mdy*nmy*(i-1) + ( random ? (rand()-0.5)*mdy : 0.0 )
                         cell[1,k] = j
                         cell[2,k] = i
-                        rho[k] = 0.0
                         k+=1
                     end
                 end
             end
         end
 
-        new(x,cell,rho,eta,T,k-1)
+        new(x,cell,scalarFields,scalars,integerFields,integers,k-1)
     end
 end
 
@@ -121,8 +138,8 @@ function marker_to_basic_node(m::Markers,grid::CartesianGrid,fieldnames)
     # currently moves rho and eta.
     # returns rho, eta, each as a ny-by-nx matrix
     nfields = length(fieldnames)
-    
-    markerfields = [getfield(m,tmp) for tmp in fieldnames]
+    # markerfields will be indices into the 'scalars' array
+    markerfields = [m.scalarFields[tmp] for tmp in fieldnames]
     
     weights = zeros(Float64,grid.ny,grid.nx)
     field = zeros(Float64,nfields,grid.ny,grid.nx)
@@ -143,10 +160,11 @@ function marker_to_basic_node(m::Markers,grid::CartesianGrid,fieldnames)
          wt_i1_j1 = (wx)*(wy)
         
          for k in 1:nfields
-             field[k,celly,cellx] += wt_i_j*markerfields[k][i]
-             field[k,celly+1,cellx] += wt_i1_j*markerfields[k][i]
-             field[k,celly,cellx+1] += wt_i_j1*markerfields[k][i]
-             field[k,celly+1,cellx+1] += wt_i1_j1*markerfields[k][i]
+             kp = markerfields[k]
+             field[k,celly,cellx] += wt_i_j*m.scalars[kp,i]
+             field[k,celly+1,cellx] += wt_i1_j*m.scalars[kp,i]
+             field[k,celly,cellx+1] += wt_i_j1*m.scalars[kp,i]
+             field[k,celly+1,cellx+1] += wt_i1_j1*m.scalars[kp,i]
         end
          weights[celly,cellx] += wt_i_j
          weights[celly+1,cellx] += wt_i1_j
@@ -160,14 +178,15 @@ function marker_to_basic_node(m::Markers,grid::CartesianGrid,fieldnames)
     return field
 end
 
-function basic_node_to_markers!(m::Markers,grid::CartesianGrid,field::Matrix,mfield::Symbol)
+function basic_node_to_markers!(m::Markers,grid::CartesianGrid,field::Matrix,mfield::String)
+    k = m.scalarFields[mfield]
     Threads.@threads for i in 1:m.nmark
         cellx = m.cell[1,i]
         celly = m.cell[2,i]
         wx::Float64 = (m.x[1,i] - grid.x[cellx])/(grid.x[cellx+1]-grid.x[cellx]) # mdx/dx
         wy::Float64 = (m.x[2,i] - grid.y[celly])/(grid.y[celly+1]-grid.y[celly])
         
-        getfield(m,mfield)[i] = (1.0-wx)*(1.0-wy)*field[celly,cellx] +
+        m.scalars[k,i] = (1.0-wx)*(1.0-wy)*field[celly,cellx] +
             + (wx)*(1.0-wy)*field[celly,cellx+1] +
             + (1.0-wx)*(wy)*field[celly+1,cellx] +
             + (wx)*(wy)*field[celly+1,cellx+1]
@@ -189,33 +208,34 @@ function basic_node_to_markers!(m::Markers,grid::CartesianGrid,field::Matrix,mfi
 end
 
 
-function basic_node_change_to_markers!(m::Markers,grid::CartesianGrid,field::Matrix,mfield::Symbol)
+function basic_node_change_to_markers!(m::Markers,grid::CartesianGrid,field::Matrix,mfield::String)
+    k = m.scalarFields[mfield]
     Threads.@threads for i in 1:m.nmark
         cellx = m.cell[1,i]
         celly = m.cell[2,i]
         wx::Float64 = (m.x[1,i] - grid.x[cellx])/(grid.x[cellx+1]-grid.x[cellx]) # mdx/dx
         wy::Float64 = (m.x[2,i] - grid.y[celly])/(grid.y[celly+1]-grid.y[celly])
         
-        getfield(m,mfield)[i] += (1.0-wx)*(1.0-wy)*field[celly,cellx] +
+        m.scalars[k,i] += (1.0-wx)*(1.0-wy)*field[celly,cellx] +
             + (wx)*(1.0-wy)*field[celly,cellx+1] +
             + (1.0-wx)*(wy)*field[celly+1,cellx] +
             + (wx)*(wy)*field[celly+1,cellx+1]
     end
 end
 
-function basic_node_to_markers!(m::Markers,grid::CartesianGrid,field::Matrix)
-    Threads.@threads for i in 1:m.nmark
-        cellx = m.cell[1,i]
-        celly = m.cell[2,i]
-        wx::Float64 = (m.x[1,i] - grid.x[cellx])/(grid.x[cellx+1]-grid.x[cellx]) # mdx/dx
-        wy::Float64 = (m.x[2,i] - grid.y[celly])/(grid.y[celly+1]-grid.y[celly])
+# function basic_node_to_markers!(m::Markers,grid::CartesianGrid,field::Matrix)
+#     Threads.@threads for i in 1:m.nmark
+#         cellx = m.cell[1,i]
+#         celly = m.cell[2,i]
+#         wx::Float64 = (m.x[1,i] - grid.x[cellx])/(grid.x[cellx+1]-grid.x[cellx]) # mdx/dx
+#         wy::Float64 = (m.x[2,i] - grid.y[celly])/(grid.y[celly+1]-grid.y[celly])
         
-        m.rho[i] = (1.0-wx)*(1.0-wy)*field[celly,cellx] +
-            + (wx)*(1.0-wy)*field[celly,cellx+1] +
-            + (1.0-wx)*(wy)*field[celly+1,cellx] +
-            + (wx)*(wy)*field[celly+1,cellx+1]
-    end
-end
+#         m.rho[i] = (1.0-wx)*(1.0-wy)*field[celly,cellx] +
+#             + (wx)*(1.0-wy)*field[celly,cellx+1] +
+#             + (1.0-wx)*(wy)*field[celly+1,cellx] +
+#             + (wx)*(wy)*field[celly+1,cellx+1]
+#     end
+# end
 
 function viscosity_to_cell_centers(grid::CartesianGrid,etas::Matrix)
     # compute the harmonic average of the viscosities at the nodal points
