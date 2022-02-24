@@ -3,6 +3,7 @@ mutable struct Markers
     cell::Array{Int,2}
     rho::Array{Float64,1}
     eta::Array{Float64,1}
+    T::Array{Float64,1}
     nmark::Integer
     
     function Markers(grid::CartesianGrid; nmx::Integer=5,nmy::Integer=5,random::Bool=false)
@@ -32,7 +33,7 @@ mutable struct Markers
             end
         end
 
-        new(x,cell,rho,eta,k-1)
+        new(x,cell,rho,eta,T,k-1)
     end
 end
 
@@ -75,24 +76,13 @@ function find_cells!(markers::Markers,grid::CartesianGrid)
     end
 end
 
-function initial_conditions!(markers::Markers)
-    for i in 1:markers.nmark
-        mx = markers.x[1,i]
-        my = markers.x[2,i]
-        mr = ((mx-2.5e5)^2 + (my-2.5e5)^2)^0.5
-        # my initial misunderstanding of the problem setup:
-        # markers.rho[i] = mx >= 200e3 && mx <= 300e3 ? 3200. : 3300.
-        markers.rho[i] = mr < 1.0e5 ? 3200. : 3000.
-        markers.eta[i] = mr < 1.0e5 ? 1e23 : 1e21 
-    end
-end
-
-function marker_to_basic_node(m::Markers,grid::CartesianGrid)
+function marker_to_basic_node(m::Markers,grid::CartesianGrid,markerfield::Array{Float64,1})
     # move quantities from the markers to the basic nodes.
     # currently moves rho and eta.
     # returns rho, eta, each as a ny-by-nx matrix
+    
     weights = zeros(Float64,grid.ny,grid.nx)
-    field = zeros(Float64,2,grid.ny,grid.nx)
+    field = zeros(Float64,grid.ny,grid.nx)
     # loop over the markers
     for i in 1:m.nmark
        # calculate weights for four surrounding basic nodes
@@ -102,29 +92,115 @@ function marker_to_basic_node(m::Markers,grid::CartesianGrid)
          wy = (m.x[2,i] - grid.y[celly])/(grid.y[celly+1]-grid.y[celly])
          #i,j
          wt_i_j=(1.0-wx)*(1.0-wy)
-         field[1,celly,cellx] += wt_i_j*m.rho[i]
-         field[2,celly,cellx] += wt_i_j*m.eta[i]
-         weights[celly,cellx] += wt_i_j
-         #i+1,j
+         #i+1,j        
          wt_i1_j = (1.0-wx)*(wy)
-         field[1,celly+1,cellx] += wt_i1_j*m.rho[i]
-         field[2,celly+1,cellx] += wt_i1_j*m.eta[i]
-         weights[celly+1,cellx] += wt_i1_j
          #i,j+1
          wt_i_j1 = (wx)*(1.0-wy)
-         field[1,celly,cellx+1] += wt_i_j1*m.rho[i]
-         field[2,celly,cellx+1] += wt_i_j1*m.eta[i]
-         weights[celly,cellx+1] += wt_i_j1
          #i+1,j+1
          wt_i1_j1 = (wx)*(wy)
-         field[1,celly+1,cellx+1] += wt_i1_j1*m.rho[i]
-         field[2,celly+1,cellx+1] += wt_i1_j1*m.eta[i]
+        
+         
+         field[celly,cellx] += wt_i_j*markerfield[i]
+         field[celly+1,cellx] += wt_i1_j*markerfield[i]
+         field[celly,cellx+1] += wt_i_j1*markerfield[i]
+         field[celly+1,cellx+1] += wt_i1_j1*markerfield[i]
+
+         weights[celly,cellx] += wt_i_j
+         weights[celly+1,cellx] += wt_i1_j
+         weights[celly,cellx+1] += wt_i_j1
          weights[celly+1,cellx+1] += wt_i1_j1       
     end
-    field[1,:,:] = field[1,:,:] ./ weights
-    field[2,:,:] = field[2,:,:] ./ weights
     
-    return field[1,:,:],field[2,:,:]
+    field = field ./ weights
+        
+    return field
+end
+
+function marker_to_basic_node(m::Markers,grid::CartesianGrid,fieldnames)
+    # move quantities from the markers to the basic nodes.
+    # currently moves rho and eta.
+    # returns rho, eta, each as a ny-by-nx matrix
+    nfields = length(fieldnames)
+    
+    markerfields = [getfield(m,tmp) for tmp in fieldnames]
+    
+    weights = zeros(Float64,grid.ny,grid.nx)
+    field = zeros(Float64,nfields,grid.ny,grid.nx)
+    # loop over the markers
+    for i in 1:m.nmark
+       # calculate weights for four surrounding basic nodes
+         cellx::Int = m.cell[1,i]
+         celly::Int = m.cell[2,i]
+         wx = (m.x[1,i] - grid.x[cellx])/(grid.x[cellx+1]-grid.x[cellx]) # mdx/dx
+         wy = (m.x[2,i] - grid.y[celly])/(grid.y[celly+1]-grid.y[celly])
+         #i,j
+         wt_i_j=(1.0-wx)*(1.0-wy)
+         #i+1,j        
+         wt_i1_j = (1.0-wx)*(wy)
+         #i,j+1
+         wt_i_j1 = (wx)*(1.0-wy)
+         #i+1,j+1
+         wt_i1_j1 = (wx)*(wy)
+        
+         for k in 1:nfields
+             field[k,celly,cellx] += wt_i_j*markerfields[k][i]
+             field[k,celly+1,cellx] += wt_i1_j*markerfields[k][i]
+             field[k,celly,cellx+1] += wt_i_j1*markerfields[k][i]
+             field[k,celly+1,cellx+1] += wt_i1_j1*markerfields[k][i]
+        end
+         weights[celly,cellx] += wt_i_j
+         weights[celly+1,cellx] += wt_i1_j
+         weights[celly,cellx+1] += wt_i_j1
+         weights[celly+1,cellx+1] += wt_i1_j1       
+    end
+    for k in 1:nfields
+        field[k,:,:] = field[k,:,:] ./ weights
+    end
+    
+    return field
+end
+
+function basic_node_to_markers!(m::Markers,grid::CartesianGrid,field::Matrix,mfield::Symbol)
+    Threads.@threads for i in 1:m.nmark
+        cellx = m.cell[1,i]
+        celly = m.cell[2,i]
+        wx::Float64 = (m.x[1,i] - grid.x[cellx])/(grid.x[cellx+1]-grid.x[cellx]) # mdx/dx
+        wy::Float64 = (m.x[2,i] - grid.y[celly])/(grid.y[celly+1]-grid.y[celly])
+        
+        getfield(m,mfield)[i] = (1.0-wx)*(1.0-wy)*field[celly,cellx] +
+            + (wx)*(1.0-wy)*field[celly,cellx+1] +
+            + (1.0-wx)*(wy)*field[celly+1,cellx] +
+            + (wx)*(wy)*field[celly+1,cellx+1]
+    end
+end
+
+function basic_node_to_markers!(m::Markers,grid::CartesianGrid,field::Matrix,mfield::Array{Float64,1})
+    Threads.@threads for i in 1:m.nmark
+        cellx = m.cell[1,i]
+        celly = m.cell[2,i]
+        wx::Float64 = (m.x[1,i] - grid.x[cellx])/(grid.x[cellx+1]-grid.x[cellx]) # mdx/dx
+        wy::Float64 = (m.x[2,i] - grid.y[celly])/(grid.y[celly+1]-grid.y[celly])
+        
+        mfield[i] = (1.0-wx)*(1.0-wy)*field[celly,cellx] +
+            + (wx)*(1.0-wy)*field[celly,cellx+1] +
+            + (1.0-wx)*(wy)*field[celly+1,cellx] +
+            + (wx)*(wy)*field[celly+1,cellx+1]
+    end
+end
+
+
+function basic_node_change_to_markers!(m::Markers,grid::CartesianGrid,field::Matrix,mfield::Symbol)
+    Threads.@threads for i in 1:m.nmark
+        cellx = m.cell[1,i]
+        celly = m.cell[2,i]
+        wx::Float64 = (m.x[1,i] - grid.x[cellx])/(grid.x[cellx+1]-grid.x[cellx]) # mdx/dx
+        wy::Float64 = (m.x[2,i] - grid.y[celly])/(grid.y[celly+1]-grid.y[celly])
+        
+        getfield(m,mfield)[i] += (1.0-wx)*(1.0-wy)*field[celly,cellx] +
+            + (wx)*(1.0-wy)*field[celly,cellx+1] +
+            + (1.0-wx)*(wy)*field[celly+1,cellx] +
+            + (wx)*(wy)*field[celly+1,cellx+1]
+    end
 end
 
 function basic_node_to_markers!(m::Markers,grid::CartesianGrid,field::Matrix)
