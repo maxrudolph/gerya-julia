@@ -182,6 +182,43 @@ function marker_to_cell_center(m::Markers,grid::CartesianGrid,fieldnames)
     return field
 end
 
+function marker_to_cell_center(m::Markers,grid::CartesianGrid,markerfield::Array{Float64,1})
+    # markerfields will be indices into the 'scalars' array
+    weights = zeros(Float64,grid.ny,grid.nx)
+    field = zeros(Float64,grid.ny,grid.nx)
+    # loop over the markers
+    for i in 1:m.nmark
+       # calculate weights for four surrounding basic nodes
+         cellx::Int =  m.cell[1,i]
+         cellx += cellx < grid.nx-1 && m.x[1,i] >= grid.xc[cellx+1] ? 1 : 0
+         celly::Int = m.cell[2,i]
+         celly += celly < grid.ny-1 && m.x[2,i] >= grid.yc[celly+1] ? 1 : 0
+        
+         wx = (m.x[1,i] - grid.xc[cellx])/(grid.xc[cellx+1]-grid.xc[cellx]) # mdx/dx
+         wy = (m.x[2,i] - grid.yc[celly])/(grid.yc[celly+1]-grid.yc[celly])
+         #i,j
+         wt_i_j=(1.0-wx)*(1.0-wy)
+         #i+1,j        
+         wt_i1_j = (1.0-wx)*(wy)
+         #i,j+1
+         wt_i_j1 = (wx)*(1.0-wy)
+         #i+1,j+1
+         wt_i1_j1 = (wx)*(wy)
+        
+         field[celly,cellx] += wt_i_j*markerfield[i]
+         field[celly+1,cellx] += wt_i1_j*markerfield[i]
+         field[celly,cellx+1] += wt_i_j1*markerfield[i]
+         field[celly+1,cellx+1] += wt_i1_j1*markerfield[i]
+
+         weights[celly,cellx] += wt_i_j
+         weights[celly+1,cellx] += wt_i1_j
+         weights[celly,cellx+1] += wt_i_j1
+         weights[celly+1,cellx+1] += wt_i1_j1       
+    end
+    field = field ./ weights    
+    return field
+end
+
 function marker_to_basic_node(m::Markers,grid::CartesianGrid,fieldnames)
     # move quantities from the markers to the basic nodes.
     # currently moves rho and eta.
