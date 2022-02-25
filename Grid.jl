@@ -7,14 +7,14 @@ struct CartesianGrid
     ny::Int
     W::Float64
     H::Float64
-    dx::Float64
-    dy::Float64
+    #dx::Float64
+    #dy::Float64
     function CartesianGrid(W::Float64,H::Float64,nx::Int,ny::Int)
         dx = W/(nx-1)
         dy = H/(ny-1)
         new(LinRange(0,W,nx),LinRange(0,H,ny),
             LinRange(0-dx/2,W+dx/2,nx+1),LinRange(0-dy/2,H+dy/2,ny+1),
-            nx,ny,W,H,W/(nx-1),H/(ny-1))
+            nx,ny,W,H)#,W/(nx-1),H/(ny-1))
     end
 end
 

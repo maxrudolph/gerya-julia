@@ -6,7 +6,7 @@ mutable struct Markers
     integerFields::Dict
     integers::Array{Int16,2} # note - this could be changed if larger numbers need to be stored...
 
-    nmark::Integer
+    nmark::Int64
     
     function Markers(grid::CartesianGrid,scalarFieldNames,integerFieldNames; nmx::Integer=5,nmy::Integer=5,random::Bool=false)
         N = nmx*nmy*grid.nx*grid.ny
@@ -133,6 +133,55 @@ function marker_to_basic_node(m::Markers,grid::CartesianGrid,markerfield::Array{
     return field
 end
 
+
+function marker_to_cell_center(m::Markers,grid::CartesianGrid,fieldnames)
+    # move quantities from the markers to the basic nodes.
+    # currently moves rho and eta.
+    # returns rho, eta, each as a ny-by-nx matrix
+    nfields = length(fieldnames)
+    # markerfields will be indices into the 'scalars' array
+    markerfields = [m.scalarFields[tmp] for tmp in fieldnames]
+    
+    weights = zeros(Float64,grid.ny,grid.nx)
+    field = zeros(Float64,nfields,grid.ny,grid.nx)
+    # loop over the markers
+    for i in 1:m.nmark
+       # calculate weights for four surrounding basic nodes
+         cellx::Int =  m.cell[1,i]
+         cellx += cellx < grid.nx-1 && m.x[1,i] >= grid.xc[cellx+1] ? 1 : 0
+         celly::Int = m.cell[2,i]
+         celly += celly < grid.ny-1 && m.x[2,i] >= grid.yc[celly+1] ? 1 : 0
+        
+         wx = (m.x[1,i] - grid.xc[cellx])/(grid.xc[cellx+1]-grid.xc[cellx]) # mdx/dx
+         wy = (m.x[2,i] - grid.yc[celly])/(grid.yc[celly+1]-grid.yc[celly])
+         #i,j
+         wt_i_j=(1.0-wx)*(1.0-wy)
+         #i+1,j        
+         wt_i1_j = (1.0-wx)*(wy)
+         #i,j+1
+         wt_i_j1 = (wx)*(1.0-wy)
+         #i+1,j+1
+         wt_i1_j1 = (wx)*(wy)
+        
+         for k in 1:nfields
+             kp = markerfields[k]
+             field[k,celly,cellx] += wt_i_j*m.scalars[kp,i]
+             field[k,celly+1,cellx] += wt_i1_j*m.scalars[kp,i]
+             field[k,celly,cellx+1] += wt_i_j1*m.scalars[kp,i]
+             field[k,celly+1,cellx+1] += wt_i1_j1*m.scalars[kp,i]
+         end
+         weights[celly,cellx] += wt_i_j
+         weights[celly+1,cellx] += wt_i1_j
+         weights[celly,cellx+1] += wt_i_j1
+         weights[celly+1,cellx+1] += wt_i1_j1       
+    end
+    for k in 1:nfields
+        field[k,:,:] = field[k,:,:] ./ weights
+    end
+    
+    return field
+end
+
 function marker_to_basic_node(m::Markers,grid::CartesianGrid,fieldnames)
     # move quantities from the markers to the basic nodes.
     # currently moves rho and eta.
@@ -165,7 +214,7 @@ function marker_to_basic_node(m::Markers,grid::CartesianGrid,fieldnames)
              field[k,celly+1,cellx] += wt_i1_j*m.scalars[kp,i]
              field[k,celly,cellx+1] += wt_i_j1*m.scalars[kp,i]
              field[k,celly+1,cellx+1] += wt_i1_j1*m.scalars[kp,i]
-        end
+         end
          weights[celly,cellx] += wt_i_j
          weights[celly+1,cellx] += wt_i1_j
          weights[celly,cellx+1] += wt_i_j1
@@ -177,6 +226,8 @@ function marker_to_basic_node(m::Markers,grid::CartesianGrid,fieldnames)
     
     return field
 end
+
+
 
 function basic_node_to_markers!(m::Markers,grid::CartesianGrid,field::Matrix,mfield::String)
     k = m.scalarFields[mfield]
