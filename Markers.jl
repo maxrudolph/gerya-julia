@@ -480,7 +480,7 @@ function velocity_to_markers(m::Markers,grid::CartesianGrid,vxc::Matrix,vyc::Mat
     # This function expects the velocities to be defined at the cell centers. vxc and vyc should each have
     # an 'extra' column and row corresponding to the ghost degrees of freedom that are needed to interpolate
     # velocities along the bottom and left of the domain.
-    mvx,mvy = velocity_to_points(m.x,m.cell,grid,vxc,vyc;N=markers.nmark)
+    mvx,mvy = velocity_to_points(m.x,m.cell,grid,vxc,vyc;N=m.nmark)
     return mvx,mvy
 end
 
