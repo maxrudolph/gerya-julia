@@ -23,8 +23,10 @@ function form_stokes(grid::CartesianGrid,eta_s::Matrix,eta_n::Matrix,rho::Matrix
     row_index = zeros(Int64,nnz) # up to 5 nonzeros per row
     col_index = zeros(Int64,nnz) 
     value = zeros(Float64, nnz)
-    kcont = 2*eta_s[1,1]/(grid.dx+grid.dy)# scaling factor for continuity equation
-    kcont = 1e20/(grid.dx+grid.dy)*2
+    dx = grid.W/(grid.nx-1)
+    dy = grid.H/(grid.ny-1)
+    kcont = 2*eta_s[1,1]/(dx+dy)# scaling factor for continuity equation
+    kcont = 1e20/(dx+dy)*2
     kbond = 1.# scaling factor for dirichlet bc equations.
 
     R=zeros(3*nn,1)

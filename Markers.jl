@@ -142,15 +142,15 @@ function marker_to_cell_center(m::Markers,grid::CartesianGrid,fieldnames)
     # markerfields will be indices into the 'scalars' array
     markerfields = [m.scalarFields[tmp] for tmp in fieldnames]
     
-    weights = zeros(Float64,grid.ny,grid.nx)
-    field = zeros(Float64,nfields,grid.ny,grid.nx)
+    weights = zeros(Float64,grid.ny+1,grid.nx+1)
+    field = zeros(Float64,nfields,grid.ny+1,grid.nx+1)
     # loop over the markers
     for i in 1:m.nmark
        # calculate weights for four surrounding basic nodes
          cellx::Int =  m.cell[1,i]
-         cellx += cellx < grid.nx-1 && m.x[1,i] >= grid.xc[cellx+1] ? 1 : 0
+         cellx += cellx < grid.nx && m.x[1,i] >= grid.xc[cellx+1] ? 1 : 0
          celly::Int = m.cell[2,i]
-         celly += celly < grid.ny-1 && m.x[2,i] >= grid.yc[celly+1] ? 1 : 0
+         celly += celly < grid.ny && m.x[2,i] >= grid.yc[celly+1] ? 1 : 0
         
          wx = (m.x[1,i] - grid.xc[cellx])/(grid.xc[cellx+1]-grid.xc[cellx]) # mdx/dx
          wy = (m.x[2,i] - grid.yc[celly])/(grid.yc[celly+1]-grid.yc[celly])
@@ -184,15 +184,15 @@ end
 
 function marker_to_cell_center(m::Markers,grid::CartesianGrid,markerfield::Array{Float64,1})
     # markerfields will be indices into the 'scalars' array
-    weights = zeros(Float64,grid.ny,grid.nx)
-    field = zeros(Float64,grid.ny,grid.nx)
+    weights = zeros(Float64,grid.ny+1,grid.nx+1)
+    field = zeros(Float64,grid.ny+1,grid.nx+1)
     # loop over the markers
     for i in 1:m.nmark
        # calculate weights for four surrounding basic nodes
          cellx::Int =  m.cell[1,i]
-         cellx += cellx < grid.nx-1 && m.x[1,i] >= grid.xc[cellx+1] ? 1 : 0
+         cellx += cellx < grid.nx && m.x[1,i] >= grid.xc[cellx+1] ? 1 : 0
          celly::Int = m.cell[2,i]
-         celly += celly < grid.ny-1 && m.x[2,i] >= grid.yc[celly+1] ? 1 : 0
+         celly += celly < grid.ny && m.x[2,i] >= grid.yc[celly+1] ? 1 : 0
         
          wx = (m.x[1,i] - grid.xc[cellx])/(grid.xc[cellx+1]-grid.xc[cellx]) # mdx/dx
          wy = (m.x[2,i] - grid.yc[celly])/(grid.yc[celly+1]-grid.yc[celly])
@@ -295,6 +295,65 @@ function basic_node_to_markers!(m::Markers,grid::CartesianGrid,field::Matrix,mfi
     end
 end
 
+function cell_center_to_markers!(m::Markers,grid::CartesianGrid,field::Matrix,mfield::Array{Float64,1})
+    if size(field,1) == grid.nx+1
+        cellx_max = grid.nx
+    else
+        cellx_max = grid.nx-1
+    end
+    if size(field,2) == grid.ny+1
+        celly_max = grid.ny
+    else
+        celly_max = grid.ny-1
+    end
+    
+    Threads.@threads for i in 1:m.nmark
+        cellx = m.cell[1,i]
+        celly = m.cell[2,i]
+        
+        cellx += cellx < cellx_max && m.x[1,i] >= grid.xc[cellx+1] ? 1 : 0
+        celly::Int = m.cell[2,i]
+        celly += celly < celly_max && m.x[2,i] >= grid.yc[celly+1] ? 1 : 0
+        
+        wx::Float64 = (m.x[1,i] - grid.xc[cellx])/(grid.xc[cellx+1]-grid.xc[cellx]) # mdx/dx
+        wy::Float64 = (m.x[2,i] - grid.yc[celly])/(grid.yc[celly+1]-grid.yc[celly])
+        
+        mfield[i] = (1.0-wx)*(1.0-wy)*field[celly,cellx] +
+            + (wx)*(1.0-wy)*field[celly,cellx+1] +
+            + (1.0-wx)*(wy)*field[celly+1,cellx] +
+            + (wx)*(wy)*field[celly+1,cellx+1]
+    end
+end
+
+function cell_center_change_to_markers!(m::Markers,grid::CartesianGrid,field::Matrix,mfield::String)
+    if size(field,1) == grid.nx+1
+        cellx_max = grid.nx
+    else
+        cellx_max = grid.nx-1
+    end
+    if size(field,2) == grid.ny+1
+        celly_max = grid.ny
+    else
+        celly_max = grid.ny-1
+    end
+    k = m.scalarFields[mfield]
+    Threads.@threads for i in 1:m.nmark
+        cellx = m.cell[1,i]
+        celly = m.cell[2,i]
+        
+        cellx += cellx < cellx_max && m.x[1,i] >= grid.xc[cellx+1] ? 1 : 0
+         celly::Int = m.cell[2,i]
+         celly += celly < celly_max && m.x[2,i] >= grid.yc[celly+1] ? 1 : 0
+        
+        wx::Float64 = (m.x[1,i] - grid.xc[cellx])/(grid.xc[cellx+1]-grid.xc[cellx]) # mdx/dx
+        wy::Float64 = (m.x[2,i] - grid.yc[celly])/(grid.yc[celly+1]-grid.yc[celly])
+        
+        m.scalars[k,i] += (1.0-wx)*(1.0-wy)*field[celly,cellx] +
+            + (wx)*(1.0-wy)*field[celly,cellx+1] +
+            + (1.0-wx)*(wy)*field[celly+1,cellx] +
+            + (wx)*(wy)*field[celly+1,cellx+1]
+    end
+end
 
 function basic_node_change_to_markers!(m::Markers,grid::CartesianGrid,field::Matrix,mfield::String)
     k = m.scalarFields[mfield]
