@@ -133,6 +133,67 @@ function marker_to_basic_node(m::Markers,grid::CartesianGrid,markerfield::Array{
     return field
 end
 
+function marker_to_basic_node2(m::Markers,grid::CartesianGrid,markerfield::Array{Float64,1})
+    # move quantities from the markers to the basic nodes.
+    # currently moves rho and eta.
+    # returns rho, eta, each as a ny-by-nx matrix
+    
+    weights = zeros(Float64,grid.ny,grid.nx)
+    field = zeros(Float64,grid.ny,grid.nx)
+    # loop over the markers
+    row = Vector{Int64}(undef,4*m.nmark)
+    col = Vector{Int64}(undef,4*m.nmark)
+    val_wt = Vector{Float64}(undef,4*m.nmark)
+    val_field = Vector{Float64}(undef,4*m.nmark)
+    # idea - create an N-x-nmark sparse matrix. Compute the weights by taking the rowsum
+    for i in 1:m.nmark
+       # calculate weights for four surrounding basic nodes
+         cellx::Int = m.cell[1,i]
+         celly::Int = m.cell[2,i]
+         wx = (m.x[1,i] - grid.x[cellx])/(grid.x[cellx+1]-grid.x[cellx]) # mdx/dx
+         wy = (m.x[2,i] - grid.y[celly])/(grid.y[celly+1]-grid.y[celly])
+         #i,j
+         wt_i_j=(1.0-wx)*(1.0-wy)
+         #i+1,j        
+         wt_i1_j = (1.0-wx)*(wy)
+         #i,j+1
+         wt_i_j1 = (wx)*(1.0-wy)
+         #i+1,j+1
+         wt_i1_j1 = (wx)*(wy)
+        
+        ind = 4*(i-1) + 1
+        row[ind] = ind
+        col[ind] = node_index(celly,cellx,grid.ny)
+        val_wt[ind] = wt_i_j
+        val_field[ind] = wt_i_j*markerfield[i]
+        ind += 1
+
+        row[ind] = ind
+        col[ind] = node_index(celly+1,cellx,grid.ny)
+        val_wt[ind] = wt_i1_j
+        val_field[ind] = wt_i1_j*markerfield[i]
+        ind += 1
+
+        row[ind] = ind
+        col[ind] = node_index(celly,cellx+1,grid.ny)
+        val_wt[ind] = wt_i_j1
+        val_field[ind] = wt_i_j1*markerfield[i]
+        ind += 1
+
+        row[ind] = ind
+        col[ind] = node_index(celly+1,cellx+1,grid.ny)
+        val_wt[ind] = wt_i1_j1
+        val_field[ind] = wt_i1_j1*markerfield[i]    
+    end
+    field = sparse(row,col,val_field)
+    weights = sparse(row,col,val_wt)
+
+    field = reshape(sum(field,dims=1),grid.ny,grid.nx)
+    weights = reshape( sum(weights,dims=1),grid.ny,grid.nx)
+    field = field ./ weights
+        
+    return field
+end
 
 function marker_to_cell_center(m::Markers,grid::CartesianGrid,fieldnames)
     # move quantities from the markers to the basic nodes.
