@@ -240,8 +240,8 @@ function marker_to_basic_node2(m::Markers,grid::CartesianGrid,markerfield::Array
     field = sparse(row,col,val_field)
     weights = sparse(row,col,val_wt)
 
-    field = reshape(sum(field,dims=1),grid.ny,grid.nx)
-    weights = reshape( sum(weights,dims=1),grid.ny,grid.nx)
+    field = reshape( sum(field,dims=1), grid.ny,grid.nx)
+    weights = reshape( sum(weights,dims=1), grid.ny,grid.nx)
     field = field ./ weights
         
     return field
