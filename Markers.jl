@@ -146,7 +146,7 @@ function marker_to_basic_node2(m::Markers,grid::CartesianGrid,markerfield::Array
     val_wt = Vector{Float64}(undef,4*m.nmark)
     val_field = Vector{Float64}(undef,4*m.nmark)
     # idea - create an N-x-nmark sparse matrix. Compute the weights by taking the rowsum
-    for i in 1:m.nmark
+    Threads.@thread for i in 1:m.nmark
        # calculate weights for four surrounding basic nodes
          cellx::Int = m.cell[1,i]
          celly::Int = m.cell[2,i]
