@@ -93,6 +93,58 @@ function find_cells!(markers::Markers,grid::CartesianGrid)
     end
 end
 
+
+function marker_to_basic_node3(m::Markers,grid::CartesianGrid,markerfield::Array{Float64,1})
+    # move quantities from the markers to the basic nodes.
+    # note that this implementation is very slow, owing to the number of times that the markers need to be sorted.
+    
+    weights = zeros(Float64,grid.ny,grid.nx)
+    field = zeros(Float64,grid.ny,grid.nx)
+    
+    # begin by sorting the markers first based on x-coordinate
+    ind = sortperm( markers.x[1,1:markers.nmark] )
+
+    Threads.@threads for cellx in 1:grid.nx
+        # find the first and last indices of markers contributing to this row.
+        xmin = cellx == 1 ? grid.x[cellx] : grid.x[cellx-1]
+        xmax = cellx == grid.nx ? grid.x[cellx] : grid.x[cellx+1]
+        ind1 = searchsortedfirst(markers.x[1,ind],xmin)
+        ind2 = searchsortedlast(markers.x[1,ind],xmax)
+        
+        @views xtmp = markers.x[:,ind[ind1:ind2]]
+        @views mfield = markerfield[ind[ind1:ind2]]
+        
+        ind3 = sortperm( xtmp[2,:] )
+        @views xtmp = xtmp[:,ind3]
+        @views mfield = mfield[ind3]
+        
+        imark = 1
+        for celly = 1:grid.ny
+            ymin = celly == 1 ? grid.y[celly] : grid.y[celly-1]
+            ymax = celly == grid.ny ? grid.y[celly] : grid.y[celly+1]
+            ind4 = searchsortedfirst(xtmp[2,:],ymin)
+            ind5 = searchsortedlast(xtmp[2,:],ymax)
+            ftmp = 0.0
+            wtmp = 0.0
+            for imark in ind4:ind5
+                gdx = xtmp[1,imark] < grid.x[cellx] ? grid.x[cellx] - grid.x[cellx-1] : grid.x[cellx+1] - grid.x[cellx]
+                gdy = xtmp[2,imark] < grid.y[celly] ? grid.y[celly] - grid.y[celly-1] : grid.y[celly+1] - grid.y[celly]
+                wx = abs(xtmp[1,imark] - grid.x[cellx])/(gdx) # mdx/dx
+                wy = abs(xtmp[2,imark] - grid.y[celly])/(gdy)
+                wt_i_j=(1.0-wx)*(1.0-wy)
+                ftmp += wt_i_j*mfield[imark]
+                wtmp += wt_i_j
+            end
+            field[celly,cellx] += ftmp
+            weights[celly,cellx] += wtmp
+        end
+    end
+    
+    field = field ./ weights
+        
+    return field
+end
+
 function marker_to_basic_node(m::Markers,grid::CartesianGrid,markerfield::Array{Float64,1})
     # move quantities from the markers to the basic nodes.
     # currently moves rho and eta.
