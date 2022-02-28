@@ -1,7 +1,7 @@
-node_index(i::Int,j::Int,ny::Int) = ny*(j-1)+i
-vxdof(i::Int,j::Int,ny::Int) = 3*(node_index(i,j,ny)-1)+1
-vydof(i::Int,j::Int,ny::Int) = 3*(node_index(i,j,ny)-1)+2
-pdof( i::Int,j::Int,ny::Int) = 3*(node_index(i,j,ny)-1)+3
+@inline node_index(i::Int,j::Int,ny::Int) = ny*(j-1)+i
+@inline vxdof(i::Int,j::Int,ny::Int) = 3*(node_index(i,j,ny)-1)+1
+@inline vydof(i::Int,j::Int,ny::Int) = 3*(node_index(i,j,ny)-1)+2
+@inline pdof( i::Int,j::Int,ny::Int) = 3*(node_index(i,j,ny)-1)+3
 
 struct BoundaryConditions
     # The intent here is that each boundary gets a flag
