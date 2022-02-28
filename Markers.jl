@@ -1,3 +1,9 @@
+#
+#
+#     DEFINITIONS OF MARKERS AND ROUTINES FOR LOCATING THEM
+#
+#
+
 mutable struct Markers    
     x::Array{Float64,2}
     cell::Array{Int64,2}
@@ -54,11 +60,11 @@ mutable struct Markers
     end
 end
 
-function find_cell(x::Float64,gridx::Vector{Float64},nx::Int ; guess::Integer=nothing)
+function find_cell(x::Float64,gridx::Vector{Float64},nx::Int64 ; guess::Int64=nothing)
     # find the cell in the array gridx that contains the current marker
     # first, see whether the initial guess is correct.
-    lower::Int = 1
-    upper::Int = nx
+    lower::Int64 = 1
+    upper::Int64 = nx
     if guess != nothing && guess >= 1 && guess < nx
         if x >= gridx[guess] && x < gridx[guess+1]
             return guess            
@@ -93,6 +99,13 @@ function find_cells!(markers::Markers,grid::CartesianGrid)
     end
 end
 
+
+#
+#
+#     ROUTINES RELATED TO MARKERS -> NODES
+#
+#
+
 function marker_to_basic_node(m::Markers,grid::CartesianGrid,markerfield::Array{Float64,2})
      # move quantities from the markers to the basic nodes.
      # currently moves rho and eta.
@@ -100,7 +113,7 @@ function marker_to_basic_node(m::Markers,grid::CartesianGrid,markerfield::Array{
      nfield = size(markerfield,1);
 
      weights = zeros(Float64,grid.ny,grid.nx)
-     field = zeros(Float64,nfield,grid.ny,grid.nx)
+     field = zeros(Float64,grid.ny,grid.nx,nfield)
      # loop over the markers
      for i in 1:m.nmark
         # calculate weights for four surrounding basic nodes
@@ -118,10 +131,10 @@ function marker_to_basic_node(m::Markers,grid::CartesianGrid,markerfield::Array{
           wt_i1_j1 = (wx)*(wy)
 
           for k in 1:nfield
-              field[k,celly,cellx] += wt_i_j*markerfield[k,i]
-              field[k,celly+1,cellx] += wt_i1_j*markerfield[k,i]
-              field[k,celly,cellx+1] += wt_i_j1*markerfield[k,i]
-              field[k,celly+1,cellx+1] += wt_i1_j1*markerfield[k,i]
+              field[celly,cellx,k] += wt_i_j*markerfield[k,i]
+              field[celly+1,cellx,k] += wt_i1_j*markerfield[k,i]
+              field[celly,cellx+1,k] += wt_i_j1*markerfield[k,i]
+              field[celly+1,cellx+1,k] += wt_i1_j1*markerfield[k,i]
           end
           weights[celly,cellx] += wt_i_j
           weights[celly+1,cellx] += wt_i1_j
@@ -129,78 +142,9 @@ function marker_to_basic_node(m::Markers,grid::CartesianGrid,markerfield::Array{
           weights[celly+1,cellx+1] += wt_i1_j1       
      end
     
-     return [field[k,:,:]./weights for k in 1:nfield ]
+     return [field[:,:,k]./weights for k in 1:nfield]
  end
 
-# function marker_to_basic_node2(m::Markers,grid::CartesianGrid,markerfield::Array{Float64,2})
-#     # move quantities from the markers to the basic nodes.
-#     # currently moves rho and eta.
-#     # returns rho, eta, each as a ny-by-nx matrix
-#     if size(markerfield,1) > 1 && size(markerfield,2) == 1
-#         markerfield = reshape(markerfield,1,size(markerfield,1))
-#         nfield=1
-#     else
-#         nfield = size(markerfield,1)
-#     end
-    
-#     # loop over the markers
-#     row = Vector{Int64}(undef,4*m.nmark)
-#     col = Vector{Int64}(undef,4*m.nmark)
-#     val_wt = Vector{Float64}(undef,4*m.nmark)
-#     val_field = Array{Float64,2}(undef,nfield,4*m.nmark)
-    
-#     # idea - create an N-x-nmark sparse matrix. Compute the weights by taking the rowsum    
-#     Threads.@threads for i in 1:m.nmark
-#        # calculate weights for four surrounding basic nodes
-#          local cellx::Int64 = m.cell[1,i]
-#          local celly::Int64 = m.cell[2,i]
-#          local wx::Float64 = (m.x[1,i] - grid.x[cellx])/(grid.x[cellx+1]-grid.x[cellx]) # mdx/dx
-#          local wy::Float64 = (m.x[2,i] - grid.y[celly])/(grid.y[celly+1]-grid.y[celly])
-#          #i,j
-#          local wt_i_j::Float64=(1.0-wx)*(1.0-wy)
-#          #i+1,j        
-#          local wt_i1_j::Float64 = (1.0-wx)*(wy)
-#          #i,j+1
-#          local wt_i_j1::Float64 = (wx)*(1.0-wy)
-#          #i+1,j+1
-#          local wt_i1_j1::Float64 = (wx)*(wy)
-
-#          local ind::Int64 = 4*(i-1) + 1
-#         row[ind] = ind
-#         col[ind] = node_index(celly,cellx,grid.ny)
-#         val_wt[ind] = wt_i_j
-
-#         row[ind+1] = ind
-#         col[ind+1] = node_index(celly+1,cellx,grid.ny)
-#         val_wt[ind+1] = wt_i1_j
-
-#         row[ind+2] = ind
-#         col[ind+2] = node_index(celly,cellx+1,grid.ny)
-#         val_wt[ind+2] = wt_i_j1
-
-#         row[ind+3] = ind
-#         col[ind+3] = node_index(celly+1,cellx+1,grid.ny)
-#         val_wt[ind+3] = wt_i1_j1
-#         for k in 1:nfield
-#             val_field[k,ind] = wt_i_j*markerfield[k,i]
-#             val_field[k,ind+1] = wt_i1_j*markerfield[k,i]
-#             val_field[k,ind+2] = wt_i_j1*markerfield[k,i]
-#             val_field[k,ind+3] = wt_i1_j1*markerfield[k,i]    
-#         end
-#     end
-#     fields = [ sum( sparse(row,col,@views val_field[k,:]),dims=1) for k in 1:nfield ];
-#     weights = sparse(row,col,val_wt)
-
-#     wtsum = sum(weights,dims=1)
-#     for k in 1:nfield
-#         fields[k] = reshape(fields[k] ./ wtsum,grid.ny,grid.nx)
-#     end
-#     if nfield == 1
-#         return fields[1]
-#     else
-#         return fields
-#     end
-# end
 
 function marker_to_cell_center(m::Markers,grid::CartesianGrid,fieldnames::Vector{String})
     # move a list of fields (given as a list of strings in fieldnames) from markers to cell centers.
@@ -210,85 +154,15 @@ function marker_to_cell_center(m::Markers,grid::CartesianGrid,fieldnames::Vector
     return marker_to_cell_center(m,grid,m.scalars[markerfields,:])
 end
 
-# function marker_to_cell_center2(m::Markers,grid::CartesianGrid,markerfield::Array{Float64})    
-#     if size(markerfield,1) > 1 && size(markerfield,2) == 1
-#         markerfield = reshape(markerfield,1,size(markerfield,1))
-#         nfield=1
-#     else
-#         nfield = size(markerfield,1)
-#     end
-    
-#     # loop over the markers
-#     row = Vector{Int64}(undef,4*m.nmark)
-#     col = Vector{Int64}(undef,4*m.nmark)
-#     val_wt = Vector{Float64}(undef,4*m.nmark)
-#     val_field = Array{Float64,2}(undef,nfield,4*m.nmark)
-    
-#     # loop over the markers
-#     Threads.@threads for i in 1:m.nmark
-#        # calculate weights for four surrounding basic nodes
-#          cellx::Int64 =  m.cell[1,i]
-#          cellx += cellx < grid.nx && m.x[1,i] >= grid.xc[cellx+1] ? 1 : 0
-#          celly::Int64 = m.cell[2,i]
-#          celly += celly < grid.ny && m.x[2,i] >= grid.yc[celly+1] ? 1 : 0
-        
-#          local wx::Float64 = (m.x[1,i] - grid.xc[cellx])/(grid.xc[cellx+1]-grid.xc[cellx]) # mdx/dx
-#          local wy::Float64 = (m.x[2,i] - grid.yc[celly])/(grid.yc[celly+1]-grid.yc[celly])
-#          #i,j
-#          local wt_i_j::Float64=(1.0-wx)*(1.0-wy)
-#          #i+1,j        
-#          local wt_i1_j::Float64 = (1.0-wx)*(wy)
-#          #i,j+1
-#          local wt_i_j1::Float64 = (wx)*(1.0-wy)
-#          #i+1,j+1
-#          local wt_i1_j1::Float64 = (wx)*(wy)
-        
-#          local ind::Int64 = 4*(i-1) + 1
-#          local cell_ind::Int64 = celly + (cellx-1)*(grid.ny+1)
-        
-#          row[ind] = ind
-#         col[ind] = cell_ind; #node_index(celly,cellx,grid.ny)
-#         val_wt[ind] = wt_i_j
-
-#         row[ind+1] = ind
-#         col[ind+1] = cell_ind + 1 #node_index(celly+1,cellx,grid.ny)
-#         val_wt[ind+1] = wt_i1_j
-
-#         row[ind+2] = ind
-#         col[ind+2] = cell_ind+grid.ny+1 # node_index(celly,cellx+1,grid.ny)
-#         val_wt[ind+2] = wt_i_j1
-
-#         row[ind+3] = ind
-#         col[ind+3] = cell_ind+grid.ny+2 # node_index(celly+1,cellx+1,grid.ny)
-#         val_wt[ind+3] = wt_i1_j1
-#         for k in 1:nfield
-#             val_field[k,ind] = wt_i_j*markerfield[k,i]
-#             val_field[k,ind+1] = wt_i1_j*markerfield[k,i]
-#             val_field[k,ind+2] = wt_i_j1*markerfield[k,i]
-#             val_field[k,ind+3] = wt_i1_j1*markerfield[k,i]    
-#         end                   
-#     end
-    
-#     fields = [ sum( sparse(row,col,@views val_field[k,:]),dims=1) for k in 1:nfield ];
-#     weights = sparse(row,col,val_wt)
-
-#     wtsum = sum(weights,dims=1)
-#     for k in 1:nfield
-#         fields[k] = reshape(fields[k] ./ wtsum,grid.ny+1,grid.nx+1)
-#     end
-#     if nfield == 1
-#         return fields[1]
-#     else
-#         return fields
-#     end
-# end
-
-
 function marker_to_cell_center(m::Markers,grid::CartesianGrid,markerfield::Array{Float64,2})
     # markerfields will be indices into the 'scalars' array
+
+    # loop over the markers    
+    nfield = size(markerfield,1);
+
     weights = zeros(Float64,grid.ny+1,grid.nx+1)
-    field = zeros(Float64,grid.ny+1,grid.nx+1)
-    # loop over the markers
+    field = zeros(Float64,grid.ny+1,grid.nx+1,nfield)
+    
     for i in 1:m.nmark
        # calculate weights for four surrounding basic nodes
          cellx::Int64 =  m.cell[1,i]
@@ -307,18 +181,19 @@ function marker_to_cell_center(m::Markers,grid::CartesianGrid,markerfield::Array
          #i+1,j+1
          wt_i1_j1 = (wx)*(wy)
         
-         field[celly,cellx] += wt_i_j*markerfield[i]
-         field[celly+1,cellx] += wt_i1_j*markerfield[i]
-         field[celly,cellx+1] += wt_i_j1*markerfield[i]
-         field[celly+1,cellx+1] += wt_i1_j1*markerfield[i]
-
+         for k in 1:nfield
+             field[celly,cellx,k] += wt_i_j*markerfield[k,i]
+             field[celly+1,cellx,k] += wt_i1_j*markerfield[k,i]
+             field[celly,cellx+1,k] += wt_i_j1*markerfield[k,i]
+             field[celly+1,cellx+1,k] += wt_i1_j1*markerfield[k,i]
+        end
          weights[celly,cellx] += wt_i_j
          weights[celly+1,cellx] += wt_i1_j
          weights[celly,cellx+1] += wt_i_j1
          weights[celly+1,cellx+1] += wt_i1_j1       
     end
-    field = field ./ weights    
-    return field
+
+    return [field[:,:,k]./weights for k in 1:nfield]
 end
 
 function marker_to_basic_node(m::Markers,grid::CartesianGrid,fieldnames::Vector{String})
@@ -328,11 +203,16 @@ function marker_to_basic_node(m::Markers,grid::CartesianGrid,fieldnames::Vector{
     # markerfields will be indices into the 'scalars' array
     markerfields = [m.scalarFields[tmp] for tmp in fieldnames]
     
-    fields = marker_to_basic_node(m,grid, m.scalars[markerfields,:] )
-    return fields
+    return marker_to_basic_node(m,grid, m.scalars[markerfields,:] )
 end
 
-function basic_node_to_markers!(m::Markers,grid::CartesianGrid,field::Matrix,mfield::String)
+#
+#
+#     ROUTINES RELATED TO NODES -> MARKER
+#
+#
+
+function basic_node_to_markers!(m::Markers,grid::CartesianGrid,field::Matrix{Float64},mfield::String)
     k = m.scalarFields[mfield]
     Threads.@threads for i in 1:m.nmark
         cellx = m.cell[1,i]
@@ -361,7 +241,7 @@ function basic_node_to_markers!(m::Markers,grid::CartesianGrid,field::Matrix,mfi
     end
 end
 
-function cell_center_to_markers!(m::Markers,grid::CartesianGrid,field::Matrix,mfield::Array{Float64,1})
+function cell_center_to_markers!(m::Markers,grid::CartesianGrid,field::Matrix,mfield::Array{Float64,2})
     if size(field,1) == grid.nx+1
         cellx_max = grid.nx
     else
@@ -384,7 +264,7 @@ function cell_center_to_markers!(m::Markers,grid::CartesianGrid,field::Matrix,mf
         wx::Float64 = (m.x[1,i] - grid.xc[cellx])/(grid.xc[cellx+1]-grid.xc[cellx]) # mdx/dx
         wy::Float64 = (m.x[2,i] - grid.yc[celly])/(grid.yc[celly+1]-grid.yc[celly])
         
-        mfield[i] = (1.0-wx)*(1.0-wy)*field[celly,cellx] +
+        mfield[1,i] = (1.0-wx)*(1.0-wy)*field[celly,cellx] +
             + (wx)*(1.0-wy)*field[celly,cellx+1] +
             + (1.0-wx)*(wy)*field[celly+1,cellx] +
             + (wx)*(wy)*field[celly+1,cellx+1]
@@ -450,7 +330,7 @@ end
 #     end
 # end
 
-function viscosity_to_cell_centers(grid::CartesianGrid,etas::Matrix)
+function viscosity_to_cell_centers(grid::CartesianGrid,etas::Matrix{Float64})
     # compute the harmonic average of the viscosities at the nodal points
    etan = zeros(grid.ny,grid.nx)
     for i in 2:grid.ny
@@ -461,7 +341,7 @@ function viscosity_to_cell_centers(grid::CartesianGrid,etas::Matrix)
     return etan
 end
 
-function velocity_to_centers(grid::CartesianGrid,vx::Matrix,vy::Matrix)
+function velocity_to_centers(grid::CartesianGrid,vx::Matrix{Float64},vy::Matrix{Float64})
     # compute vx and vy at cell centers
      vxc = zeros(grid.ny+1,grid.nx+1);
      vyc = zeros(grid.ny+1,grid.nx+1);
@@ -503,7 +383,7 @@ function velocity_to_centers(grid::CartesianGrid,vx::Matrix,vy::Matrix)
     return vxc,vyc
 end
 
-function velocity_to_basic_nodes(grid::CartesianGrid,vxc::Matrix,vyc::Matrix)
+function velocity_to_basic_nodes(grid::CartesianGrid,vxc::Matrix{Float64},vyc::Matrix{Float64})
     # this gets the velocity in a format suitable for visualization.
     # NOTE - performs a transpose on the grid!!!
     vn = Array{Float64,3}(undef,2,grid.nx,grid.ny)
@@ -516,7 +396,7 @@ function velocity_to_basic_nodes(grid::CartesianGrid,vxc::Matrix,vyc::Matrix)
     return vn
 end
 
-function velocity_to_points(x::Matrix,cell::Matrix,grid::CartesianGrid,vxc::Matrix,vyc::Matrix;N::Int=-1)
+function velocity_to_points(x::Matrix,cell::Matrix,grid::CartesianGrid,vxc::Matrix{Float64},vyc::Matrix{Float64};N::Int64=-1)
     # compute velocity at N points given in x (2-by-N)
     # cell should contain the cells in which the points are located (2-by-N)
     # this routine assumes that the velocity (vxc and vyc) is defined at the cell centers
@@ -564,7 +444,7 @@ function move_markers!(markers::Markers,grid::CartesianGrid,vxc::Matrix,vyc::Mat
     return dt
 end
 
-function move_markers_rk2!(markers::Markers,grid::CartesianGrid,vxc::Matrix,vyc::Matrix,dt::Float64)
+function move_markers_rk2!(markers::Markers,grid::CartesianGrid,vxc::Matrix{Float64},vyc::Matrix{Float64},dt::Float64)
     # move the markers using the 2nd-order Runge-Kutta algorithm.
     # compute velocities for each marker at current position
     mvx,mvy = velocity_to_markers(markers,grid,vxc,vyc)
@@ -575,7 +455,7 @@ function move_markers_rk2!(markers::Markers,grid::CartesianGrid,vxc::Matrix,vyc:
         xB[2,i] = markers.x[2,i] + dt/2*mvy[i]
     end
     # re-locate markers, which may now be in a different cell.
-    cell = copy(markers.cell)
+    cell::Matrix{Int64} = copy(markers.cell)
     Threads.@threads for i in 1:markers.nmark
         cell[1,i] = find_cell(xB[1,i], grid.x, grid.nx, guess=cell[1,i])
         cell[2,i] = find_cell(xB[2,i], grid.y, grid.ny, guess=cell[2,i])
@@ -583,10 +463,10 @@ function move_markers_rk2!(markers::Markers,grid::CartesianGrid,vxc::Matrix,vyc:
     # compute velocity at xB
     mvx,mvy = velocity_to_points(xB,cell,grid,vxc,vyc)
     # Move the markers using the velocity at xB.
-    Threads.@threads for i in 1:markers.nmark
-        markers.x[1,i] += dt*mvx[i]
-        markers.x[2,i] += dt*mvy[i]
-    end
+     Threads.@threads for i in 1:markers.nmark
+         markers.x[1,i] += dt*mvx[i]
+         markers.x[2,i] += dt*mvy[i]
+     end    
     # re-locate markers in their new cells.
     find_cells!(markers,grid)
 end
