@@ -1,10 +1,10 @@
 struct CartesianGrid
-    x::Vector
-    y::Vector
-    xc::Vector
-    yc::Vector
-    nx::Int
-    ny::Int
+    x::Array{Float64,1}
+    y::Array{Float64,1}
+    xc::Array{Float64,1}
+    yc::Array{Float64,1}
+    nx::Int64
+    ny::Int64
     W::Float64
     H::Float64
     #dx::Float64
