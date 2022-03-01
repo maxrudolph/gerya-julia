@@ -447,10 +447,10 @@ end
 function move_markers_rk2!(markers::Markers,grid::CartesianGrid,vxc::Matrix{Float64},vyc::Matrix{Float64},dt::Float64)
     # move the markers using the 2nd-order Runge-Kutta algorithm.
     # compute velocities for each marker at current position
-    mvx,mvy = velocity_to_markers(markers,grid,vxc,vyc)
+    mvx::Vector{Float64}, mvy::Vector{Float64} = velocity_to_markers(markers,grid,vxc,vyc)
     # compute marker location at xA, xB
     xB = Array{Float64,2}(undef,2,markers.nmark)
-    Threads.@threads for i in 1:markers.nmark
+    for i in 1:markers.nmark
         xB[1,i] = markers.x[1,i] + dt/2*mvx[i]
         xB[2,i] = markers.x[2,i] + dt/2*mvy[i]
     end
@@ -461,9 +461,9 @@ function move_markers_rk2!(markers::Markers,grid::CartesianGrid,vxc::Matrix{Floa
         cell[2,i] = find_cell(xB[2,i], grid.y, grid.ny, guess=cell[2,i])
     end
     # compute velocity at xB
-    mvx,mvy = velocity_to_points(xB,cell,grid,vxc,vyc)
+    mvx, mvy = velocity_to_points(xB,cell,grid,vxc,vyc)
     # Move the markers using the velocity at xB.
-     Threads.@threads for i in 1:markers.nmark
+     for i in 1:markers.nmark
          markers.x[1,i] += dt*mvx[i]
          markers.x[2,i] += dt*mvy[i]
      end    
