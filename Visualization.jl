@@ -1,4 +1,5 @@
-function visualization(grid::CartesianGrid,rho::Matrix,eta::Matrix,vn::Array{Float64},time ; filename="test.vts")
+
+function visualization(grid::CartesianGrid,rho::Matrix,eta::Matrix,vn::Array{Float64},pressure::Matrix,temperature::Matrix,time ; filename="test.vts")
     # write the visualization output from the regular grid as a .vts file.
     vtk_grid(filename, grid.x, grid.y) do vtk
         vtk["rho"] = transpose(rho)
@@ -8,7 +9,23 @@ function visualization(grid::CartesianGrid,rho::Matrix,eta::Matrix,vn::Array{Flo
         v3[1:2,:,:] = vn
         v3[3,:,:] .= 0.0
         vtk["Velocity"] = v3
+        vtk["Temperature"] = transpose(temperature)
+        vtk["pressure"] = transpose(pressure[2:end,2:end])
         vtk["TIME"] = time
+    end
+end
+
+function visualization(markers::Markers,time; filename="markers.vtp")  
+    p3 = Array{Float64,2}(undef,3,markers.nmark)
+    p3[1:2,:] = markers.x[1:2,1:markers.nmark]
+    p3[3,:] .= 0.0
+      
+    polys = [MeshCell(PolyData.Polys(),i:i) for i in 1:markers.nmark]
+    vtk_grid(filename,p3,polys) do vtk    
+        for key in keys(markers.scalarFields)
+            vtk[key] = markers.scalars[markers.scalarFields[key],1:markers.nmark]
+        end
+       vtk["TIME"] = time
     end
 end
 
