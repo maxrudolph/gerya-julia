@@ -36,7 +36,7 @@ mutable struct Markers
         end
         
         x = Array{Float64,2}(undef,2,N)
-        cell = Array{Int,2}(undef,2,N)
+        cell = Array{Int64,2}(undef,2,N)
         
         scalars = Array{Float64,2}(undef,n_fields,N)
         integers = Array{Int16,2}(undef,n_ifields,N)
@@ -227,7 +227,7 @@ function basic_node_to_markers!(m::Markers,grid::CartesianGrid,field::Matrix{Flo
     end
 end
 
-function basic_node_to_markers!(m::Markers,grid::CartesianGrid,field::Matrix,mfield::Array{Float64,1})
+function basic_node_to_markers!(m::Markers,grid::CartesianGrid,field::Matrix{Float64},mfield::Array{Float64,1})
     Threads.@threads for i in 1:m.nmark
         cellx = m.cell[1,i]
         celly = m.cell[2,i]
@@ -241,7 +241,7 @@ function basic_node_to_markers!(m::Markers,grid::CartesianGrid,field::Matrix,mfi
     end
 end
 
-function cell_center_to_markers!(m::Markers,grid::CartesianGrid,field::Matrix,mfield::Array{Float64,2})
+function cell_center_to_markers!(m::Markers,grid::CartesianGrid,field::Matrix{Float64},mfield::Array{Float64,2})
     if size(field,1) == grid.nx+1
         cellx_max = grid.nx
     else
@@ -271,7 +271,7 @@ function cell_center_to_markers!(m::Markers,grid::CartesianGrid,field::Matrix,mf
     end
 end
 
-function cell_center_change_to_markers!(m::Markers,grid::CartesianGrid,field::Matrix,mfield::String)
+function cell_center_change_to_markers!(m::Markers,grid::CartesianGrid,field::Matrix{Float64},mfield::String)
     if size(field,1) == grid.nx+1
         cellx_max = grid.nx
     else
@@ -301,7 +301,7 @@ function cell_center_change_to_markers!(m::Markers,grid::CartesianGrid,field::Ma
     end
 end
 
-function basic_node_change_to_markers!(m::Markers,grid::CartesianGrid,field::Matrix,mfield::String)
+function basic_node_change_to_markers!(m::Markers,grid::CartesianGrid,field::Matrix{Float64},mfield::String)
     k = m.scalarFields[mfield]
     Threads.@threads for i in 1:m.nmark
         cellx = m.cell[1,i]
@@ -396,7 +396,7 @@ function velocity_to_basic_nodes(grid::CartesianGrid,vxc::Matrix{Float64},vyc::M
     return vn
 end
 
-function velocity_to_points(x::Matrix,cell::Matrix,grid::CartesianGrid,vxc::Matrix{Float64},vyc::Matrix{Float64};N::Int64=-1)
+function velocity_to_points(x::Matrix{Float64},cell::Matrix{Int64},grid::CartesianGrid,vxc::Matrix{Float64},vyc::Matrix{Float64};N::Int64=-1)
     # compute velocity at N points given in x (2-by-N)
     # cell should contain the cells in which the points are located (2-by-N)
     # this routine assumes that the velocity (vxc and vyc) is defined at the cell centers
@@ -422,7 +422,7 @@ function velocity_to_points(x::Matrix,cell::Matrix,grid::CartesianGrid,vxc::Matr
     return mvx,mvy
 end
 
-function velocity_to_markers(m::Markers,grid::CartesianGrid,vxc::Matrix,vyc::Matrix)
+function velocity_to_markers(m::Markers,grid::CartesianGrid,vxc::Matrix{Float64},vyc::Matrix{Float64})
     # This function expects the velocities to be defined at the cell centers. vxc and vyc should each have
     # an 'extra' column and row corresponding to the ghost degrees of freedom that are needed to interpolate
     # velocities along the bottom and left of the domain.
@@ -430,7 +430,7 @@ function velocity_to_markers(m::Markers,grid::CartesianGrid,vxc::Matrix,vyc::Mat
     return mvx,mvy
 end
 
-function move_markers!(markers::Markers,grid::CartesianGrid,vxc::Matrix,vyc::Matrix,dt::Float64)
+function move_markers!(markers::Markers,grid::CartesianGrid,vxc::Matrix{Float64},vyc::Matrix{Float64},dt::Float64)
     # move the markers using the 1st-order algorithm (forward Euler)
     mvx,mvy = velocity_to_markers(markers,grid,vxc,vyc)
     # determine the maximal timestep
