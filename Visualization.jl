@@ -11,7 +11,7 @@ function visualization(grid::CartesianGrid,rho::Matrix,eta::Matrix,vn::Array{Flo
         vtk["Velocity"] = v3
         vtk["Temperature"] = transpose(temperature)
         vtk["pressure"] = transpose(pressure[2:end,2:end])
-        vtk["TIME"] = time
+        vtk["TimeValue"] = time
     end
 end
 
@@ -25,7 +25,7 @@ function visualization(markers::Markers,time; filename="markers.vtp")
         for key in keys(markers.scalarFields)
             vtk[key] = markers.scalars[markers.scalarFields[key],1:markers.nmark]
         end
-       vtk["TIME"] = time
+       vtk["TimeValue"] = time
     end
 end
 
