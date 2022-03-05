@@ -16,5 +16,16 @@ These exercises were assigned to students as part of a graduate level GEL298 cou
 ### Chapter07-NumericalStokes.ipynb
 - Solve the Stokes equations with variable viscosity in 2D Cartesian coordinates.
 
+### Chapter08-Stokes-Continuity-Markers.ipynb
+- Solve the Stokes equations with variable viscosity and advect density and viscosity using markers.
+
+### Chapter11-I2VIS.ipynb
+- Solve the coupled Stokes and energy equations in 2D. Advect temperature using markers.
+- This functionality is similar to the code I2VIS (Gerya and Yuen, 2003).
+
+### Chapter13-I2ELVIS.ipynb
+- Include the ability to model the deformation of a viscoelastic material.
+- This functionality is similar to the code I2ELVIS (Gerya and Yuen, 2007).
+
 ### Chapter18-PoissonMultigrid.ipynb
 - Solution of a Poisson problem using multigrid. The implementation here loosely follows what is described in Gerya's book.
