@@ -29,3 +29,7 @@ These exercises were assigned to students as part of a graduate level GEL298 cou
 
 ### Chapter18-PoissonMultigrid.ipynb
 - Solution of a Poisson problem using multigrid. The implementation here loosely follows what is described in Gerya's book.
+
+## Additional Notebooks:
+### M04-YinYang.ipynb
+- Solution of a Poisson problem on a spherical surface using an overset grid, called the yin-yang grid, described in Kageyama and Sato (2004). The point of this problem was to think about how to set up the constraint equations and indexing for a code like StagYY. It is guaranteed to be far from optimal!
