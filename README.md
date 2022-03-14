@@ -38,5 +38,16 @@ These exercises were assigned to students as part of a graduate level GEL298 cou
 - Solution of a Poisson problem using multigrid. The implementation here loosely follows what is described in Gerya's book.
 
 ## Additional Notebooks:
+There are some additional notebooks written to demonstrate solutions in curvilinear coordinates and on unusual grids, such as the overset yin-yang grid.
+
+## M01-Spherical-Annulus-Poisson.ipynb
+- Solve the poisson equation in the 2D spherical annulus.
+
+## M02-SphericalAnnulus-StreamFunction.ipynb
+- (work in progress) solve the stokes equation in the 2D spherical annulus using a stremfunction approach.
+
+## M03-Poisson_3D.ipynb
+- Solve the Poisson equation in 3D using a multigrid smoother.
+
 ### M04-YinYang.ipynb
 - Solution of a Poisson problem on a spherical surface using an overset grid, called the yin-yang grid, described in Kageyama and Sato (2004). The point of this problem was to think about how to set up the constraint equations and indexing for a code like StagYY. It is guaranteed to be far from optimal and the disretization doesn't appear to be well-suited to the use of iterative solvers.
