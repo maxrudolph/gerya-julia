@@ -2,9 +2,9 @@
 julia = "1.7"
 
 [deps]
-SparseArrays
-StaticArrays
-LinearAlgebra
-IterativeSolvers
-WriteVTK
-Printf
+SparseArrays = ""
+StaticArrays = ""
+LinearAlgebra = ""
+IterativeSolvers = ""
+WriteVTK = ""
+Printf = ""
