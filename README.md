@@ -1,6 +1,8 @@
 This repo contains jupyter notebooks implementing solutions to selected problems from Taras Gerya's *Introduction to Numerical Geodynamic Modeling* in the Julia programming language.
 
-These exercises were assigned to students as part of a graduate level GEL298 course at UC Davis, Winter 2022.
+[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/maxrudolph/gerya-julia/HEAD)
+
+These exercises were assigned to students as part of a graduate level GEL298 course at UC Davis, Winter 2022. If you find mistakes or you find this useful and wish to discuss, please send me an email!
 
 ### Chapter-01-02-Divergence-EOS.ipynb
 1. Computation of material properties (density, thermal expansivity, compressibility) using finite differences.
