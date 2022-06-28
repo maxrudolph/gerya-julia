@@ -19,16 +19,16 @@ struct CartesianGrid
 end
 
 struct EquatorialGrid
-    r::Vector
-    psi::Vector
-    rc::Vector
-    psic::Vector
-    nr::Int
-    npsi::Int
+    r::Vector{Float64}
+    psi::Vector{Float64}
+    rc::Vector{Float64}
+    psic::Vector{Float64}
+    nr::Int64
+    npsi::Int64
     dr::Float64
     dpsi::Float64
     periodic::Bool
-    function EquatorialGrid(psi_max,npsi,r_min,r_max,nr; periodic=false)
+    function EquatorialGrid(psi_max::Float64,npsi::Int64,r_min::Float64,r_max::Float64,nr::Int64; periodic::Bool=false)
         if psi_max ≈ 2.0*pi || periodic
             periodic = true
         else
