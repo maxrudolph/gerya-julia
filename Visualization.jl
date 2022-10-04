@@ -47,7 +47,7 @@ function draw_grid(grid::CartesianGrid ; nodes::Bool=false)
     end
 end
 
-function plots(markers::Markers,grid::CartesianGrid,rho::Matrix,time::Float ; draw_grid::Bool = false)
+function plots(markers::Markers,grid::CartesianGrid,rho::Matrix,time::Float64 ; draw_grid::Bool = false)
     @views mx = markers.x[:,1:markers.nmark]
     @views mrho = markers.rho[1:markers.nmark]
     figure()

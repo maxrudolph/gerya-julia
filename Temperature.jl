@@ -73,7 +73,6 @@ function assemble_energy_equation_center(grid::CartesianGrid,rho::Matrix,Cp::Mat
                 k+=1
                 # right
                 row[k] = this_row;
-                #col[k] = j==grid.nx ? node_index(i,2,grid.ny) : node_index(i,j+1,grid.ny);
                 col[k] = j==grid.nx ? node_index(i,j,grid.ny) : node_index(i,j+1,grid.ny);
                 val[k] = j==grid.nx ? bcright*kB/dxp/dxc : -kB/dxp/dxc;
                 k+=1
