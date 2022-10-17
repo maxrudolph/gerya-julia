@@ -1,10 +1,10 @@
 # Define a function to form the energy equation left hand side and right hand side
-function assemble_energy_equation_center(grid::CartesianGrid,rho::Matrix,Cp::Matrix,kThermal::Matrix,H::Matrix,Tlast::Matrix,dt)
+function assemble_energy_equation_center(grid::CartesianGrid,rho::Matrix,Cp::Matrix,kThermal::Matrix,H::Matrix,Tlast::Matrix,dt,bcval)
     bcleft  = -1   # -1 = insulating, 1 = constant temp
     bcright = -1   #
     bctop   =  1
     bcbottom  = 1
-    bcval = [0.0,0.0,1000.0,1000.0] # left,right,top,bottom
+    # bcval should contain temperature or dT/dx values for left,right,top,bottom
     
     N = grid.nx*grid.ny
     row = zeros(Int64,5*N);
@@ -109,13 +109,13 @@ function assemble_energy_equation_center(grid::CartesianGrid,rho::Matrix,Cp::Mat
     return L,R
 end
 
-function ghost_temperature_center(grid::CartesianGrid,T::Matrix{Float64})
+function ghost_temperature_center(grid::CartesianGrid,T::Matrix{Float64},bcval)
     # Define a new grid that is (ny+1)x(nx+1) and insert the ghost temperature values.
     bcleft  = -1   # -1 = insulating, 1 = constant temp
     bcright = -1   #
     bctop   =  1
     bcbottom  = 1
-    bcval = [0.0,0.0,1000.0,1000.0] # left,right,top,bottom
+    #bcval = [0.0,0.0,1000.0,1000.0] # left,right,top,bottom
     Tpad = Array{Float64,2}(undef,grid.ny+1,grid.nx+1)
     Tpad[1:grid.ny,1:grid.nx] = T[1:grid.ny,1:grid.nx]
     # right side first
