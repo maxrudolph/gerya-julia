@@ -15,7 +15,7 @@ mutable struct Markers
     nmark::Int64
     
     function Markers(grid::CartesianGrid,scalarFieldNames,integerFieldNames; nmx::Integer=5,nmy::Integer=5,random::Bool=false)
-        N = nmx*nmy*grid.nx*grid.ny
+        N = nmx*nmy*(grid.nx-1)*(grid.ny-1)
         mdx = grid.W/nmx/(grid.nx-1)
         mdy = grid.H/nmy/(grid.ny-1)
         
