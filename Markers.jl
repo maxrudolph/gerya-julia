@@ -15,7 +15,7 @@ mutable struct Markers
     nmark::Int64
     
     function Markers(grid::CartesianGrid,scalarFieldNames,integerFieldNames; nmx::Integer=5,nmy::Integer=5,random::Bool=false)
-        N = nmx*nmy*(grid.nx-1)*(grid.ny-1)
+        N = nmx*nmy*(grid.nx-1)*(grid.ny-1) # total number of markers
         mdx = grid.W/nmx/(grid.nx-1)
         mdy = grid.H/nmy/(grid.ny-1)
         
@@ -105,6 +105,19 @@ end
 #     ROUTINES RELATED TO MARKERS -> NODES
 #
 #
+function marker_to_basic_node(m::Markers,grid::CartesianGrid,fieldnames::Vector{String})
+    # move quantities from the markers to the basic nodes.
+    # This is a convenience function that allows the field names to be passed as a list of strings.
+    # m should be the Markers (see Markers.jl)
+    # grid should be the Cartesian grid
+    # fieldnames is a vector of strings such as ["rho","T"] that correspond to fields defined on the markers
+    #
+    nfields = length(fieldnames)
+    # markerfields will be indices into the 'scalars' array
+    markerfields = [m.scalarFields[tmp] for tmp in fieldnames]
+    
+    return marker_to_basic_node(m,grid, m.scalars[markerfields,:] )
+end
 
 function marker_to_basic_node(m::Markers,grid::CartesianGrid,markerfield::Array{Float64,2})
      # move quantities from the markers to the basic nodes.
@@ -164,7 +177,7 @@ function marker_to_cell_center(m::Markers,grid::CartesianGrid,markerfield::Array
     field = zeros(Float64,grid.ny+1,grid.nx+1,nfield)
     
     for i in 1:m.nmark
-       # calculate weights for four surrounding basic nodes
+       # calculate weights for four surrounding cell centers
          cellx::Int64 =  m.cell[1,i]
          cellx += cellx < grid.nx && m.x[1,i] >= grid.xc[cellx+1] ? 1 : 0
          celly::Int64 = m.cell[2,i]
@@ -196,15 +209,7 @@ function marker_to_cell_center(m::Markers,grid::CartesianGrid,markerfield::Array
     return [field[:,:,k]./weights for k in 1:nfield]
 end
 
-function marker_to_basic_node(m::Markers,grid::CartesianGrid,fieldnames::Vector{String})
-    # move quantities from the markers to the basic nodes.
-    # This is a convenience function that allows the field names to be passed as a list of strings.
-    nfields = length(fieldnames)
-    # markerfields will be indices into the 'scalars' array
-    markerfields = [m.scalarFields[tmp] for tmp in fieldnames]
-    
-    return marker_to_basic_node(m,grid, m.scalars[markerfields,:] )
-end
+
 
 #
 #
@@ -254,11 +259,11 @@ function cell_center_to_markers!(m::Markers,grid::CartesianGrid,field::Matrix{Fl
     end
     
     Threads.@threads for i in 1:m.nmark
-        cellx = m.cell[1,i]
-        celly = m.cell[2,i]
+        local cellx::Int64 = m.cell[1,i]
+        local celly::Int64 = m.cell[2,i]
         
         cellx += cellx < cellx_max && m.x[1,i] >= grid.xc[cellx+1] ? 1 : 0
-        celly::Int = m.cell[2,i]
+        celly = m.cell[2,i]
         celly += celly < celly_max && m.x[2,i] >= grid.yc[celly+1] ? 1 : 0
         
         wx::Float64 = (m.x[1,i] - grid.xc[cellx])/(grid.xc[cellx+1]-grid.xc[cellx]) # mdx/dx
@@ -284,11 +289,11 @@ function cell_center_change_to_markers!(m::Markers,grid::CartesianGrid,field::Ma
     end
     k = m.scalarFields[mfield]
     Threads.@threads for i in 1:m.nmark
-        cellx = m.cell[1,i]
-        celly = m.cell[2,i]
+        local cellx::Int64 = m.cell[1,i]
+        local celly::Int64 = m.cell[2,i]
         
         cellx += cellx < cellx_max && m.x[1,i] >= grid.xc[cellx+1] ? 1 : 0
-         celly::Int = m.cell[2,i]
+         celly = m.cell[2,i]
          celly += celly < celly_max && m.x[2,i] >= grid.yc[celly+1] ? 1 : 0
         
         wx::Float64 = (m.x[1,i] - grid.xc[cellx])/(grid.xc[cellx+1]-grid.xc[cellx]) # mdx/dx
@@ -304,8 +309,8 @@ end
 function basic_node_change_to_markers!(m::Markers,grid::CartesianGrid,field::Matrix{Float64},mfield::String)
     k = m.scalarFields[mfield]
     Threads.@threads for i in 1:m.nmark
-        cellx = m.cell[1,i]
-        celly = m.cell[2,i]
+        cellx::Int64 = m.cell[1,i]
+        celly::Int64 = m.cell[2,i]
         wx::Float64 = (m.x[1,i] - grid.x[cellx])/(grid.x[cellx+1]-grid.x[cellx]) # mdx/dx
         wy::Float64 = (m.x[2,i] - grid.y[celly])/(grid.y[celly+1]-grid.y[celly])
         
@@ -332,7 +337,7 @@ end
 
 function viscosity_to_cell_centers(grid::CartesianGrid,etas::Matrix{Float64})
     # compute the harmonic average of the viscosities at the nodal points
-   etan = zeros(grid.ny,grid.nx)
+    etan = zeros(grid.ny,grid.nx)
     for i in 2:grid.ny
         for j in 2:grid.nx
             etan[i,j] = 1/( (1/etas[i-1,j-1] + 1/etas[i-1,j] + 1/etas[i,j-1] + 1/etas[i,j])/4. )
