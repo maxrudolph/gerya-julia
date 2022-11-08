@@ -210,6 +210,97 @@ function marker_to_cell_center(m::Markers,grid::CartesianGrid,markerfield::Array
 end
 
 
+function marker_to_stag(m::Markers,grid::CartesianGrid,fieldnames::Vector{String},node_type::String)
+    # node type can be "basic","vx", "vy", or "center"
+    stagx::Int64 = 0 
+    stagy::Int64 = 0
+    if node_type == "basic"
+        stagx=0
+        stagy=0
+    elseif node_type == "vx"
+        stagx = 0
+        stagy = -1
+    elseif node_type == "vy"
+        stagx = -1
+        stagy = 0
+    elseif node_type == "center"
+        stagx = -1
+        stagy = -1
+    else
+        error("node type unknown")
+    end
+    
+    # move a list of fields (given as a list of strings in fieldnames) from markers to cell centers.
+    nfields = length(fieldnames)
+    # markerfields will be indices into the 'scalars' array
+    markerfields = [m.scalarFields[tmp] for tmp in fieldnames]
+    return marker_to_stag(m,grid,m.scalars[markerfields,:],stagx,stagy)
+end
+
+function marker_to_stag(m::Markers,grid::CartesianGrid,markerfield::Array{Float64,2},stagx::Int64,stagy::Int64)
+    # markerfields will be indices into the 'scalars' array
+    # If stagx and stagy are zero, this function performs the same task as markers to basic nodes
+    # if stagx=-1 and stagy=-1, this function performs interpolation to cell centers.
+    #assert(stagx == -1 || stagx == 0)
+    #assert(stagy == -1 || stagy == 0)
+
+    # loop over the markers    
+    nfield = size(markerfield,1)
+    NX::Int64 = grid.nx
+    if stagx == -1 # if the grid is staggered in the x direction, pad out by one cell to include ghost nodes outside right
+        NX += 1
+    end
+    NY::Int64 = grid.ny
+    if stagy == -1 # if the grid is staggered in the y direction, pad out by one cell to include ghost nodes outside below
+        NY += 1
+    end
+    
+    weights = zeros(Float64,NY,NX)
+    field = zeros(Float64,NY,NX,nfield)
+    
+    for i in 1:m.nmark
+       # calculate weights for four surrounding cell centers
+         cellx::Int64 =  m.cell[1,i]
+         if stagx == -1
+             cellx += cellx < grid.nx && m.x[1,i] >= grid.xc[cellx+1] ? 1 : 0
+         end
+         celly::Int64 = m.cell[2,i]
+         if stagy == -1
+             celly += celly < grid.ny && m.x[2,i] >= grid.yc[celly+1] ? 1 : 0
+         end
+         if stagx == -1
+             wx = (m.x[1,i] - grid.xc[cellx])/(grid.xc[cellx+1]-grid.xc[cellx]) # mdx/dx
+         else 
+            wx = (m.x[1,i] - grid.x[cellx])/(grid.x[cellx+1]-grid.x[cellx]) # mdx/dx
+         end
+         if stagy == -1
+            wy = (m.x[2,i] - grid.yc[celly])/(grid.yc[celly+1]-grid.yc[celly])
+         else
+            wy = (m.x[2,i] - grid.y[celly])/(grid.y[celly+1]-grid.y[celly])
+         end
+         #i,j
+         wt_i_j=(1.0-wx)*(1.0-wy)
+         #i+1,j        
+         wt_i1_j = (1.0-wx)*(wy)
+         #i,j+1
+         wt_i_j1 = (wx)*(1.0-wy)
+         #i+1,j+1
+         wt_i1_j1 = (wx)*(wy)
+        
+         for k in 1:nfield
+             field[celly,cellx,k] += wt_i_j*markerfield[k,i]
+             field[celly+1,cellx,k] += wt_i1_j*markerfield[k,i]
+             field[celly,cellx+1,k] += wt_i_j1*markerfield[k,i]
+             field[celly+1,cellx+1,k] += wt_i1_j1*markerfield[k,i]
+        end
+         weights[celly,cellx] += wt_i_j
+         weights[celly+1,cellx] += wt_i1_j
+         weights[celly,cellx+1] += wt_i_j1
+         weights[celly+1,cellx+1] += wt_i1_j1       
+    end
+
+    return [field[:,:,k]./weights for k in 1:nfield]
+end
 
 #
 #
