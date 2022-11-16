@@ -567,5 +567,56 @@ function move_markers_rk2!(markers::Markers,grid::CartesianGrid,vxc::Matrix{Floa
     find_cells!(markers,grid)
 end
 
+function move_markers_rk4!(markers::Markers,grid::CartesianGrid,vxc::Matrix{Float64},vyc::Matrix{Float64},dt::Float64)
+    # This function implements the 4th-order Runge-Kutta scheme for advection of markers. It expects
+    # vxc and vyc are the velocities at the cell centers
+    # dt is the timestep
+    # 1. compute velocity at point A
+    vxA::Vector{Float64}, vyA::Vector{Float64} = velocity_to_markers(markers,grid,vxc,vyc)
+    # 2. compute xB=xA + vA*dt/2
+    xB = Array{Float64,2}(undef,2,markers.nmark)
+    for i in 1:markers.nmark
+        xB[1,i] = markers.x[1,i] + dt/2*vxA[i]
+        xB[2,i] = markers.x[2,i] + dt/2*vyA[i]
+    end
+    # 3. locate xB and compute vxB
+    cell::Matrix{Int64} = copy(markers.cell)
+    Threads.@threads for i in 1:markers.nmark
+        cell[1,i] = find_cell(xB[1,i], grid.x, grid.nx, guess=cell[1,i])
+        cell[2,i] = find_cell(xB[2,i], grid.y, grid.ny, guess=cell[2,i])
+    end
+    vxB, vyB = velocity_to_points(xB,cell,grid,vxc,vyc)
+    # 4. compute xC = xA+vB*dt/2
+    xC = Array{Float64,2}(undef,2,markers.nmark)
+    for i in 1:markers.nmark
+        xC[1,i] = markers.x[1,i] + dt/2*vxB[i]
+        xC[2,i] = markers.x[2,i] + dt/2*vyB[i]
+    end
+    # 5. locate cells for xC and compute vC
+    Threads.@threads for i in 1:markers.nmark
+        cell[1,i] = find_cell(xC[1,i], grid.x, grid.nx, guess=cell[1,i])
+        cell[2,i] = find_cell(xC[2,i], grid.y, grid.ny, guess=cell[2,i])
+    end
+    vxC, vyC = velocity_to_points(xC,cell,grid,vxc,vyc)
+    # 6. compute xD = xA + vC*dt
+    xD = Array{Float64,2}(undef,2,markers.nmark)
+    for i in 1:markers.nmark
+        xD[1,i] = markers.x[1,i] + dt/2*vxC[i]
+        xD[2,i] = markers.x[2,i] + dt/2*vyC[i]
+    end
+    # 7. locate cells for xD and compute vD
+    Threads.@threads for i in 1:markers.nmark
+        cell[1,i] = find_cell(xD[1,i], grid.x, grid.nx, guess=cell[1,i])
+        cell[2,i] = find_cell(xD[2,i], grid.y, grid.ny, guess=cell[2,i])
+    end
+    vxD, vyD = velocity_to_points(xD,cell,grid,vxc,vyc)
+    # 8. Compute v_eff = 1/6*(vA+2*vB+2*vC+vD) and move markers by v_eff*dt
+    Threads.@threads for i in 1:markers.nmark
+        markers.x[1,i] += dt/6.0*(vxA[i] + 2*vxB[i] + 2*vxC[i] + vxD[i]) 
+        markers.x[2,i] += dt/6.0*(vyA[i] + 2*vyB[i] + 2*vyC[i] + vyD[i])
+    end
+    # 9. relocate markers in their cells.
+    find_cells!(markers,grid)
+end
 
 

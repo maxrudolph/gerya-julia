@@ -14,7 +14,7 @@ struct BoundaryConditions
     right::Int
 end
 
-function form_stokes(grid::CartesianGrid,eta_s::Matrix,eta_n::Matrix,rho::Matrix,rhovx,bc::BoundaryConditions,gx::Float64,gy::Float64)
+function form_stokes(grid::CartesianGrid,eta_s::Matrix,eta_n::Matrix,rho::Matrix,bc::BoundaryConditions,gx::Float64,gy::Float64)
     k::Int = 1 # index into dof arrays
     nx = grid.nx
     ny = grid.ny
@@ -30,14 +30,6 @@ function form_stokes(grid::CartesianGrid,eta_s::Matrix,eta_n::Matrix,rho::Matrix
     kbond = 1.# scaling factor for dirichlet bc equations.
 
     R=zeros(3*nn,1)
-    
-    if rhovx is nothing
-        # disable free surface stabilization
-    else
-        # calculate drhodx...
-        
-    end
-        
     
     # loop over j
     for j in 1:nx
