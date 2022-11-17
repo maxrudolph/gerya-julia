@@ -601,8 +601,8 @@ function move_markers_rk4!(markers::Markers,grid::CartesianGrid,vxc::Matrix{Floa
     # 6. compute xD = xA + vC*dt
     xD = Array{Float64,2}(undef,2,markers.nmark)
     for i in 1:markers.nmark
-        xD[1,i] = markers.x[1,i] + dt/2*vxC[i]
-        xD[2,i] = markers.x[2,i] + dt/2*vyC[i]
+        xD[1,i] = markers.x[1,i] + dt*vxC[i]
+        xD[2,i] = markers.x[2,i] + dt*vyC[i]
     end
     # 7. locate cells for xD and compute vD
     Threads.@threads for i in 1:markers.nmark
