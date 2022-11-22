@@ -14,8 +14,8 @@ struct BoundaryConditions
     right::Int
 end
 
-function form_stokes(grid::CartesianGrid,eta_s::Matrix,eta_n::Matrix,rho::Matrix,bc::BoundaryConditions,gx::Float64,gy::Float64)
-    k::Int = 1 # index into dof arrays
+function form_stokes(grid::CartesianGrid,eta_s::Matrix,eta_n::Matrix,rhox::Matrix,rhoy::Matrix,bc::BoundaryConditions,gx::Float64,gy::Float64)
+    k::Int64 = 1 # index into dof arrays
     nx = grid.nx
     ny = grid.ny
     nn = nx*ny
@@ -132,7 +132,7 @@ function form_stokes(grid::CartesianGrid,eta_s::Matrix,eta_n::Matrix,rho::Matrix
                 value[k] = -kcont/dxc
                 k+=1
 
-                R[this_row] = -gx*(rho[i-1,j]+rho[i,j])/2.
+                R[this_row] = -gx*(rhox[i,j])
             end
             # END X-STOKES
             
@@ -227,7 +227,7 @@ function form_stokes(grid::CartesianGrid,eta_s::Matrix,eta_n::Matrix,rho::Matrix
                 value[k] = -kcont/dyc
                 k+=1
 
-                R[this_row] = -gy*(rho[i,j-1]+rho[i,j])/2.
+                R[this_row] = -gy*(rhoy[i,j])
             end
             # END Y-STOKES
             
