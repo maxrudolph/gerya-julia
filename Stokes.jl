@@ -67,6 +67,8 @@ function form_stokes(grid::CartesianGrid,eta_s::Matrix,eta_n::Matrix,rhox::Matri
                 k+=1                
                 R[this_row] = 0.0*kbond
             else
+                # compute free-surface stabilization terms...
+                
                 # vx1
                 row_index[k] = this_row
                 col_index[k] = vxdof(i,j-1,ny)
