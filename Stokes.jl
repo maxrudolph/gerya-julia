@@ -14,7 +14,7 @@ struct BoundaryConditions
     right::Int
 end
 
-function form_stokes(grid::CartesianGrid,eta_s::Matrix,eta_n::Matrix,rho::Matrix,bc::BoundaryConditions,gx::Float64,gy::Float64)
+function form_stokes(grid::CartesianGrid,eta_s::Matrix,eta_n::Matrix,rho::Matrix,rhoX::Matrix,rhoY::Matrix,bc::BoundaryConditions,gx::Float64,gy::Float64)
     k::Int = 1 # index into dof arrays
     nx = grid.nx
     ny = grid.ny
@@ -67,6 +67,9 @@ function form_stokes(grid::CartesianGrid,eta_s::Matrix,eta_n::Matrix,rho::Matrix
                 k+=1                
                 R[this_row] = 0.0*kbond
             else
+                # add free surface stabilization
+                drhodx = (rhoX[i,j+1]-rhoX[i,j-1])/2/dxc
+                drhody = (rhoX[i+1,j]-rhoX[i-1,j])/2/dyc
                 # vx1
                 row_index[k] = this_row
                 col_index[k] = vxdof(i,j-1,ny)
@@ -80,7 +83,7 @@ function form_stokes(grid::CartesianGrid,eta_s::Matrix,eta_n::Matrix,rho::Matrix
                 # vx3
                 row_index[k] = this_row
                 col_index[k] = this_row
-                value[k] = -2*eta_n[i,j+1]/dxp/dxc -2*eta_n[i,j]/dxm/dxc - eta_s[i,j]/dyp/dyc - eta_s[i-1,j]/dym/dyc
+                value[k] = -2*eta_n[i,j+1]/dxp/dxc -2*eta_n[i,j]/dxm/dxc - eta_s[i,j]/dyp/dyc - eta_s[i-1,j]/dym/dyc - drhodx*gx*dt
                 if i == ny #vx4
                     # if i == nx, dvx/dy = 0 -> vx3 == vx4 (see Gerya fig 7.18a)
                     value[k] += eta_s[i,j]/dyp/dyc
@@ -104,22 +107,22 @@ function form_stokes(grid::CartesianGrid,eta_s::Matrix,eta_n::Matrix,rho::Matrix
                 # vy1
                 row_index[k] = this_row
                 col_index[k] = vydof(i-1,j,ny)
-                value[k] = eta_s[i-1,j]/dxc/dyc
+                value[k] = eta_s[i-1,j]/dxc/dyc- drhody*gx*dt/4
                 k+=1
                 # vy2
                 row_index[k] = this_row
                 col_index[k] = vydof(i,j,ny)
-                value[k] = -eta_s[i,j]/dxc/dyc
+                value[k] = -eta_s[i,j]/dxc/dyc- drhody*gx*dt/4
                 k+=1
                 # vy3
                 row_index[k] = this_row
                 col_index[k] = vydof(i-1,j+1,ny)
-                value[k] = -eta_s[i-1,j]/dxc/dyc
+                value[k] = -eta_s[i-1,j]/dxc/dyc- drhody*gx*dt/4
                 k+=1
                 # vy4
                 row_index[k] = this_row
                 col_index[k] = vydof(i,j+1,ny)
-                value[k] = eta_s[i,j]/dxc/dyc
+                value[k] = eta_s[i,j]/dxc/dyc- drhody*gx*dt/4
                 k+=1
                 # P1
                 row_index[k] = this_row
@@ -132,7 +135,7 @@ function form_stokes(grid::CartesianGrid,eta_s::Matrix,eta_n::Matrix,rho::Matrix
                 value[k] = -kcont/dxc
                 k+=1
 
-                R[this_row] = -gx*(rho[i-1,j]+rho[i,j])/2.
+                R[this_row] = -gx*rhoX[i,j]
             end
             # END X-STOKES
             
@@ -163,7 +166,10 @@ function form_stokes(grid::CartesianGrid,eta_s::Matrix,eta_n::Matrix,rho::Matrix
                 value[k] = -kbond
                 k+=1
                 R[this_row] = 0.0*kbond
-            else            
+            else 
+                # add free surface stabiliz
+                drhodx = (rhoY[i,j+1]-rhoY[i,j-1])/2/dxc
+                drhody = (rhoY[i+1,j]-rhoY[i-1,j])/2/dyc
                 #vy1
                 row_index[k] = this_row
                 col_index[k] = vydof(i,j-1,ny)
@@ -177,7 +183,7 @@ function form_stokes(grid::CartesianGrid,eta_s::Matrix,eta_n::Matrix,rho::Matrix
                 #vy3
                 row_index[k] = this_row
                 col_index[k] = this_row
-                value[k] = -2*eta_n[i+1,j]/dyp/dyc -2*eta_n[i,j]/dym/dyc - eta_s[i,j]/dxp/dxc - eta_s[i,j-1]/dxm/dxc
+                value[k] = -2*eta_n[i+1,j]/dyp/dyc -2*eta_n[i,j]/dym/dyc - eta_s[i,j]/dxp/dxc - eta_s[i,j-1]/dxm/dxc - drhody*gy*dt
                 if j == nx
                    # free slip - vx5 = vx3.
                    value[k] += eta_s[i,j]/dxp/dxc
@@ -199,22 +205,22 @@ function form_stokes(grid::CartesianGrid,eta_s::Matrix,eta_n::Matrix,rho::Matrix
                 #vx1
                 row_index[k] = this_row
                 col_index[k] = vxdof(i,j-1,ny)
-                value[k] = eta_s[i,j-1]/dxc/dyc
+                value[k] = eta_s[i,j-1]/dxc/dyc - drhodx*gy*dt/4
                 k+=1
                 #vx2
                 row_index[k] = this_row
                 col_index[k] = vxdof(i+1,j-1,ny)
-                value[k] = -eta_s[i+1,j-1]/dxc/dyc
+                value[k] = -eta_s[i+1,j-1]/dxc/dyc - drhodx*gy*dt/4
                 k+=1
                 #vx3
                 row_index[k] = this_row
                 col_index[k] = vxdof(i,j,ny)
-                value[k] = -eta_s[i,j]/dxc/dyc
+                value[k] = -eta_s[i,j]/dxc/dyc -drhodx*gy*dt/4
                 k+=1
                 #vx4
                 row_index[k] = this_row
                 col_index[k] = vxdof(i+1,j,ny)
-                value[k] = eta_s[i+1,j]/dxc/dyc
+                value[k] = eta_s[i+1,j]/dxc/dyc - drhodx*gy*dt/4
                 k+=1
                 #P1
                 row_index[k] = this_row
@@ -227,7 +233,7 @@ function form_stokes(grid::CartesianGrid,eta_s::Matrix,eta_n::Matrix,rho::Matrix
                 value[k] = -kcont/dyc
                 k+=1
 
-                R[this_row] = -gy*(rho[i,j-1]+rho[i,j])/2.
+                R[this_row] = -gy*rhoY[i,j].
             end
             # END Y-STOKES
             
@@ -281,6 +287,7 @@ function form_stokes(grid::CartesianGrid,eta_s::Matrix,eta_n::Matrix,rho::Matrix
 
     L = sparse(row_index,col_index,value)
     return L,R    
+end
 end
 
 function unpack(solution, grid::CartesianGrid; ghost::Bool=false)
