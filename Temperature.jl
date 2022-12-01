@@ -1,5 +1,18 @@
 # Define a function to form the energy equation left hand side and right hand side
-function assemble_energy_equation_center(grid::CartesianGrid,rho::Matrix,Cp::Matrix,kThermal::Matrix,H::Matrix,Tlast::Matrix,dt,bcval)
+function assemble_energy_equation_center(grid::CartesianGrid,rho_c::Matrix{Float64},Cp_c::Matrix{Float64},kThermal::Matrix{Float64},H::Matrix{Float64},Tlast::Matrix{Float64},dt::Float64,bcval)
+    # Assemble the left hand side for the energy equation
+    # Inputs:
+    # grid - this is the CartesianGrid
+    # rho_c - density at the cell centers
+    # Cp_c - heat capacity at the cell centers
+    # kThermal- thermal conductivity at the basic nodes
+    # H - volumetric rate of internal heating at the cell centers
+    # Tlast - the previous-timestep temperature.
+    # dt - the time step
+    # bcval - a vector containing the temperature or dT/dn values at the left, right, top, bottom
+    # Returns:
+    # L,R, the left hand side and right hand side of the energy equation
+    
     bcleft  = -1   # -1 = insulating, 1 = constant temp
     bcright = -1   #
     bctop   =  1
@@ -63,13 +76,13 @@ function assemble_energy_equation_center(grid::CartesianGrid,rho::Matrix,Cp::Mat
                 kB = 0.5*(kThermal[i,j]     + kThermal[i-1,j])
                 kC = 0.5*(kThermal[i-1,j-1] + kThermal[i-1,j])
                 kD = 0.5*(kThermal[i,j-1]   + kThermal[i,j])
-                rho_c = 0.25*(rho[i-1,j-1] + rho[i,j-1] + rho[i-1,j] + rho[i,j])
-                Cp_c = 0.25*(Cp[i-1,j-1] + Cp[i,j-1] + Cp[i-1,j] + Cp[i,j])
+                #rho_c = 0.25*(rho[i-1,j-1] + rho[i,j-1] + rho[i-1,j] + rho[i,j])
+                #Cp_c = 0.25*(Cp[i-1,j-1] + Cp[i,j-1] + Cp[i-1,j] + Cp[i,j])
 
                 # diagonal entry
                 row[k] = this_row;
                 col[k] = this_row;
-                val[k] = (rho_c*Cp_c)/dt + kB/dxp/dxc + kA/dxm/dxc + kD/dyp/dyc + kC/dyp/dyc;
+                val[k] = (rho_c[i,j]*Cp_c[i,j])/dt + kB/dxp/dxc + kA/dxm/dxc + kD/dyp/dyc + kC/dyp/dyc;
                 k+=1
                 # right
                 row[k] = this_row;
@@ -92,7 +105,7 @@ function assemble_energy_equation_center(grid::CartesianGrid,rho::Matrix,Cp::Mat
                 val[k] = -kC/dyp/dyc;
                 k+=1
                 
-                R[this_row] = Tlast[i,j]*rho_c*Cp_c/dt;
+                R[this_row] = Tlast[i,j]*rho_c[i,j]*Cp_c/dt;
                 if j==grid.nx
                     R[this_row] += 2*bcval[2]*bcright*kB/dxp/dxc
                 end
@@ -111,6 +124,8 @@ end
 
 function ghost_temperature_center(grid::CartesianGrid,T::Matrix{Float64},bcval)
     # Define a new grid that is (ny+1)x(nx+1) and insert the ghost temperature values.
+    # bcval shoud be a vector containing the temperatures or temperature gradients 
+    # along the left, right, top, and bottom (in that order)
     bcleft  = -1   # -1 = insulating, 1 = constant temp
     bcright = -1   #
     bctop   =  1
@@ -138,22 +153,33 @@ function ghost_temperature_center(grid::CartesianGrid,T::Matrix{Float64},bcval)
 end
 
 function subgrid_temperature_relaxation_center!(markers::Markers,grid::CartesianGrid,Tlast::Matrix,Cp,kThermal,dt::Float64)
-        dsubgrid = 1.0; # subgrid temperature diffusivity
-        dT_subgrid_m = Array{Float64,2}(undef,1,markers.nmark)
-        # compuate the nodal temperature on the markers.    
-        cell_center_to_markers!(markers,grid,Tlast,dT_subgrid_m)
-    
-        # compute the subgrid temperature changes on the markers
-        rho = markers.scalarFields["rho"]
-        T = markers.scalarFields["T"]
-        Threads.@threads for i in 1:markers.nmark
-            dx2 = (grid.x[markers.cell[1,i]+1] - grid.x[markers.cell[1,i]])^2
-            dy2 = (grid.y[markers.cell[2,i]+1] - grid.y[markers.cell[2,i]])^2
-            tdiff = markers.scalars[rho,i]*Cp/kThermal / (2/dx2 + 2/dy2)
-            dT_subgrid_m[i] = (dT_subgrid_m[i]-markers.scalars[T,i])*( 1.0 - exp(-dsubgrid*dt/tdiff) )
-        end
-        # interpolate subgrid temperature changes back onto basic nodes.
-        markers.scalars[T,1:markers.nmark] += dT_subgrid_m[1,:]
-    
-        return marker_to_cell_center(markers,grid,dT_subgrid_m)[1]
+    # Perform the sub-grid scale temperature diffusion operation
+    # Inputs:
+    # markers - the markers
+    # grid - the grid
+    # Tlast - the previous timestep temperature solution at the cell centers
+    # Cp (scalar) heat capacity
+    # kthermal (scalar) thermal diffusivity
+    # dt - the time step
+    # Returns:
+    # a matrix whose values are the change in temperature at the cell centers
+
+    dsubgrid = 1.0; # subgrid temperature diffusivity
+    dT_subgrid_m = Array{Float64,2}(undef,1,markers.nmark)
+    # compuate the nodal temperature on the markers.    
+    cell_center_to_markers!(markers,grid,Tlast,dT_subgrid_m)
+
+    # compute the subgrid temperature changes on the markers
+    rho = markers.scalarFields["rho"]
+    T = markers.scalarFields["T"]
+    Threads.@threads for i in 1:markers.nmark
+        dx2 = (grid.x[markers.cell[1,i]+1] - grid.x[markers.cell[1,i]])^2
+        dy2 = (grid.y[markers.cell[2,i]+1] - grid.y[markers.cell[2,i]])^2
+        tdiff = markers.scalars[rho,i]*Cp/kThermal / (2/dx2 + 2/dy2)
+        dT_subgrid_m[i] = (dT_subgrid_m[i]-markers.scalars[T,i])*( 1.0 - exp(-dsubgrid*dt/tdiff) )
+    end
+    # interpolate subgrid temperature changes back onto basic nodes.
+    markers.scalars[T,1:markers.nmark] += dT_subgrid_m[1,:]
+
+    return marker_to_cell_center(markers,grid,dT_subgrid_m)[1]
 end
