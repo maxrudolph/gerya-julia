@@ -18,17 +18,60 @@ struct CartesianGrid
     end
 end
 
+struct ScalarField
+    #
+    # This is a data structure to hold data defined on a (staggered) grid.
+    # stagx and stagy are meant to indicate the offset (-1 or 0) in the x and y directions
+    # Name is a field name, to be used in visualization
+    # data contains the actual data.
+    #
+    stagx::Int64
+    stagy::Int64
+    name::String
+    data::Matrix{Float64}
+    function GridField(stagx::Int64,stagy::Int64,name::String,data::Matrix{Float64})
+        new(stagx,stagy,name,data)
+    end
+end
+
+struct VectorField
+    #
+    # This is a data structure to hold data defined on a (staggered) grid.
+    # stagx and stagy are meant to indicate the offset (-1 or 0) in the x and y directions
+    # Name is a field name, to be used in visualization
+    # data contains the actual data.
+    #
+    stagx::Int64
+    stagy::Int64
+    components::Int64
+    name::String
+    data::Array{Float64,3}
+    function GridField(stagx::Int64,stagy::Int64,components,name::String,data)
+        new(stagx,stagy,components,name,data)
+    end
+end
+
 struct EquatorialGrid
+    #
+    # This data structure represents an equatorial slice
+    # r is the radial coordinate
+    # psi is the azimuthal coordinate
+    # nr is the number of nodes in the radial direction
+    # npsi is the number of nodes in the azimuthal direction
+    # periodic indicates whether the grid is periodic (i.e. a complete spherical slice or a chunk)
+    #
     r::Vector{Float64}
     psi::Vector{Float64}
     rc::Vector{Float64}
     psic::Vector{Float64}
     nr::Int64
     npsi::Int64
-    dr::Float64
-    dpsi::Float64
     periodic::Bool
     function EquatorialGrid(psi_max::Float64,npsi::Int64,r_min::Float64,r_max::Float64,nr::Int64; periodic::Bool=false)
+        #
+        # Construct a new equatorial grid with psi_min <= psi <= psi_max and r_min <= r <= r_max
+        # if psi_max is 'close' to 2*pi, this is a complete spherical slice and periodic is set to true.
+        #
         if psi_max ≈ 2.0*pi || periodic
             periodic = true
         else
@@ -41,6 +84,6 @@ struct EquatorialGrid
         r    = LinRange(r_min,r_max,nr)
         rc   = LinRange(r_min-dr/2.,r_max+dr/2.,nr+1)
         psic = LinRange(psi_min-dpsi/2.,psi_max+dpsi/2.,npsi+1)
-        new(r,psi,rc,psic,nr,npsi,dr,dpsi,periodic)
+        new(r,psi,rc,psic,nr,npsi,periodic)
     end
 end
