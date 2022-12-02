@@ -105,7 +105,7 @@ function assemble_energy_equation_center(grid::CartesianGrid,rho_c::Matrix{Float
                 val[k] = -kC/dyp/dyc;
                 k+=1
                 
-                R[this_row] = Tlast[i,j]*rho_c[i,j]*Cp_c/dt;
+                R[this_row] = Tlast[i,j]*rho_c[i,j]*Cp_c[i,j]/dt;
                 if j==grid.nx
                     R[this_row] += 2*bcval[2]*bcright*kB/dxp/dxc
                 end
