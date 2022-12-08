@@ -14,7 +14,7 @@ struct BoundaryConditions
     right::Int
 end
 
-function form_stokes(grid::CartesianGrid,eta_s::Matrix,eta_n::Matrix,rho::Matrix,rhoX::Matrix,rhoY::Matrix,bc::BoundaryConditions,gx::Float64,gy::Float64)
+function form_stokes(grid::CartesianGrid,eta_s::Matrix,eta_n::Matrix,rhoX::Matrix,rhoY::Matrix,bc::BoundaryConditions,gx::Float64,gy::Float64,dt::Float64)
     k::Int = 1 # index into dof arrays
     nx = grid.nx
     ny = grid.ny

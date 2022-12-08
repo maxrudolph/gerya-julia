@@ -69,7 +69,27 @@ function compute_shear_heating(grid::CartesianGrid,vx::Matrix{Float64},vy::Matri
     return shear_heating    
 end
 
+function compute_adiabatic_heating(grid::CartesianGrid,rho_c::Matrix{Float64},T::Matrix{Float64},alpha_c::Matrix{Float64},gx::Float64,gy::Float64,vxc::Matrix{Float64},vyc::Matrix{Float64})
+    #
+    # Compute the adiabatic heating at cell centers
+    # Inputs:
+    # grid - the cartesian grid
+    # rho_c - density at cell centers
+    # T - temperature at cell centers
+    # alpha_c - thermal expansivity at cell centers
+    # gx - gravity acting in the +x direction
+    # gy - gravity acting in the +y direction
+    # vxc, vyc - velocities at the cell centers
+    # Returns the adiabatic heating rate
+    H_a = zeros(Float64,grid.ny+1,grid.nx+1)
 
+    for j in 2:grid.nx+1
+        for i in 2:grid.ny+1
+            H_a[i,j] = T[i,j]*alpha_c[i,j]*rho_c[i,j]*(gx*vxc[i,j] + gy*vyc[i,j])
+        end
+    end
+    return H_a
+end
 
 function replace_nan!(old_field::Matrix{Float64},new_field::Matrix{Float64})
     #

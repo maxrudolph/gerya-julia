@@ -186,7 +186,7 @@ function marker_to_cell_center(m::Markers,grid::CartesianGrid,markerfield::Array
          wx = (m.x[1,i] - grid.xc[cellx])/(grid.xc[cellx+1]-grid.xc[cellx]) # mdx/dx
          wy = (m.x[2,i] - grid.yc[celly])/(grid.yc[celly+1]-grid.yc[celly])
          #i,j
-         wt_i_j=(1.0-wx)*(1.0-wy)
+         wt_i_j =(1.0-wx)*(1.0-wy)
          #i+1,j        
          wt_i1_j = (1.0-wx)*(wy)
          #i,j+1
@@ -195,9 +195,9 @@ function marker_to_cell_center(m::Markers,grid::CartesianGrid,markerfield::Array
          wt_i1_j1 = (wx)*(wy)
         
          for k in 1:nfield
-             field[celly,cellx,k] += wt_i_j*markerfield[k,i]
-             field[celly+1,cellx,k] += wt_i1_j*markerfield[k,i]
-             field[celly,cellx+1,k] += wt_i_j1*markerfield[k,i]
+             field[celly,cellx,k]     += wt_i_j*markerfield[k,i]
+             field[celly+1,cellx,k]   += wt_i1_j*markerfield[k,i]
+             field[celly,cellx+1,k]   += wt_i_j1*markerfield[k,i]
              field[celly+1,cellx+1,k] += wt_i1_j1*markerfield[k,i]
         end
          weights[celly,cellx] += wt_i_j
@@ -354,7 +354,6 @@ function cell_center_to_markers!(m::Markers,grid::CartesianGrid,field::Matrix{Fl
         local celly::Int64 = m.cell[2,i]
         
         cellx += cellx < cellx_max && m.x[1,i] >= grid.xc[cellx+1] ? 1 : 0
-        celly = m.cell[2,i]
         celly += celly < celly_max && m.x[2,i] >= grid.yc[celly+1] ? 1 : 0
         
         wx::Float64 = (m.x[1,i] - grid.xc[cellx])/(grid.xc[cellx+1]-grid.xc[cellx]) # mdx/dx
@@ -384,8 +383,8 @@ function cell_center_change_to_markers!(m::Markers,grid::CartesianGrid,field::Ma
         local celly::Int64 = m.cell[2,i]
         
         cellx += cellx < cellx_max && m.x[1,i] >= grid.xc[cellx+1] ? 1 : 0
-         celly = m.cell[2,i]
-         celly += celly < celly_max && m.x[2,i] >= grid.yc[celly+1] ? 1 : 0
+        celly = m.cell[2,i]
+        celly += celly < celly_max && m.x[2,i] >= grid.yc[celly+1] ? 1 : 0
         
         wx::Float64 = (m.x[1,i] - grid.xc[cellx])/(grid.xc[cellx+1]-grid.xc[cellx]) # mdx/dx
         wy::Float64 = (m.x[2,i] - grid.yc[celly])/(grid.yc[celly+1]-grid.yc[celly])

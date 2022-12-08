@@ -9,7 +9,7 @@ function assemble_energy_equation_center(grid::CartesianGrid,rho_c::Matrix{Float
     # H - volumetric rate of internal heating at the cell centers
     # Tlast - the previous-timestep temperature.
     # dt - the time step
-    # bcval - a vector containing the temperature or dT/dn values at the left, right, top, bottom
+    # bcval - a vector containing the temperature or dT/dn values at the [left, right, top, bottom]
     # Returns:
     # L,R, the left hand side and right hand side of the energy equation
     
@@ -105,7 +105,7 @@ function assemble_energy_equation_center(grid::CartesianGrid,rho_c::Matrix{Float
                 val[k] = -kC/dyp/dyc;
                 k+=1
                 
-                R[this_row] = Tlast[i,j]*rho_c[i,j]*Cp_c[i,j]/dt;
+                R[this_row] = Tlast[i,j]*rho_c[i,j]*Cp_c[i,j]/dt + H[i,j];
                 if j==grid.nx
                     R[this_row] += 2*bcval[2]*bcright*kB/dxp/dxc
                 end
@@ -133,6 +133,11 @@ function ghost_temperature_center(grid::CartesianGrid,T::Matrix{Float64},bcval)
     #bcval = [0.0,0.0,1000.0,1000.0] # left,right,top,bottom
     Tpad = Array{Float64,2}(undef,grid.ny+1,grid.nx+1)
     Tpad[1:grid.ny,1:grid.nx] = T[1:grid.ny,1:grid.nx]
+
+    # enforce dirichlet BCs along top and bottom.
+    Tpad[1,:] = 2.0*bcval[3] .- Tpad[2,:]
+    Tpad[grid.ny+1,:] = 2.0*bcval[4] .- Tpad[grid.ny,:]
+    
     # right side first
     for i in 1:grid.ny
         if bcright == 1
