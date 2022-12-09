@@ -14,8 +14,22 @@ struct BoundaryConditions
     right::Int
 end
 
-function form_stokes(grid::CartesianGrid,eta_s::Matrix,eta_n::Matrix,rhoX::Matrix,rhoY::Matrix,bc::BoundaryConditions,gx::Float64,gy::Float64,dt::Float64)
-    k::Int = 1 # index into dof arrays
+function form_stokes(grid::CartesianGrid,eta_s::Matrix,eta_n::Matrix,rhoX::Matrix,rhoY::Matrix,bc::BoundaryConditions,gx::Float64,gy::Float64;dt::Float64=0.0)
+    # Form the Stokes system.
+    # Inputs:
+    # grid - the cartesian grid
+    # eta_s - viscosity at the basic nodes
+    # eta_n - viscosity at the cell centers
+    # rhoX - density at the vx nodes
+    # rhoY - density at the vy nodes
+    # bc - a vector describing the boundary conditions along the [left,right,top,bottom]
+    # gx,gy - gravitational body force in the x and y direction
+    # dt - the timestep, used in the free surface stabilization terms. dt=0.0 (default) 
+    #         disables free surface stabilization.
+    # Outputs:
+    # L,R - the left hand side (matrix) and right hand side (vector) of the stokes system
+    
+    k::Int64 = 1 # index into dof arrays
     nx = grid.nx
     ny = grid.ny
     nn = nx*ny
