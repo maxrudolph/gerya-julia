@@ -18,6 +18,27 @@ struct CartesianGrid
     end
 end
 
+struct CylindricalGrid
+    r::Array{Float64,1}
+    z::Array{Float64,1}
+    rc::Array{Float64,1}
+    zc::Array{Float64,1}
+    nr::Int64
+    nz::Int64
+    W::Float64
+    H::Float64
+    #dx::Float64
+    #dy::Float64
+    function CylindricalGrid(W::Float64,H::Float64,nr::Int,nz::Int)
+        dr = W/(nr-1)
+        dz = H/(nz-1)
+        new(LinRange(0,W,nr),LinRange(0,H,nz),
+            LinRange(0-dr/2,W+dz/2,nr+1),LinRange(0-dz/2,H+dz/2,nz+1),
+            nr,nz,W,H)#,W/(nx-1),H/(ny-1))
+    end
+end
+
+
 struct ScalarField
     #
     # This is a data structure to hold data defined on a (staggered) grid.
