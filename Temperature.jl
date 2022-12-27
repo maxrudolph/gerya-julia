@@ -185,6 +185,8 @@ function subgrid_temperature_relaxation_center!(markers::Markers,grid::Cartesian
     end
     # interpolate subgrid temperature changes back onto basic nodes.
     markers.scalars[T,1:markers.nmark] += dT_subgrid_m[1,:]
-
-    return marker_to_cell_center(markers,grid,dT_subgrid_m)[1]
+    # zero out nodal values for any cells without markers (nan values)
+    dTm, = marker_to_cell_center(markers,grid,dT_subgrid_m)
+    dTm[isnan.(dTm)] .= 0.0
+    return dTm
 end
