@@ -82,7 +82,7 @@ function find_cell(x::Float64,gridx::Vector{Float64},nx::Int64 ; guess::Int64=no
      end
     # locate cell using bisection on lower,upper
     while upper-lower > 1 
-        midpoint::Int = lower + floor((upper-lower)/2)
+        midpoint::Int64 = lower + floor((upper-lower)/2)
         if x >= gridx[midpoint]
             lower = midpoint
         else
@@ -259,7 +259,7 @@ function marker_to_stag(m::Markers,grid::CartesianGrid,markerfield::Array{Float6
     field = zeros(Float64,NY,NX,nfield)
     
     for i in 1:m.nmark
-       # calculate weights for four surrounding cell centers
+       # calculate weights for four surrounding grid points
          cellx::Int64 =  m.cell[1,i]
          if stagx == -1
              cellx += cellx < grid.nx && m.x[1,i] >= grid.xc[cellx+1] ? 1 : 0
@@ -624,7 +624,7 @@ end
 
 function move_markers_rk4!(markers::Markers,grid::CartesianGrid,vx::Matrix{Float64},vy::Matrix{Float64},dt::Float64; continuity_weight::Float64=1.0/3.0)
     # This function implements the 4th-order Runge-Kutta scheme for advection of markers. It expects
-    # vxc and vyc are the velocities at the velocity nodes
+    # vx and vy are the velocities at the velocity nodes
     # dt is the timestep
     if continuity_weight != 0.0
         vxc,vyc = velocity_to_centers(grid,vx,vy)
