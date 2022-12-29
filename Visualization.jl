@@ -20,10 +20,14 @@ function visualization(markers::Markers,time; filename="markers.vtp")
     p3[1:2,:] = markers.x[1:2,1:markers.nmark]
     p3[3,:] .= 0.0
       
-    polys = [MeshCell(PolyData.Polys(),i:i) for i in 1:markers.nmark]
+    @time polys = [MeshCell(PolyData.Polys(),i:i) for i in 1:markers.nmark]
     vtk_grid(filename,p3,polys) do vtk    
+    #vtk_grid(filename,p3) do vtk
         for key in keys(markers.scalarFields)
             vtk[key] = markers.scalars[markers.scalarFields[key],1:markers.nmark]
+        end
+        for key in keys(markers.integerFields)
+            vtk[key] = markers.integers[markers.integerFields[key],1:markers.nmark]
         end
        vtk["TimeValue"] = time
     end

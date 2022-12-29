@@ -285,3 +285,22 @@ function form_stokes_cylindrical(grid::CartesianGrid,eta_s::Matrix,eta_n::Matrix
     L = sparse(row_index,col_index,value)
     return L,R    
 end
+
+function compute_velocity_divergence(grid::CartesianGrid,vx::Matrix{Float64},vy::Matrix{Float64})
+    # This function computes the divergence of the velocity field.
+    # I wrote the function only to verify that the cylindrical version of the continuity equation is satisfied.
+    # inputs - grid, velocities at the velocity nodes.
+    nx = grid.nx
+    ny = grid.ny
+    divv = zeros(ny-1,nx-1)
+    # compute cell-by-cell velocity divergence
+    # 1/r d/dr(r vr)
+    for i in 2:ny
+        for j in 2:nx
+            dvxdx = 1.0/grid.xc[j]/(grid.x[j]-grid.x[j-1])*(grid.x[j]*vx[i,j] - grid.x[j-1]*vx[i,j-1])
+            dvydy = (vy[i,j]-vy[i-1,j])/(grid.y[i]-grid.y[i-1])
+            divv[i-1,j-1] = dvxdx + dvydy
+        end
+    end
+    return divv    
+end

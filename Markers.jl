@@ -13,9 +13,11 @@ mutable struct Markers
     integers::Array{Int16,2} # note - this could be changed if larger numbers need to be stored...
 
     nmark::Int64
+    max_mark::Int64
     
     function Markers(grid::CartesianGrid,scalarFieldNames,integerFieldNames; nmx::Integer=5,nmy::Integer=5,random::Bool=false)
         N = nmx*nmy*(grid.nx-1)*(grid.ny-1) # total number of markers
+        Nmax = Int(ceil( N*1.20 ))
         mdx = grid.W/nmx/(grid.nx-1)
         mdy = grid.H/nmy/(grid.ny-1)
         
@@ -35,11 +37,11 @@ mutable struct Markers
             ind += 1
         end
         
-        x = Array{Float64,2}(undef,2,N)
-        cell = Array{Int64,2}(undef,2,N)
+        x = Array{Float64,2}(undef,2,Nmax)
+        cell = Array{Int64,2}(undef,2,Nmax)
         
-        scalars = Array{Float64,2}(undef,n_fields,N)
-        integers = Array{Int16,2}(undef,n_ifields,N)
+        scalars = Array{Float64,2}(undef,n_fields,Nmax)
+        integers = Array{Int16,2}(undef,n_ifields,Nmax)
         
         k=1
         for i in 1:(grid.ny-1)
@@ -56,8 +58,42 @@ mutable struct Markers
             end
         end
 
-        new(x,cell,scalarFields,scalars,integerFields,integers,k-1)
+        new(x,cell,scalarFields,scalars,integerFields,integers,k-1,Nmax)
     end
+end
+
+function remove_markers!(markers::Markers,markers_to_remove)
+    # markers_to_remove should be a logical array (true) = remove, (false) = keep
+    nremove = sum( markers_to_remove )
+    keep = .!(markers_to_remove)
+    keep[markers.nmark+1:end] .= false # markers past nmark should not be kept.
+    nkeep = markers.nmark - nremove
+    
+    println("keeping ",nkeep," markers"," nmark=",markers.nmark)
+    markers.x[:,1:nkeep] = markers.x[:,keep]
+    markers.cell[:,1:nkeep] = markers.cell[:,keep]
+    markers.scalars[:,1:nkeep] = markers.scalars[:,keep]
+    markers.integers[:,1:nkeep] = markers.integers[:,keep]
+    markers.nmark = nkeep
+end
+
+function add_markers!(markers::Markers,number_to_add)
+    # increase the maximum number of markers
+    new_max = markers.max_mark + number_to_add
+    x = Array{Float64,2}(undef,2,number_to_add)
+    markers.x = [markers.x x]    
+
+    cell = Array{Int64,2}(undef,2,number_to_add)
+    markers.cell = [markers.cell cell]
+    
+    n_fields = size(markers.scalars,1)
+    scalars = Array{Float64,2}(undef,n_fields,number_to_add)
+    markers.scalars = [markers.scalars scalars]
+    
+    n_ifields = size(markers.integers,1)
+    integers = Array{Int16,2}(undef,n_ifields,number_to_add)
+    markers.integers = [markers.integers integers]
+    markers.max_mark = new_max
 end
 
 function find_cell(x::Float64,gridx::Vector{Float64},nx::Int64 ; guess::Int64=nothing)
@@ -337,6 +373,49 @@ function basic_node_to_markers!(m::Markers,grid::CartesianGrid,field::Matrix{Flo
     end
 end
 
+function stag_to_points(x::Matrix{Float64},cell::Matrix{Int64},grid::CartesianGrid,field::Matrix{Float64},stagx::Int64,stagy::Int64)
+    # x should be a vector of x/y coordinates
+    # expect field to contain values at ghost nodes outside domain to right and bottom
+    npoints = size(x,2)
+    if size(field,1) == grid.nx+1
+        cellx_max = grid.nx
+    else
+        cellx_max = grid.nx-1
+    end
+    if size(field,2) == grid.ny+1
+        celly_max = grid.ny
+    else
+        celly_max = grid.ny-1
+    end
+    mfield = zeros(1,npoints)
+    Threads.@threads for i in 1:npoints
+        local cellx::Int64 = cell[1,i]
+        local celly::Int64 = cell[2,i]
+        local wx::Float64
+        local wy::Float64
+        
+        if stagx == -1
+            cellx += cellx < cellx_max && x[1,i] >= grid.xc[cellx+1] ? 1 : 0
+            wx = (x[1,i] - grid.xc[cellx])/(grid.xc[cellx+1]-grid.xc[cellx]) # mdx/dx
+        else
+            wx = (x[1,i] - grid.x[cellx])/(grid.x[cellx+1]-grid.x[cellx]) # mdx/dx        
+        end
+        if stagy == -1
+            celly += celly < celly_max && x[2,i] >= grid.yc[celly+1] ? 1 : 0
+            wy = (x[2,i] - grid.yc[celly])/(grid.yc[celly+1]-grid.yc[celly])
+        else
+            wy = (x[2,i] - grid.y[celly])/(grid.y[celly+1]-grid.y[celly]) 
+        end
+                
+        mfield[1,i] = (1.0-wx)*(1.0-wy)*field[celly,cellx] +
+            + (wx)*(1.0-wy)*field[celly,cellx+1] +
+            + (1.0-wx)*(wy)*field[celly+1,cellx] +
+            + (wx)*(wy)*field[celly+1,cellx+1]
+    end
+    return mfield
+    
+end
+
 function cell_center_to_markers!(m::Markers,grid::CartesianGrid,field::Matrix{Float64},mfield::Array{Float64,2})
     if size(field,1) == grid.nx+1
         cellx_max = grid.nx
@@ -495,7 +574,7 @@ function velocity_to_points(x::Matrix{Float64},cell::Matrix{Int64},grid::Cartesi
     # compute the velocity at points, using the continuity-based velocity interpolation
     # compute velocity at cell centers
     # compute the velocity at the markers from the velocity nodes:
-    mvx,mvy = velocity_nodes_to_points(x,cell,grid,vx,vy)
+    mvx,mvy = velocity_nodes_to_points(x,cell,grid,vx,vy,N=N)
     if continuity_weight == 0.0
         return mvx,mvy
     end
@@ -505,7 +584,7 @@ function velocity_to_points(x::Matrix{Float64},cell::Matrix{Int64},grid::Cartesi
         vxc,vyc = velocity_to_centers(grid,vx,vy);
     end
     # compute the velocity at the markers from the cell centers:
-    mvxc,mvyc = velocity_center_to_points(x,cell,grid,vxc,vyc)
+    mvxc,mvyc = velocity_center_to_points(x,cell,grid,vxc,vyc,N=N)
 
     mvx = continuity_weight*(mvxc) + (1.0-continuity_weight)*(mvx)
     mvy = continuity_weight*(mvyc) + (1.0-continuity_weight)*(mvy)
@@ -641,12 +720,12 @@ function move_markers_rk4!(markers::Markers,grid::CartesianGrid,vx::Matrix{Float
         xB[2,i] = markers.x[2,i] + dt/2*vyA[i]
     end
     # 3. locate xB and compute vxB
-    cell::Matrix{Int64} = copy(markers.cell)
+    cell::Matrix{Int64} = copy(markers.cell[:,1:markers.nmark])
     Threads.@threads for i in 1:markers.nmark
         cell[1,i] = find_cell(xB[1,i], grid.x, grid.nx, guess=cell[1,i])
         cell[2,i] = find_cell(xB[2,i], grid.y, grid.ny, guess=cell[2,i])
     end
-    vxB, vyB = velocity_to_points(xB,cell,grid,vx,vy,continuity_weight=continuity_weight,vxc=vxc,vyc=vyc)
+    vxB, vyB = velocity_to_points(xB,cell,grid,vx,vy,continuity_weight=continuity_weight,vxc=vxc,vyc=vyc,N=markers.nmark)
     # 4. compute xC = xA+vB*dt/2
     xC = Array{Float64,2}(undef,2,markers.nmark)
     for i in 1:markers.nmark
@@ -658,7 +737,7 @@ function move_markers_rk4!(markers::Markers,grid::CartesianGrid,vx::Matrix{Float
         cell[1,i] = find_cell(xC[1,i], grid.x, grid.nx, guess=cell[1,i])
         cell[2,i] = find_cell(xC[2,i], grid.y, grid.ny, guess=cell[2,i])
     end
-    vxC, vyC = velocity_to_points(xC,cell,grid,vx,vy,continuity_weight=continuity_weight,vxc=vxc,vyc=vyc)
+    vxC, vyC = velocity_to_points(xC,cell,grid,vx,vy,continuity_weight=continuity_weight,vxc=vxc,vyc=vyc,N=markers.nmark)
     # 6. compute xD = xA + vC*dt
     xD = Array{Float64,2}(undef,2,markers.nmark)
     for i in 1:markers.nmark
@@ -670,7 +749,7 @@ function move_markers_rk4!(markers::Markers,grid::CartesianGrid,vx::Matrix{Float
         cell[1,i] = find_cell(xD[1,i], grid.x, grid.nx, guess=cell[1,i])
         cell[2,i] = find_cell(xD[2,i], grid.y, grid.ny, guess=cell[2,i])
     end
-    vxD, vyD = velocity_to_points(xD,cell,grid,vx,vy,continuity_weight=continuity_weight,vxc=vxc,vyc=vyc)
+    vxD, vyD = velocity_to_points(xD,cell,grid,vx,vy,continuity_weight=continuity_weight,vxc=vxc,vyc=vyc,N=markers.nmark)
     # 8. Compute v_eff = 1/6*(vA+2*vB+2*vC+vD) and move markers by v_eff*dt
     Threads.@threads for i in 1:markers.nmark
         markers.x[1,i] += dt/6.0*(vxA[i] + 2*vxB[i] + 2*vxC[i] + vxD[i]) 
@@ -681,3 +760,90 @@ function move_markers_rk4!(markers::Markers,grid::CartesianGrid,vx::Matrix{Float
 end
 
 
+#
+# Routines related to managing markers per cell
+#
+function markers_per_cell(grid::CartesianGrid,markers::Markers)
+   # compute the number of markers in each cell
+    per_cell = zeros(Int64,grid.ny-1,grid.nx-1)
+    for m in 1:markers.nmark
+       per_cell[ markers.cell[2,m],markers.cell[1,m] ] += 1
+    end
+    return per_cell
+end
+
+function add_remove_markers!(markers::Markers,grid::CartesianGrid,T::Matrix{Float64})
+    #
+    # T should be a temperature field defined at the cell centers.
+    #
+    min_markers = 190
+    target_markers = 200
+    max_markers = 210
+    # determine globally the number of markers that MUST be added
+    per_cell = markers_per_cell(grid,markers)
+    ind = findall( per_cell .< min_markers )
+    markers_to_add = sum( target_markers .- per_cell[ind] )
+    #print("ind=,",ind)
+    println("add ",markers_to_add )
+    
+    # identify markers to remove, distributed from the most populous cells
+    ind = findall( per_cell .> max_markers )
+    markers_to_remove = sum( per_cell[ind] .- target_markers )
+    println("remove ",markers_to_remove)
+    net_change = markers_to_add - markers_to_remove
+    if net_change > 0 && markers.nmark + net_change > markers.max_mark
+       # make space for new markers
+       add_markers!(markers,net_change) 
+    end
+
+    # compute a 1D index into cells for each marker
+    marker_cell = (markers.cell[1,1:markers.nmark] .- 1) .* (grid.ny-1) .+ markers.cell[2,1:markers.nmark]
+    remove = zeros(Bool,markers.max_mark) # boolean flag for keeep/discard
+    
+    # remove markers from overpopulated cells
+    for j in 1:grid.nx-1
+        for i in 1:grid.ny-1
+            if per_cell[i,j] > max_markers
+                to_remove = per_cell[i,j] - target_markers
+                this_cell = (j-1)*(grid.ny-1) + i
+                ind = findall(marker_cell .== this_cell)
+                ind_remove = ind[ randperm(to_remove) ]
+                remove[ind_remove] .= true
+            end
+        end
+    end
+    println("found ",sum(remove)," to remove")
+    remove_markers!(markers,remove)
+    
+    # loop over cells
+    for j in 1:grid.nx-1
+        for i in 1:grid.ny-1
+            if per_cell[i,j] < min_markers
+                to_add = target_markers - per_cell[i,j]
+                new_x = [grid.x[j] .+ rand(1,to_add).*(grid.x[j+1]-grid.x[j]); grid.y[i] .+ rand(1,to_add).*(grid.y[i+1]-grid.y[i])]
+                markers.x[:,markers.nmark+1:markers.nmark+to_add] = new_x
+                cell = [j.*ones(Int64,1,to_add); i.*ones(Int64,1,to_add)]
+#                 function stag_to_points(x::Matrix{Float64},cell::Matrix{Int64},grid::CartesianGrid,field::Matrix{Float64},stagx::Int64,stagy::Int64)
+                markers.cell[:,markers.nmark+1:markers.nmark+to_add] = cell
+                new_T = stag_to_points(new_x,cell,grid,T,-1,-1)
+                markers.scalars[markers.scalarFields["T"],markers.nmark+1:markers.nmark+to_add] = new_T
+                
+                # for each new marker, find the closest neighbor in the old markers
+                this_cell = (j-1)*(grid.ny-1) + i
+                ind = findall(marker_cell .== this_cell)
+                kdtree = KDTree(markers.x[:,ind])
+                idxs,dists = nn(kdtree, new_x)
+                
+                old_mat = markers.integers[markers.integerFields["material"],ind]
+                markers.integers[markers.integerFields["material"],markers.nmark+1:markers.nmark+to_add] = old_mat[idxs]
+                markers.nmark += to_add
+                
+            end
+        end
+    end    
+
+    
+    # pick material from nearest neighbor
+    # interpolate temperature linearly from surrounding nodes
+    # density can be recomputed at next step
+end
