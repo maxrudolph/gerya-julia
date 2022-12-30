@@ -772,24 +772,21 @@ function markers_per_cell(grid::CartesianGrid,markers::Markers)
     return per_cell
 end
 
-function add_remove_markers!(markers::Markers,grid::CartesianGrid,T::Matrix{Float64})
+function add_remove_markers!(markers::Markers,grid::CartesianGrid,T::Matrix{Float64},min_markers::Int64,target_markers::Int64,max_markers::Int64)
     #
     # T should be a temperature field defined at the cell centers.
     #
-    min_markers = 190
-    target_markers = 200
-    max_markers = 210
     # determine globally the number of markers that MUST be added
     per_cell = markers_per_cell(grid,markers)
     ind = findall( per_cell .< min_markers )
     markers_to_add = sum( target_markers .- per_cell[ind] )
     #print("ind=,",ind)
-    println("add ",markers_to_add )
+    #println("add ",markers_to_add )
     
     # identify markers to remove, distributed from the most populous cells
     ind = findall( per_cell .> max_markers )
     markers_to_remove = sum( per_cell[ind] .- target_markers )
-    println("remove ",markers_to_remove)
+    #println("remove ",markers_to_remove)
     net_change = markers_to_add - markers_to_remove
     if net_change > 0 && markers.nmark + net_change > markers.max_mark
        # make space for new markers
@@ -812,7 +809,7 @@ function add_remove_markers!(markers::Markers,grid::CartesianGrid,T::Matrix{Floa
             end
         end
     end
-    println("found ",sum(remove)," to remove")
+    #println("found ",sum(remove)," to remove")
     remove_markers!(markers,remove)
     
     # loop over cells
@@ -823,27 +820,30 @@ function add_remove_markers!(markers::Markers,grid::CartesianGrid,T::Matrix{Floa
                 new_x = [grid.x[j] .+ rand(1,to_add).*(grid.x[j+1]-grid.x[j]); grid.y[i] .+ rand(1,to_add).*(grid.y[i+1]-grid.y[i])]
                 markers.x[:,markers.nmark+1:markers.nmark+to_add] = new_x
                 cell = [j.*ones(Int64,1,to_add); i.*ones(Int64,1,to_add)]
-#                 function stag_to_points(x::Matrix{Float64},cell::Matrix{Int64},grid::CartesianGrid,field::Matrix{Float64},stagx::Int64,stagy::Int64)
-                markers.cell[:,markers.nmark+1:markers.nmark+to_add] = cell
-                new_T = stag_to_points(new_x,cell,grid,T,-1,-1)
-                markers.scalars[markers.scalarFields["T"],markers.nmark+1:markers.nmark+to_add] = new_T
                 
-                # for each new marker, find the closest neighbor in the old markers
+                # Interpolate material (integer) from nearest old marker                
                 this_cell = (j-1)*(grid.ny-1) + i
                 ind = findall(marker_cell .== this_cell)
                 kdtree = KDTree(markers.x[:,ind])
                 idxs,dists = nn(kdtree, new_x)
                 
-                old_mat = markers.integers[markers.integerFields["material"],ind]
-                markers.integers[markers.integerFields["material"],markers.nmark+1:markers.nmark+to_add] = old_mat[idxs]
-                markers.nmark += to_add
+                old_ints = markers.integers[:,ind]
+                markers.integers[:,markers.nmark+1:markers.nmark+to_add] = old_ints[idxs]
+                old_scalars = markers.scalars[:,ind]
+                markers.scalars[:,markers.nmark+1:markers.nmark+to_add] = old_scalars[:,idxs]
+                # old_mat = markers.integers[markers.integerFields["material"],ind]
+                # markers.integers[markers.integerFields["material"],markers.nmark+1:markers.nmark+to_add] = old_mat[idxs]
+                                
+                markers.cell[:,markers.nmark+1:markers.nmark+to_add] = cell
                 
+                # Interpolate temperature onto markers from surrounding cell centers:
+                new_T = stag_to_points(new_x,cell,grid,T,-1,-1)            
+                markers.scalars[markers.scalarFields["T"],markers.nmark+1:markers.nmark+to_add] = new_T
+
+                
+                # Increment total number of markers
+                markers.nmark += to_add                
             end
         end
     end    
-
-    
-    # pick material from nearest neighbor
-    # interpolate temperature linearly from surrounding nodes
-    # density can be recomputed at next step
 end
