@@ -57,17 +57,30 @@ function form_stokes_cylindrical(grid::CartesianGrid,eta_s::Matrix,eta_n::Matrix
                 value[k] = kbond
                 k+=1
                 R[this_row] = 0.0 *kbond
-            elseif i==1
-                # dvx/dy = 0 (free slip)
-                row_index[k] = this_row
-                col_index[k] = this_row
-                value[k] = -kbond
-                k+=1
-                row_index[k] = this_row
-                col_index[k] = vxdof(i+1,j,ny)
-                value[k] = kbond
-                k+=1                
-                R[this_row] = 0.0*kbond
+            elseif i==1 # top
+                if grid.yperiodic
+                    # dvx/dy = 0 (free slip)
+                    row_index[k] = this_row
+                    col_index[k] = this_row
+                    value[k] = -kbond
+                    k+=1
+                    row_index[k] = this_row
+                    col_index[k] = vxdof(grid.ny,j,ny)
+                    value[k] = kbond
+                    k+=1                
+                    R[this_row] = 0.0*kbond
+                else
+                    # dvx/dy = 0 (free slip)
+                    row_index[k] = this_row
+                    col_index[k] = this_row
+                    value[k] = -kbond
+                    k+=1
+                    row_index[k] = this_row
+                    col_index[k] = vxdof(i+1,j,ny)
+                    value[k] = kbond
+                    k+=1                
+                    R[this_row] = 0.0*kbond
+                end
             else
                 # vx1 vx(i,j-1)
                 row_index[k] = this_row
@@ -140,14 +153,14 @@ function form_stokes_cylindrical(grid::CartesianGrid,eta_s::Matrix,eta_n::Matrix
             
             # BEGIN Y-STOKES
             dxp = j < nx ? grid.xc[j+1] - grid.xc[j]   : grid.xc[j]  -grid.xc[j-1]
-            dxm = j > 1  ? grid.xc[j]   - grid.xc[j-1] : grid.xc[j+1]-grid.xc[j]
+            dxm = j > 1  ? grid.xc[j]   - grid.xc[j-1] : grid.xc[j+1]-grid.xc[j]            
             dxc = j > 1  ? grid.x[j]    - grid.x[j-1]  : grid.x[j+1] - grid.x[j]
             dyp = i < ny ? grid.y[i+1]  - grid.y[i]    : grid.y[i]   - grid.y[i-1]
             dym = i > 1  ? grid.y[i]    - grid.y[i-1]  : grid.y[i+1] - grid.y[i]
             dyc = i < ny ? grid.yc[i+1] - grid.yc[i]   : grid.yc[i]  - grid.yc[i-1]            
-            
+                    
             this_row = vydof(i,j,ny)
-            if i==1 || i == ny
+            if (!grid.yperiodic && i==1) || i == ny
                 # top row / bottom row
                 row_index[k] = this_row
                 col_index[k] = this_row
