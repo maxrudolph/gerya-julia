@@ -875,8 +875,8 @@ function add_remove_markers!(markers::Markers,grid::CartesianGrid,T::Matrix{Floa
                 markers.cell[:,markers.nmark+1:markers.nmark+to_add] = cell
                 
                 # Interpolate temperature onto markers from surrounding cell centers:
-                new_T = stag_to_points(new_x,cell,grid,T,-1,-1)            
-                markers.scalars[markers.scalarFields["T"],markers.nmark+1:markers.nmark+to_add] = new_T
+                # new_T = stag_to_points(new_x,cell,grid,T,-1,-1)            
+                # markers.scalars[markers.scalarFields["T"],markers.nmark+1:markers.nmark+to_add] = new_T
 
                 
                 # Increment total number of markers
