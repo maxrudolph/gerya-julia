@@ -15,6 +15,24 @@ function visualization(grid::CartesianGrid,rho::Matrix,eta::Matrix,vn::Array{Flo
     end
 end
 
+function visualization(grid::CartesianGrid,output_fields::Dict,time ; filename="test.vts")
+    # write the visualization output from the regular grid as a .vts file.
+    vtk_grid(filename, grid.x, grid.y) do vtk
+        for key in keys(output_fields)
+            if length(size(output_fields[key])) == 3
+                # this is a 3D array - assume that it's (vector) velocity.
+                # add a fake third dimension to the velocity vectors
+                v3 = Array{Float64,3}(undef,3,grid.nx,grid.ny)
+                v3[1:2,:,:] = output_fields[key]
+                v3[3,:,:] .= 0.0
+            else
+                vtk[key] = transpose(output_fields[key])
+            end
+        end
+        vtk["TimeValue"] = time
+    end
+end
+
 function visualization(markers::Markers,time; filename="markers.vtp")  
     p3 = Array{Float64,2}(undef,3,markers.nmark)
     p3[1:2,:] = markers.x[1:2,1:markers.nmark]

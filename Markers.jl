@@ -850,7 +850,8 @@ function add_remove_markers!(markers::Markers,grid::CartesianGrid,T::Matrix{Floa
     #println("found ",sum(remove)," to remove")
     remove_markers!(markers,remove)
     
-    new_markers = zeros(Bool,markers.max_mark) # array to indicate whether a marker is new.
+    new_markers = BitVector(undef,markers.max_mark)#zeros(Bool,markers.max_mark) # array to indicate whether a marker is new.
+    new_markers[:] .= false
     # loop over cells
     for j in 1:grid.nx-1
         for i in 1:grid.ny-1
