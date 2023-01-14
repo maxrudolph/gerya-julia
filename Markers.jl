@@ -841,8 +841,8 @@ function add_remove_markers!(markers::Markers,grid::CartesianGrid,T::Matrix{Floa
             if per_cell[i,j] > max_markers
                 to_remove = per_cell[i,j] - target_markers
                 this_cell = (j-1)*(grid.ny-1) + i
-                ind = findall(marker_cell .== this_cell)
-                ind_remove = ind[ randperm(to_remove) ]
+                ind = findall(marker_cell .== this_cell)                
+                ind_remove = ind[ randperm(per_cell[i,j])[1:target_markers] ]
                 remove[ind_remove] .= true
             end
         end
@@ -850,6 +850,7 @@ function add_remove_markers!(markers::Markers,grid::CartesianGrid,T::Matrix{Floa
     #println("found ",sum(remove)," to remove")
     remove_markers!(markers,remove)
     
+    new_markers = zeros(Bool,markers.max_mark) # array to indicate whether a marker is new.
     # loop over cells
     for j in 1:grid.nx-1
         for i in 1:grid.ny-1
@@ -875,13 +876,14 @@ function add_remove_markers!(markers::Markers,grid::CartesianGrid,T::Matrix{Floa
                 markers.cell[:,markers.nmark+1:markers.nmark+to_add] = cell
                 
                 # Interpolate temperature onto markers from surrounding cell centers:
-                # new_T = stag_to_points(new_x,cell,grid,T,-1,-1)            
-                # markers.scalars[markers.scalarFields["T"],markers.nmark+1:markers.nmark+to_add] = new_T
-
+                new_T = stag_to_points(new_x,cell,grid,T,-1,-1)            
+                markers.scalars[markers.scalarFields["T"],markers.nmark+1:markers.nmark+to_add] = new_T
+                new_markers[markers.nmark+1:markers.nmark+to_add] .= true
                 
                 # Increment total number of markers
                 markers.nmark += to_add                
             end
         end
-    end    
+    end
+    return new_markers
 end
