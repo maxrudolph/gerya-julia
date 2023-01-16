@@ -1,12 +1,13 @@
 # This file is from HC, the global mantle circulation solver by Thorsten Becker
 # This viscosity profile is from Steinberger and Holme (2008)
 # Columns are (dimensionless radius), Viscosity (pascal-seconds)
-0.5400 0.186E+21
-0.5448 0.186E+21
-0.5668 0.354E+22
-0.5888 0.332E+23
-0.6107 0.885E+23
-0.6327 0.112E+24
+0.5400 0.111E24
+#0.5400 0.186E+21
+#0.5448 0.186E+21
+#0.5668 0.354E+22
+#0.5888 0.332E+23
+#0.6107 0.885E+23
+#0.6327 0.112E+24
 0.6547 0.111E+24
 0.6767 0.101E+24
 0.6986 0.875E+23

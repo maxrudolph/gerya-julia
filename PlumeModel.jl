@@ -1,6 +1,7 @@
 # Import necessary packages
 using SparseArrays
 using LinearAlgebra
+using Pardiso
 using IterativeSolvers
 using WriteVTK
 using Printf
@@ -152,7 +153,7 @@ function initial_conditions!(markers::Markers,materials::Materials,options::Dict
         mr = ((mx-0)^2 + (my-1.2e6)^2)^0.5 
         
         #define initial cmb hot layer geometry
-        h = 200e3 - (100e3)*(mx-0.0)/options["W"]
+        h = 250e3 - (150e3)*(mx-0.0)/options["W"]
                 
         #set material - eclogite at cmb
         if my > 2.85e6-h
@@ -224,9 +225,7 @@ options["g"] = 10.0
 options["Tcmb"] = 1350+500+273.0#2200.0+273.0
 options["plot interval"] = 5e6*seconds_in_year
 options["melting plot interval"] = 5e5*seconds_in_year
-options["output directory"] = "plume_test_1950"
-
-using Pardiso, LinearAlgebra, SparseArrays
+options["output directory"] = "plume_test3"
 
 function plume_model(options::Dict;max_step::Int64=-1,max_time::Float64=-1.0)
     nx = options["nx"]#51#101
@@ -254,7 +253,7 @@ function plume_model(options::Dict;max_step::Int64=-1,max_time::Float64=-1.0)
     dtmax = plot_interval
     grid = CartesianGrid(W,H,nx,ny)
     println("Creating Markers...")
-    @time markers = Markers(grid,["alpha","Cp","T","rho","eta","Hr","Xmelt","dXdt"],["material"] ; nmx=markx,nmy=marky,random=true)
+    @time markers = Markers(grid,["alpha","Cp","T","rho","eta","Hr","Xmelt","dXdt"],["material"] ; nmx=markx,nmy=marky,random=false)
     println("Initial condition...")
     @time initial_conditions!(markers, materials, options)
 
@@ -360,8 +359,8 @@ function plume_model(options::Dict;max_step::Int64=-1,max_time::Float64=-1.0)
         # 2. Assemble and solve the stokes equations
         #L,R = form_stokes(grid,eta_s,eta_n,rho_vx,rho_vy,bc,gx,gy,dt=dt)
         L,R = form_stokes_cylindrical(grid,eta_s,eta_n,eta_vx,eta_vy,rho_vx,rho_vy,bc,gx,gy)
-        #stokes_solution = L\R
-        stokes_solution = solve(pardiso_solver,L,R)
+        stokes_solution = L\R
+        #stokes_solution = solve(pardiso_solver,L,R)
         vx,vy,P = unpack(stokes_solution,grid;ghost=true)
     
         # Get the velocity at the cell centers:
@@ -378,7 +377,9 @@ function plume_model(options::Dict;max_step::Int64=-1,max_time::Float64=-1.0)
             this_dtmax = dtmax
         end
         dt = compute_timestep(grid,vxc,vyc ; dtmax=this_dtmax,cfl=0.25)
-        
+        if dt < 0.1*seconds_in_year
+	   terminate=true
+	end
         dTmax = Inf
         dTemp = nothing
         Tnew = nothing
@@ -424,6 +425,10 @@ function plume_model(options::Dict;max_step::Int64=-1,max_time::Float64=-1.0)
             total_melt = 0.0
             dXdt = zeros(grid.ny+1,grid.nx+1)
         end
+	if total_melt > 1e28
+	println("melting error...")
+	   terminate=true
+	end	
         
         # Add/remove markers. When markers are added, give them temperature using the nodal temp.
         new_markers = add_remove_markers!(markers,grid,Tnew,min_markers,target_markers,max_markers);
@@ -464,4 +469,4 @@ function plume_model(options::Dict;max_step::Int64=-1,max_time::Float64=-1.0)
      return grid,markers,vx,vy,vxc,vyc,rho_c,dTemp,Tnew,Tlast,time
  end
 
-@time grid,markers,vx,vy,vxc,vyc,rho_c,dTemp,Tnew,Tlast,time = plume_model(options,max_time=300e6*3.15e7);
+@time grid,markers,vx,vy,vxc,vyc,rho_c,dTemp,Tnew,Tlast,time = plume_model(options,max_time=500e6*3.15e7);
