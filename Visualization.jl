@@ -25,6 +25,7 @@ function visualization(grid::CartesianGrid,output_fields::Dict,time ; filename="
                 v3 = Array{Float64,3}(undef,3,grid.nx,grid.ny)
                 v3[1:2,:,:] = output_fields[key]
                 v3[3,:,:] .= 0.0
+                vtk[key] = v3
             else
                 vtk[key] = transpose(output_fields[key])
             end
