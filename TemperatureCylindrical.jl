@@ -196,14 +196,14 @@ function subgrid_temperature_relaxation_center!(markers::Markers,grid::Cartesian
 end
 
 function temperature_to_basic_nodes(grid::CartesianGrid,Tc::Matrix{Float64})
-     if size(Tc,1) != grid.ny+1 || size(Tc,2) != grid.nx + 1
+    if size(Tc,1) != grid.ny+1 || size(Tc,2) != grid.nx + 1
         error("temperature array needs to contain ghost values")
     end
     Tn = zeros(grid.ny,grid.nx)
     Threads.@threads for i in 1:grid.ny
         for j in 1:grid.nx
-            Tn[i,j] = 0.25*(Tc[i,j]+Tc[i,j+1]+Tc[i+1,j]+Tc[i+1,j+1])
+            Tn[i,j] = 0.25*(Tc[i,j] + Tc[i,j+1] + Tc[i+1,j] + Tc[i+1,j+1])
         end
     end
-    return Tc
+    return Tn
 end
