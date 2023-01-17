@@ -389,7 +389,7 @@ function plume_model(options::Dict;max_step::Int64=-1,max_time::Float64=-1.0)
             println("Trying with timestep ",dt/3.15e7/1e6," Myr")
             L,R = assemble_energy_equation_cylindrical(grid,rho_c,Cp_c,kThermal,H,Tlast,dt,Tbcval);
             #Tnew = L\R;
-             Tnew = solve(pardiso_solver,L,R);
+            Tnew = solve(pardiso_solver,L,R);
             Tnew = reshape(Tnew,grid.ny,grid.nx);
             Tnew = ghost_temperature_center(grid,Tnew,Tbcval);
 
@@ -447,7 +447,8 @@ function plume_model(options::Dict;max_step::Int64=-1,max_time::Float64=-1.0)
             name = @sprintf("%s/viz.%04d.vtr",output_dir,iout)
             println("Writing visualization fle ",name)
             vn = velocity_to_basic_nodes(grid,vxc,vyc)
-            output_fields = Dict("rho"=>rho_c,"eta"=>eta_s,"velocity"=>vn,"pressure"=>P[2:end-1,2:end-1],"T"=>Tnew[2:end-1,2:end-1],"dXdt"=>dXdt[2:end-1,2:end-1])
+	    Tn = temperature_to_basic_nodes(grid,Tnew)
+            output_fields = Dict("rho"=>rho_c,"eta"=>eta_s,"velocity"=>vn,"pressure"=>P[2:end-1,2:end-1],"T"=>Tn,"dXdt"=>dXdt[2:end-1,2:end-1])
             @time visualization(grid,output_fields,time/seconds_in_year;filename=name)
             # Markers output:
             name1 = @sprintf("%s/markers.%04d.vtp",output_dir,iout)

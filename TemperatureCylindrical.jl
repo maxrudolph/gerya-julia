@@ -200,8 +200,8 @@ function temperature_to_basic_nodes(grid::CartesianGrid,Tc::Matrix{Float64})
         error("temperature array needs to contain ghost values")
     end
     Tn = zeros(grid.ny,grid.nx)
-    for i in 1:ny
-        for j in 1:nx
+    Threads.@threads for i in 1:grid.ny
+        for j in 1:grid.nx
             Tn[i,j] = 0.25*(Tc[i,j]+Tc[i,j+1]+Tc[i+1,j]+Tc[i+1,j+1])
         end
     end
