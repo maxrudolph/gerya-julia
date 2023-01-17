@@ -163,7 +163,7 @@ function initial_conditions!(markers::Markers,materials::Materials,options::Dict
         end
         
         if my < lithosphere_thickness
-            markers.scalars[T,i] = plate_cooling(273.0,1350.0+273.0,1.5e5,1e-6,my,100e6*3.15e7)
+            markers.scalars[T,i] = plate_cooling(273.0,1350.0+273.0,1.5e5,1e-6,my,50e6*3.15e7)
         else
             #markers.scalars[T,i] = 1350.0+273.0
             markers.scalars[T,i] = halfspace_cooling_from_thickness(options["Tcmb"],1350.0+273.0,1e-6,2.85e6-my,h)
@@ -215,17 +215,17 @@ end
 seconds_in_year = 3.15e7
 
 options = Dict()
-options["nx"] = 51
-options["ny"] = 141
+options["nx"] = 101
+options["ny"] = 285
 options["markx"] = 10
 options["marky"] = 10
 options["W"] = 1e6
 options["H"] = 2.850e6
 options["g"] = 10.0
-options["Tcmb"] = 1350+500+273.0#2200.0+273.0
+options["Tcmb"] = 1350+550+273.0#2200.0+273.0
 options["plot interval"] = 5e6*seconds_in_year
 options["melting plot interval"] = 5e5*seconds_in_year
-options["output directory"] = "plume_test3"
+options["output directory"] = "plume_test_550_high"
 
 function plume_model(options::Dict;max_step::Int64=-1,max_time::Float64=-1.0)
     nx = options["nx"]#51#101
