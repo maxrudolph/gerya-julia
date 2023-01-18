@@ -2,7 +2,7 @@
 # In cylindrical coordinates!!
 # x -> r
 # y -> z
-function assemble_energy_equation_cylindrical(grid::CartesianGrid,rho_c::Matrix{Float64},Cp_c::Matrix{Float64},kThermal::Matrix{Float64},H::Matrix{Float64},Tlast::Matrix{Float64},dt::Float64,bcval)
+function assemble_energy_equation_cylindrical(grid::CartesianGrid,rho_c::Matrix{Float64},Cp_c::Matrix{Float64},kThermal::Matrix{Float64},H::Matrix{Float64},Tlast::Matrix{Float64},dt::Float64,bctype,bcval)
     # Assemble the left hand side for the energy equation
     # Inputs:
     # grid - this is the CartesianGrid
@@ -12,14 +12,17 @@ function assemble_energy_equation_cylindrical(grid::CartesianGrid,rho_c::Matrix{
     # H - volumetric rate of internal heating at the cell centers
     # Tlast - the previous-timestep temperature.
     # dt - the time step
+    # bctype - a vector containing flags for the boundary condition at the [left, right, top, bottom]
+    # 1 = fixed temperature
+    # 2 = fixed dT/dn
     # bcval - a vector containing the temperature or dT/dn values at the [left, right, top, bottom]
     # Returns:
     # L,R, the left hand side and right hand side of the energy equation
     
-    bcleft  = -1   # -1 = insulating, 1 = constant temp
-    bcright = -1   #
-    bctop   =  1
-    bcbottom  = 1
+    bcleft  = bctype[1]#-1   # -1 = insulating, 1 = constant temp
+    bcright = bctype[2]#-1   #
+    bctop   =  bctype[3]#1
+    bcbottom  = bctype[4]#1
     # bcval should contain temperature or dT/dx values for left,right,top,bottom
     
     N = grid.nx*grid.ny
@@ -49,18 +52,18 @@ function assemble_energy_equation_cylindrical(grid::CartesianGrid,rho_c::Matrix{
             dym = i>1 ? grid.yc[i]-grid.yc[i-1] : grid.yc[i+1] - grid.yc[i]
             
             this_row = node_index(i,j,grid.ny);
-            if i==1 # ghost nodes along top.
+            if i==1 # ghost nodes along top
                 row[k] = this_row
                 col[k] = this_row
-                val[k] = 1.0/2.0
+                val[k] = 1.0 #1.0/2.0
                 k+=1
                 
                 row[k] = this_row
                 col[k] = node_index(i+1,j,grid.ny)
-                val[k] = bctop/2.0
+                val[k] = bctop #bctop/2.0
                 k+=1
                 
-                R[this_row] = bcval[3]
+                R[this_row] = bctop == 1 ? 2.0*bcval[3] : dyp*bcval[3]
             elseif j==1 # ghost nodes along left side.
                 row[k] = this_row
                 col[k] = this_row
@@ -125,22 +128,33 @@ function assemble_energy_equation_cylindrical(grid::CartesianGrid,rho_c::Matrix{
     return L,R
 end
 
-function ghost_temperature_center(grid::CartesianGrid,T::Matrix{Float64},bcval)
+function ghost_temperature_center(grid::CartesianGrid,T::Matrix{Float64},bctype,bcval)
     # Define a new grid that is (ny+1)x(nx+1) and insert the ghost temperature values.
     # bcval shoud be a vector containing the temperatures or temperature gradients 
     # along the left, right, top, and bottom (in that order)
-    bcleft  = -1   # -1 = insulating, 1 = constant temp
-    bcright = -1   #
-    bctop   =  1
-    bcbottom  = 1
+    bcleft  = bctype[1]#-1   # -1 = insulating, 1 = constant temp
+    bcright = bctype[2]#-1   #
+    bctop   = bctype[3]# 1
+    bcbottom  = bctype[4]#1
     #bcval = [0.0,0.0,1000.0,1000.0] # left,right,top,bottom
     Tpad = Array{Float64,2}(undef,grid.ny+1,grid.nx+1)
     Tpad[1:grid.ny,1:grid.nx] = T[1:grid.ny,1:grid.nx]
 
     # enforce dirichlet BCs along top and bottom.
-    Tpad[1,:] = 2.0*bcval[3] .- Tpad[2,:]
+    if bctop == 1
+        Tpad[1,:] = 2.0*bcval[3] .- Tpad[2,:]
+    elseif bctop == -1
+	Tpad[1,:] = Tpad[:,2] .- (grid.yc[2]-grid.yc[1]) * bcval[3]
+    end
     Tpad[grid.ny+1,:] = 2.0*bcval[4] .- Tpad[grid.ny,:]
-    
+
+    # Left boundary
+    if bcleft == -1
+       Tpad[:,1] = Tpad[:,2]
+    elseif bcleft == 1
+       Tpad[:,1] = 2.0*bcval[1] .- Tpad[:,2]
+    end
+
     # right side first
     for i in 1:grid.ny
         if bcright == 1
@@ -149,6 +163,7 @@ function ghost_temperature_center(grid::CartesianGrid,T::Matrix{Float64},bcval)
             Tpad[i,grid.nx+1] = Tpad[i,grid.nx]
         end
     end
+    
     # bottom
     for j in 1:grid.nx+1
         if bcbottom == 1

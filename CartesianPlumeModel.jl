@@ -16,10 +16,10 @@ include("Grid.jl")
 include("GridOperations.jl")
 include("Markers.jl")
 include("Stokes.jl")
-include("StokesCylindrical.jl")
+#include("StokesCylindrical.jl")
 
 include("Temperature.jl")
-include("TemperatureCylindrical.jl")
+#include("TemperatureCylindrical.jl")
 include("melting/yasuda.jl")
 
 # note that we import pyplot last to avoid a name conflict with grid.
@@ -136,17 +136,9 @@ function update_marker_properties!(markers::Markers,materials::Materials)
     end
 end
 
-function initial_surface_geotherm(grid::CartesianGrid,options::Dict)
-	 # computes dT/dz, to be used as a Neumann boundary condition
-	 T1 = 273.0
-	 T2 = plate_cooling(273.0,options["mantle temperature"]+273.0,options["lithosphere thickness"],1e-6,grid.yc[2],50e6*3.15e7)
-	 return (T2-T1)/(grid.yc[2]-grid.y[1]) # this is dt/dz at the boundary. 
-end
-
 function initial_conditions!(markers::Markers,materials::Materials,options::Dict)
     # Define geometric properties
-    lithosphere_thickness = options["lithosphere thickness"]
-    mantle_temperature = options["mantle temperature"]
+    lithosphere_thickness = 1.5e5
     
     material = markers.integerFields["material"]
     T = markers.scalarFields["T"]
@@ -171,11 +163,17 @@ function initial_conditions!(markers::Markers,materials::Materials,options::Dict
         end
         
         if my < lithosphere_thickness
-            markers.scalars[T,i] = plate_cooling(273.0,mantle_temperature + 273.0,1.5e5,1e-6,my,50e6*3.15e7)
+            markers.scalars[T,i] = plate_cooling(273.0,1350.0+273.0,1.5e5,1e-6,my,50e6*3.15e7)
         else
             #markers.scalars[T,i] = 1350.0+273.0
-            markers.scalars[T,i] = halfspace_cooling_from_thickness(options["Tcmb"],mantle_temperature + 273.0,1e-6,2.85e6-my,h)
+            markers.scalars[T,i] = halfspace_cooling_from_thickness(options["Tcmb"],1350.0+273.0,1e-6,2.85e6-my,h)
         end
+        #if mr <= 4e5
+        #    markers.integers[material,i] = 2
+        #    markers.scalars[T,i] += 200.0 # initial plume excess temperature
+        #else
+        #    markers.integers[material,i] = 1
+        #end
                         
         ind = markers.integers[material,i]
         markers.scalars[eta,i] = viscosity(materials.eta[ind],markers.x[2,i],markers.scalars[T,i],materials.Ea[ind])
@@ -217,20 +215,17 @@ end
 seconds_in_year = 3.15e7
 
 options = Dict()
-options["nx"] = 101
-options["ny"] = 285
+options["nx"] = 51
+options["ny"] = 141
 options["markx"] = 10
 options["marky"] = 10
 options["W"] = 1e6
 options["H"] = 2.850e6
 options["g"] = 10.0
-options["Tcmb"] = 1350.0+550.0
-options["lithosphere thickness"] = 1.5e5
-options["mantle temperature"] = 1350.0 
-
+options["Tcmb"] = 1350+500+273.0#2200.0+273.0
 options["plot interval"] = 5e6*seconds_in_year
-options["melting plot interval"] = 1e5*seconds_in_year
-options["output directory"] = "plume_test_550_high"
+options["melting plot interval"] = 5e5*seconds_in_year
+options["output directory"] = "plume_test3_cart"
 
 function plume_model(options::Dict;max_step::Int64=-1,max_time::Float64=-1.0)
     nx = options["nx"]#51#101
@@ -241,8 +236,6 @@ function plume_model(options::Dict;max_step::Int64=-1,max_time::Float64=-1.0)
     gy = options["g"]
 
     #Tbcval = [0.0,0.0,273.0,1350.0+273.0]
-
-    Tbctype = [-1,-1,-1,1] #left, right, top, bottom
     Tbcval = [0.0,0.0,273.0,options["Tcmb"]]
     bc = BoundaryConditions(0,0,0,0) # currently does nothing but is required argument to stokes solver.
     materials = Materials()
@@ -364,8 +357,8 @@ function plume_model(options::Dict;max_step::Int64=-1,max_time::Float64=-1.0)
         Tlast = ghost_temperature_center(grid,Tlast,Tbcval)
         
         # 2. Assemble and solve the stokes equations
-        #L,R = form_stokes(grid,eta_s,eta_n,rho_vx,rho_vy,bc,gx,gy,dt=dt)
-        L,R = form_stokes_cylindrical(grid,eta_s,eta_n,eta_vx,eta_vy,rho_vx,rho_vy,bc,gx,gy)
+        L,R = form_stokes(grid,eta_s,eta_n,rho_vx,rho_vy,bc,gx,gy,dt=dt)
+        #L,R = form_stokes_cylindrical(grid,eta_s,eta_n,eta_vx,eta_vy,rho_vx,rho_vy,bc,gx,gy)
         stokes_solution = L\R
         #stokes_solution = solve(pardiso_solver,L,R)
         vx,vy,P = unpack(stokes_solution,grid;ghost=true)
@@ -394,9 +387,10 @@ function plume_model(options::Dict;max_step::Int64=-1,max_time::Float64=-1.0)
         for titer=1:2# limit maximum temperature change
             # assemble and solve the energy equation
             println("Trying with timestep ",dt/3.15e7/1e6," Myr")
-            L,R = assemble_energy_equation_cylindrical(grid,rho_c,Cp_c,kThermal,H,Tlast,dt,Tbcval);
+            #L,R = assemble_energy_equation_cylindrical(grid,rho_c,Cp_c,kThermal,H,Tlast,dt,Tbcval);
+	    L,R = assemble_energy_equation_center(grid,rho_c,Cp_c,kThermal,H,Tlast,dt,Tbcval);
             #Tnew = L\R;
-            Tnew = solve(pardiso_solver,L,R);
+             Tnew = solve(pardiso_solver,L,R);
             Tnew = reshape(Tnew,grid.ny,grid.nx);
             Tnew = ghost_temperature_center(grid,Tnew,Tbcval);
 
@@ -454,8 +448,7 @@ function plume_model(options::Dict;max_step::Int64=-1,max_time::Float64=-1.0)
             name = @sprintf("%s/viz.%04d.vtr",output_dir,iout)
             println("Writing visualization fle ",name)
             vn = velocity_to_basic_nodes(grid,vxc,vyc)
-	    Tn = temperature_to_basic_nodes(grid,Tnew)
-            output_fields = Dict("rho"=>rho_c,"eta"=>eta_s,"velocity"=>vn,"pressure"=>P[2:end-1,2:end-1],"T"=>Tn,"dXdt"=>dXdt[2:end-1,2:end-1])
+            output_fields = Dict("rho"=>rho_c,"eta"=>eta_s,"velocity"=>vn,"pressure"=>P[2:end-1,2:end-1],"T"=>Tnew[2:end-1,2:end-1],"dXdt"=>dXdt[2:end-1,2:end-1])
             @time visualization(grid,output_fields,time/seconds_in_year;filename=name)
             # Markers output:
             name1 = @sprintf("%s/markers.%04d.vtp",output_dir,iout)
