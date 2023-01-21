@@ -188,7 +188,7 @@ function initial_conditions!(markers::Markers,materials::Materials,options::Dict
         mr = ((mx-0)^2 + (my-1.2e6)^2)^0.5 
         
         #define initial cmb hot layer geometry
-        h = 250e3 - (150e3)*(mx-0.0)/options["W"]
+        h = 300e3 - (150e3)*(mx-0.0)/options["W"]
                 
         #set material - eclogite at cmb
         if my > 2.85e6-h
@@ -201,7 +201,7 @@ function initial_conditions!(markers::Markers,materials::Materials,options::Dict
             markers.scalars[T,i] = plate_cooling(273.0,mantle_temperature + 273.0,1.5e5,1e-6,my,50e6*3.15e7)
         else
             #markers.scalars[T,i] = 1350.0+273.0
-            markers.scalars[T,i] = halfspace_cooling_from_thickness(options["Tcmb"],mantle_temperature + 273.0,1e-6,2.85e6-my,h)
+            markers.scalars[T,i] = halfspace_cooling_from_thickness(options["Tcmb"],mantle_temperature + 273.0,1e-6,options["H"]-my,h)
         end
                         
         ind = markers.integers[material,i]
@@ -244,8 +244,8 @@ end
 seconds_in_year = 3.15e7
 
 options = Dict()
-options["nx"] = 51#101
-options["ny"] = 101#285
+options["nx"] = 101
+options["ny"] = 285
 options["markx"] = 10
 options["marky"] = 10
 options["W"] = 1e6
