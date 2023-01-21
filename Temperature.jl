@@ -122,39 +122,63 @@ function assemble_energy_equation_center(grid::CartesianGrid,rho_c::Matrix{Float
     return L,R
 end
 
-function ghost_temperature_center(grid::CartesianGrid,T::Matrix{Float64},bcval)
+function ghost_temperature_center(grid::CartesianGrid,T::Matrix{Float64},bctype,bcval)
     # Define a new grid that is (ny+1)x(nx+1) and insert the ghost temperature values.
     # bcval shoud be a vector containing the temperatures or temperature gradients 
     # along the left, right, top, and bottom (in that order)
-    bcleft  = -1   # -1 = insulating, 1 = constant temp
-    bcright = -1   #
-    bctop   =  1
-    bcbottom  = 1
+    bcleft  = bctype[1]   # -1 = insulating, 1 = constant temp
+    bcright = bctype[2]
+    bctop   = bctype[3]
+    bcbottom  = bctype[4]
     #bcval = [0.0,0.0,1000.0,1000.0] # left,right,top,bottom
     Tpad = Array{Float64,2}(undef,grid.ny+1,grid.nx+1)
     Tpad[1:grid.ny,1:grid.nx] = T[1:grid.ny,1:grid.nx]
 
-    # enforce dirichlet BCs along top and bottom.
-    Tpad[1,:] = 2.0*bcval[3] .- Tpad[2,:]
-    Tpad[grid.ny+1,:] = 2.0*bcval[4] .- Tpad[grid.ny,:]
-    
-    # right side first
-    for i in 1:grid.ny
-        if bcright == 1
-             Tpad[i,grid.nx+1] = 2.0*bcval[2]-Tpad[i,grid.nx]
-        elseif bcright == -1
-            Tpad[i,grid.nx+1] = Tpad[i,grid.nx]
-        end
+    # enforce BCs along top and bottom.
+    if bctop == 1
+        Tpad[1,2:grid.nx] = 2.0*bcval[3] .- Tpad[2,2:grid.nx]
+    elseif bctop == -1
+	    Tpad[1,2:grid.nx] = Tpad[2,2:grid.nx] .- ((grid.yc[2]-grid.yc[1]) * bcval[3])
     end
     # bottom
-    for j in 1:grid.nx+1
-        if bcbottom == 1
-            Tpad[grid.ny+1,j] = 2.0*bcval[4]-Tpad[grid.ny,j]
-        elseif bcbottom == -1
-            Tpad[grid.ny+1,j] = Tpad[grid.ny,j]
+    if bcbottom == 1
+        Tpad[grid.ny+1,2:grid.nx] = 2.0*bcval[4] .- Tpad[grid.ny,2:grid.nx]
+    elseif bcbottom == -1
+        Tpad[grid.ny+1,2:grid.nx] = Tpad[grid.ny,2:grid.nx] .+ ((grid.yc[grid.ny+1]-grid.yc[grid.ny]) * bcval[4])
+    end
+
+    # Left boundary
+    if bcleft == -1
+       Tpad[:,1] = Tpad[:,2] # insulating
+    elseif bcleft == 1
+       Tpad[:,1] = 2.0*bcval[1] .- Tpad[:,2]
+    end
+
+    # Right boundary
+    for i in 1:grid.ny
+        if bcright == -1
+            Tpad[i,grid.nx+1] = Tpad[i,grid.nx] # insulating
+        elseif bcright == 1
+             Tpad[i,grid.nx+1] = 2.0*bcval[2]-Tpad[i,grid.nx]
         end
     end
+
     return Tpad
+end
+
+function temperature_to_basic_nodes(grid::CartesianGrid,Tc::Matrix{Float64})
+    # Interpolate temperature from the cell centers to the basic nodes. 
+    # Tc should be cell centered values including ghost values outside domain.
+    if size(Tc,1) != grid.ny+1 || size(Tc,2) != grid.nx + 1
+        error("temperature array needs to contain ghost values")
+    end
+    Tn = zeros(grid.ny,grid.nx)
+    Threads.@threads for i in 1:grid.ny
+        for j in 1:grid.nx
+            Tn[i,j] = 0.25*(Tc[i,j] + Tc[i,j+1] + Tc[i+1,j] + Tc[i+1,j+1])
+        end
+    end
+    return Tn
 end
 
 function subgrid_temperature_relaxation_center!(markers::Markers,grid::CartesianGrid,Tlast::Matrix,Cp,kThermal,dt::Float64)

@@ -18,7 +18,7 @@ include("Markers.jl")
 include("Stokes.jl")
 include("StokesCylindrical.jl")
 
-#include("Temperature.jl")
+include("Temperature.jl")
 include("TemperatureCylindrical.jl")
 include("melting/yasuda.jl")
 
