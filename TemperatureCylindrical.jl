@@ -128,53 +128,6 @@ function assemble_energy_equation_cylindrical(grid::CartesianGrid,rho_c::Matrix{
     return L,R
 end
 
-function ghost_temperature_center(grid::CartesianGrid,T::Matrix{Float64},bctype,bcval)
-    # Define a new grid that is (ny+1)x(nx+1) and insert the ghost temperature values.
-    # bcval shoud be a vector containing the temperatures or temperature gradients 
-    # along the left, right, top, and bottom (in that order)
-    bcleft  = bctype[1]#-1   # -1 = insulating, 1 = constant temp
-    bcright = bctype[2]#-1   #
-    bctop   = bctype[3]# 1
-    bcbottom  = bctype[4]#1
-    #bcval = [0.0,0.0,1000.0,1000.0] # left,right,top,bottom
-    Tpad = Array{Float64,2}(undef,grid.ny+1,grid.nx+1)
-    Tpad[1:grid.ny,1:grid.nx] = T[1:grid.ny,1:grid.nx]
-
-    # enforce dirichlet BCs along top and bottom.
-    if bctop == 1
-        Tpad[1,:] = 2.0*bcval[3] .- Tpad[2,:]
-    elseif bctop == -1
-	    Tpad[1,:] = Tpad[2,:] .- (grid.yc[2]-grid.yc[1]) * bcval[3]
-    end
-    Tpad[grid.ny+1,:] = 2.0*bcval[4] .- Tpad[grid.ny,:]
-
-    # Left boundary
-    if bcleft == -1
-       Tpad[:,1] = Tpad[:,2]
-    elseif bcleft == 1
-       Tpad[:,1] = 2.0*bcval[1] .- Tpad[:,2]
-    end
-
-    # right side first
-    for i in 1:grid.ny
-        if bcright == 1
-             Tpad[i,grid.nx+1] = 2.0*bcval[2]-Tpad[i,grid.nx]
-        elseif bcright == -1
-            Tpad[i,grid.nx+1] = Tpad[i,grid.nx]
-        end
-    end
-    
-    # bottom
-    for j in 1:grid.nx+1
-        if bcbottom == 1
-            Tpad[grid.ny+1,j] = 2.0*bcval[4]-Tpad[grid.ny,j]
-        elseif bcbottom == -1
-            Tpad[grid.ny+1,j] = Tpad[grid.ny,j]
-        end
-    end
-    return Tpad
-end
-
 function subgrid_temperature_relaxation_center!(markers::Markers,grid::CartesianGrid,Tlast::Matrix,Cp,kThermal,dt::Float64)
     # Perform the sub-grid scale temperature diffusion operation
     # Inputs:
@@ -210,18 +163,7 @@ function subgrid_temperature_relaxation_center!(markers::Markers,grid::Cartesian
     
 end
 
-function temperature_to_basic_nodes(grid::CartesianGrid,Tc::Matrix{Float64})
-    if size(Tc,1) != grid.ny+1 || size(Tc,2) != grid.nx + 1
-        error("temperature array needs to contain ghost values")
-    end
-    Tn = zeros(grid.ny,grid.nx)
-    Threads.@threads for i in 1:grid.ny
-        for j in 1:grid.nx
-            Tn[i,j] = 0.25*(Tc[i,j] + Tc[i,j+1] + Tc[i+1,j] + Tc[i+1,j+1])
-        end
-    end
-    return Tn
-end
+
 
 function compute_boundary_heat_flow(grid::CartesianGrid,Tc::Matrix{Float64},kThermal::Matrix{Float64})
     if size(Tc,1) != grid.ny+1 || size(Tc,2) != grid.nx + 1

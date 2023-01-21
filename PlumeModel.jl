@@ -387,7 +387,7 @@ function plume_model(options::Dict;max_step::Int64=-1,max_time::Float64=-1.0)
         Tlast = copy(Tlast_new)
         # Xlast = copy(Xlast_new)
 
-        Tlast = ghost_temperature_center(grid,Tlast,Tbcval)
+        Tlast = ghost_temperature_center(grid,Tlast,Tbctype,Tbcval)
         
         # 2. Assemble and solve the stokes equations
         #L,R = form_stokes(grid,eta_s,eta_n,rho_vx,rho_vy,bc,gx,gy,dt=dt)
@@ -424,7 +424,7 @@ function plume_model(options::Dict;max_step::Int64=-1,max_time::Float64=-1.0)
             #Tnew = L\R;
             Tnew = solve(pardiso_solver,L,R);
             Tnew = reshape(Tnew,grid.ny,grid.nx);
-            Tnew = ghost_temperature_center(grid,Tnew,Tbcval);
+            Tnew = ghost_temperature_center(grid,Tnew,Tbctype,Tbcval);
 
             T = copy(Tnew)
 
