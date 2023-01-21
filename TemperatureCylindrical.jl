@@ -19,7 +19,7 @@ function assemble_energy_equation_cylindrical(grid::CartesianGrid,rho_c::Matrix{
     # Returns:
     # L,R, the left hand side and right hand side of the energy equation
     
-    bcleft  = bctype[1]#-1   # -1 = insulating, 1 = constant temp
+    bcleft  = bctype[1]#-1   # -1 = constant normal temperature gradient, 1 = constant temp
     bcright = bctype[2]#-1   #
     bctop   =  bctype[3]#1
     bcbottom  = bctype[4]#1
@@ -63,7 +63,7 @@ function assemble_energy_equation_cylindrical(grid::CartesianGrid,rho_c::Matrix{
                 val[k] = bctop #bctop/2.0
                 k+=1
                 
-                R[this_row] = bctop == 1 ? 2.0*bcval[3] : dyp*bcval[3]
+                R[this_row] = bctop == 1 ? 2.0*bcval[3] : -dyp*bcval[3]
             elseif j==1 # ghost nodes along left side.
                 row[k] = this_row
                 col[k] = this_row
@@ -144,7 +144,7 @@ function ghost_temperature_center(grid::CartesianGrid,T::Matrix{Float64},bctype,
     if bctop == 1
         Tpad[1,:] = 2.0*bcval[3] .- Tpad[2,:]
     elseif bctop == -1
-	Tpad[1,:] = Tpad[:,2] .- (grid.yc[2]-grid.yc[1]) * bcval[3]
+	    Tpad[1,:] = Tpad[2,:] .- (grid.yc[2]-grid.yc[1]) * bcval[3]
     end
     Tpad[grid.ny+1,:] = 2.0*bcval[4] .- Tpad[grid.ny,:]
 
@@ -221,4 +221,23 @@ function temperature_to_basic_nodes(grid::CartesianGrid,Tc::Matrix{Float64})
         end
     end
     return Tn
+end
+
+function compute_boundary_heat_flow(grid::CartesianGrid,Tc::Matrix{Float64},kThermal::Matrix{Float64})
+    if size(Tc,1) != grid.ny+1 || size(Tc,2) != grid.nx + 1
+        error("temperature array needs to contain ghost values")
+    end    
+    qsurf = (Tc[2,:] - Tc[1,:]) ./ (grid.xc[2]-grid.xc[1])
+    Qsurf = 0.0
+    for j in 2:grid.nx
+        qsurf[j] *= 0.5*(kThermal[1,j]+kThermal[2,j])
+        Qsurf += qsurf[j] * 2*pi*grid.xc[j]*(grid.x[j]-grid.x[j-1])
+    end
+    qbtm = (Tc[2,:] - Tc[1,:]) ./ (grid.xc[2]-grid.xc[1])
+    Qbtm = 0.0
+    for j in 2:grid.nx
+        qbtm[j] *= 0.5*(kThermal[grid.ny+1,j]+kThermal[grid.ny,j])
+        Qbtm += qbtm[j] * 2*pi*grid.xc[j]*(grid.x[j]-grid.x[j-1])
+    end
+    println("Surface heat flow, ",Qsurf," Bottom: ",Qbtm)
 end

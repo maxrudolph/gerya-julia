@@ -15,10 +15,10 @@ using CSV,DataFrames
 include("Grid.jl")
 include("GridOperations.jl")
 include("Markers.jl")
-include("Stokes.jl")
+#include("Stokes.jl")
 include("StokesCylindrical.jl")
 
-include("Temperature.jl")
+#include("Temperature.jl")
 include("TemperatureCylindrical.jl")
 include("melting/yasuda.jl")
 
@@ -26,28 +26,50 @@ include("melting/yasuda.jl")
 using PyPlot
 include("Visualization.jl")
 
-# problem set-up
+#
+# Functions related to model setup
+#
+
 using SpecialFunctions
 # function to define plate cooling solution
-function plate_cooling(Tsurf,Tbtm,yL0,kappa,y,t)
+function plate_cooling(Tsurf,Tbtm,yL0,kappa,y,t;return_gradient=false)
    # y is a vector of y coordinates where we need the solution
     T = Tsurf .+ (Tbtm-Tsurf) .* (y/yL0)
+    dTdz = 0.0
     for n in 1:20 # note 20 is an index in a summation from 1 to Inf
         T += (Tbtm-Tsurf)*2/pi .* 1/n*exp(-kappa*n^2*pi^2*t/yL0^2)*sin(n*pi*y/yL0)
+        dTdz += return_gradient ? (Tbtm-Tsurf)*2/pi .* 1/n*exp(-kappa*n^2*pi^2*t/yL0^2)*(n*pi/yL0)*cos(n*pi*y/yL0) : 0.0
     end
-    return T
+    if return_gradient
+        return T,dTdz
+    else
+        return T
+    end
 end
 
-function halfspace_cooling(Tsurf,Tmantle,kappa,y,t)
+function halfspace_cooling(Tsurf,Tmantle,kappa,y,t;return_gradient=false)
     if t == 0.0
         if y==0.0
-            return Tsurf
+            if return_gradient
+                return Tsurf,Inf64
+            else
+                return Tsurf
+            end
         else
-            return Tmantle
+            if return_gradient
+                return Tsurf,0.0
+            else
+                return Tmantle
+            end
         end
     else
-        T = Tsurf + (Tmantle-Tsurf)*erf(y/2/sqrt(kappa*t))         
-        return T
+        T = Tsurf + (Tmantle-Tsurf)*erf(y/2/sqrt(kappa*t))
+        dTdz = return_gradient ? (Tmantle-Tsurf) * 1.0/2.0/sqrt(kappa*t) * 2.0/sqrt(pi) * exp(-(y/2/sqrt(kappa*t))^2) : 0.0
+        if return_gradient
+            return T, dTdz
+        else
+            return T
+        end
     end
 end
 
@@ -74,7 +96,7 @@ function viscosity(eta0::Float64,depth::Float64,T::Float64,E::Float64 ; visc_max
    Tref = 1350.0+273.0
    R = 8.314 #J/mol/K
    #depth_factor = depth > 6.6e5 ? 30.0 : 1.0
-    depth_factor = viscosity_depth_function(depth)
+   depth_factor = viscosity_depth_function(depth)
    viscosity = depth_factor*exp(E/R/Tref*(Tref/T-1))
    if viscosity > visc_max
       viscosity = visc_max
@@ -120,7 +142,6 @@ function update_melt!(markers::Markers,dt::Float64)
     update_melt!(markers,dt,mask)
 end
 
-
 function update_marker_properties!(markers::Markers,materials::Materials)
     rho = markers.scalarFields["rho"]
     T = markers.scalarFields["T"]
@@ -139,8 +160,8 @@ end
 function initial_surface_geotherm(grid::CartesianGrid,options::Dict)
 	 # computes dT/dz, to be used as a Neumann boundary condition
 	 T1 = 273.0
-	 T2 = plate_cooling(273.0,options["mantle temperature"]+273.0,options["lithosphere thickness"],1e-6,grid.yc[2],50e6*3.15e7)
-	 return (T2-T1)/(grid.yc[2]-grid.y[1]) # this is dt/dz at the boundary. 
+	 T,dTdz = plate_cooling(273.0,options["mantle temperature"]+273.0,options["lithosphere thickness"],1e-6,grid.y[1],50e6*3.15e7,return_gradient=true)
+	 return dTdz#(T2-T1)/(grid.yc[2]-grid.y[1]) # this is dt/dz at the boundary. 
 end
 
 function initial_conditions!(markers::Markers,materials::Materials,options::Dict)
@@ -217,14 +238,14 @@ end
 seconds_in_year = 3.15e7
 
 options = Dict()
-options["nx"] = 101
-options["ny"] = 285
+options["nx"] = 51#101
+options["ny"] = 101#285
 options["markx"] = 10
 options["marky"] = 10
 options["W"] = 1e6
 options["H"] = 2.850e6
 options["g"] = 10.0
-options["Tcmb"] = 1350.0+550.0
+options["Tcmb"] = 1350.0 + 550.0
 options["lithosphere thickness"] = 1.5e5
 options["mantle temperature"] = 1350.0 
 
@@ -233,16 +254,16 @@ options["melting plot interval"] = 1e5*seconds_in_year
 options["output directory"] = "plume_test_550_high"
 
 function plume_model(options::Dict;max_step::Int64=-1,max_time::Float64=-1.0)
-    nx = options["nx"]#51#101
-    ny = options["ny"]#141#285
+    nx = options["nx"]
+    ny = options["ny"]
     W = options["W"]
     H = options["H"]
+    grid = CartesianGrid(W,H,nx,ny)
     gx = 0.0
     gy = options["g"]
 
-    #Tbcval = [0.0,0.0,273.0,1350.0+273.0]
-
-    Tbctype = [-1,-1,-1,1] #left, right, top, bottom
+    Tbctype = [-1,-1,1,1] #left, right, top, bottom
+    tmp = initial_surface_geotherm(grid,options)
     Tbcval = [0.0,0.0,273.0,options["Tcmb"]]
     bc = BoundaryConditions(0,0,0,0) # currently does nothing but is required argument to stokes solver.
     materials = Materials()
@@ -258,20 +279,19 @@ function plume_model(options::Dict;max_step::Int64=-1,max_time::Float64=-1.0)
     max_step::Int64 = max_step == -1 ? typemax(Int64) : max_step
     
     dtmax = plot_interval
-    grid = CartesianGrid(W,H,nx,ny)
+    
     println("Creating Markers...")
     @time markers = Markers(grid,["alpha","Cp","T","rho","eta","Hr","Xmelt","dXdt"],["material"] ; nmx=markx,nmy=marky,random=false)
     println("Initial condition...")
     @time initial_conditions!(markers, materials, options)
 
     # define arrays for k, rho, cp, H at the basic nodes. Fill them with constant values for now.
-    kThermal = 3.0 .*ones(grid.ny,grid.nx);
+    kThermal = 3.0 .*ones(grid.ny+1,grid.nx+1);
 
     time = 0.0
     iout=0
     last_plot = 0.0
     rho_c = nothing
-    dt = 1e10
 
     local rho_c
     local rho_vx
@@ -287,7 +307,7 @@ function plume_model(options::Dict;max_step::Int64=-1,max_time::Float64=-1.0)
     local vxc=nothing
     local vyc=nothing
     local T
-    local dt
+    local dt=1e10
     local dTmax
     local dTemp
     local Tnew=nothing
@@ -318,7 +338,7 @@ function plume_model(options::Dict;max_step::Int64=-1,max_time::Float64=-1.0)
         update_marker_properties!(markers,materials)#itime==1 ? 0.0 : dt)
         # 1. Transfer properties markers -> nodes
         visc_method = "logarithmic"
-
+        # 1a. Basic Nodes
         eta_s_new, = marker_to_stag(markers,grid,["eta",],"basic",method=visc_method);
         # 1b. Cell Centers
         rho_c_new,Cp_c_new,alpha_new,Tlast_new = marker_to_stag(markers,grid,["rho","Cp","alpha","T"],"center")
@@ -336,7 +356,7 @@ function plume_model(options::Dict;max_step::Int64=-1,max_time::Float64=-1.0)
             end
             replace_nan!(eta_s,eta_s_new)
             replace_nan!(rho_c,rho_c_new)
-#             replace_nan!(Hr,Hr_new)
+            #replace_nan!(Hr,Hr_new)
             replace_nan!(Cp_c,Cp_c_new)
             replace_nan!(alpha,alpha_new)
             replace_nan!(eta_n,eta_n_new)
@@ -367,7 +387,7 @@ function plume_model(options::Dict;max_step::Int64=-1,max_time::Float64=-1.0)
         #L,R = form_stokes(grid,eta_s,eta_n,rho_vx,rho_vy,bc,gx,gy,dt=dt)
         L,R = form_stokes_cylindrical(grid,eta_s,eta_n,eta_vx,eta_vy,rho_vx,rho_vy,bc,gx,gy)
         stokes_solution = L\R
-        #stokes_solution = solve(pardiso_solver,L,R)
+        #stokes_solution = solve(pardiso_solver,L,R) # note - problems with accuracy using pardiso
         vx,vy,P = unpack(stokes_solution,grid;ghost=true)
     
         # Get the velocity at the cell centers:
@@ -381,12 +401,12 @@ function plume_model(options::Dict;max_step::Int64=-1,max_time::Float64=-1.0)
             # try to increase the timestep by 20% over the previous timestep.
             this_dtmax = min(1.2*dt,dtmax) 
         else
-            this_dtmax = dtmax
+            this_dtmax = 1e10
         end
         dt = compute_timestep(grid,vxc,vyc ; dtmax=this_dtmax,cfl=0.25)
         if dt < 0.1*seconds_in_year
-	   terminate=true
-	end
+	        terminate=true
+	    end
         dTmax = Inf
         dTemp = nothing
         Tnew = nothing
@@ -394,7 +414,7 @@ function plume_model(options::Dict;max_step::Int64=-1,max_time::Float64=-1.0)
         for titer=1:2# limit maximum temperature change
             # assemble and solve the energy equation
             println("Trying with timestep ",dt/3.15e7/1e6," Myr")
-            L,R = assemble_energy_equation_cylindrical(grid,rho_c,Cp_c,kThermal,H,Tlast,dt,Tbcval);
+            L,R = assemble_energy_equation_cylindrical(grid,rho_c,Cp_c,kThermal,H,Tlast,dt,Tbctype,Tbcval);
             #Tnew = L\R;
             Tnew = solve(pardiso_solver,L,R);
             Tnew = reshape(Tnew,grid.ny,grid.nx);
@@ -436,7 +456,7 @@ function plume_model(options::Dict;max_step::Int64=-1,max_time::Float64=-1.0)
 	println("melting error...")
 	   terminate=true
 	end	
-        
+    compute_boundary_heat_flow(grid,Tnew,kThermal)
         # Add/remove markers. When markers are added, give them temperature using the nodal temp.
         new_markers = add_remove_markers!(markers,grid,Tnew,min_markers,target_markers,max_markers);
         update_melt!(markers,dt,new_markers); # set the correct melt fraction on new markers.
@@ -478,3 +498,4 @@ function plume_model(options::Dict;max_step::Int64=-1,max_time::Float64=-1.0)
  end
 
 @time grid,markers,vx,vy,vxc,vyc,rho_c,dTemp,Tnew,Tlast,time = plume_model(options,max_time=500e6*3.15e7);
+#@time grid,markers,vx,vy,vxc,vyc,rho_c,dTemp,Tnew,Tlast,time = plume_model(options,max_step=1)
