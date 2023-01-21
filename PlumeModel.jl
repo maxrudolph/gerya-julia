@@ -15,7 +15,7 @@ using CSV,DataFrames
 include("Grid.jl")
 include("GridOperations.jl")
 include("Markers.jl")
-#include("Stokes.jl")
+include("Stokes.jl")
 include("StokesCylindrical.jl")
 
 #include("Temperature.jl")
@@ -162,6 +162,12 @@ function initial_surface_geotherm(grid::CartesianGrid,options::Dict)
 	 T1 = 273.0
 	 T,dTdz = plate_cooling(273.0,options["mantle temperature"]+273.0,options["lithosphere thickness"],1e-6,grid.y[1],50e6*3.15e7,return_gradient=true)
 	 return dTdz#(T2-T1)/(grid.yc[2]-grid.y[1]) # this is dt/dz at the boundary. 
+end
+
+function reassimilate_lithosphere!(markers::Markers,options::Dict)
+    # This function assuimilates (i.e. overprints the temperature structure of the lithosphere)
+    # It does so by re-setting the temperature on the markers.
+
 end
 
 function initial_conditions!(markers::Markers,materials::Materials,options::Dict)
