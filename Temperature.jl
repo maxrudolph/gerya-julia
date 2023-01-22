@@ -155,13 +155,11 @@ function ghost_temperature_center(grid::CartesianGrid,T::Matrix{Float64},bctype,
     end
 
     # Right boundary
-    for i in 1:grid.ny
-        if bcright == -1
-            Tpad[i,grid.nx+1] = Tpad[i,grid.nx] # insulating
-        elseif bcright == 1
-             Tpad[i,grid.nx+1] = 2.0*bcval[2]-Tpad[i,grid.nx]
-        end
-    end
+    if bcright == -1
+        Tpad[:,grid.nx+1] = Tpad[:,grid.nx] # insulating
+    elseif bcright == 1
+        Tpad[:,grid.nx+1] = 2.0*bcval[2] .- Tpad[:,grid.nx]
+    end    
 
     return Tpad
 end

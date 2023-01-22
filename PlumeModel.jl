@@ -63,7 +63,7 @@ function halfspace_cooling(Tsurf,Tmantle,kappa,y,t;return_gradient=false)
             end
         end
     else
-        T = Tsurf + (Tmantle-Tsurf)*erf(y/2/sqrt(kappa*t))
+        T = Tsurf + (Tmantle-Tsurf)*erf(y/(2*sqrt(kappa*t)))
         dTdz = return_gradient ? (Tmantle-Tsurf) * 1.0/2.0/sqrt(kappa*t) * 2.0/sqrt(pi) * exp(-(y/2/sqrt(kappa*t))^2) : 0.0
         if return_gradient
             return T, dTdz
@@ -95,9 +95,10 @@ function viscosity(eta0::Float64,depth::Float64,T::Float64,E::Float64 ; visc_max
    # Expect all temperatures in kelvin.
    Tref = 1350.0+273.0
    R = 8.314 #J/mol/K
-   #depth_factor = depth > 6.6e5 ? 30.0 : 1.0
-   depth_factor = viscosity_depth_function(depth)
-   viscosity = depth_factor*exp(E/R/Tref*(Tref/T-1))
+   depth_factor = depth > 6.6e5 ? 20.0 : 1.0
+   #depth_factor = viscosity_depth_function(depth)
+   # note that eta0 = 5e19 in Leitch and Davies - quite low viscosity.
+   viscosity = 5.0e19*depth_factor*exp(E/R/Tref*(Tref/T-1))
    if viscosity > visc_max
       viscosity = visc_max
    end
@@ -157,17 +158,20 @@ function update_marker_properties!(markers::Markers,materials::Materials)
     end
 end
 
-function initial_surface_geotherm(grid::CartesianGrid,options::Dict)
-	 # computes dT/dz, to be used as a Neumann boundary condition
-	 T1 = 273.0
-	 T,dTdz = plate_cooling(273.0,options["mantle temperature"]+273.0,options["lithosphere thickness"],1e-6,grid.y[1],50e6*3.15e7,return_gradient=true)
-	 return dTdz#(T2-T1)/(grid.yc[2]-grid.y[1]) # this is dt/dz at the boundary. 
-end
-
 function reassimilate_lithosphere!(markers::Markers,options::Dict)
     # This function assuimilates (i.e. overprints the temperature structure of the lithosphere)
     # It does so by re-setting the temperature on the markers.
+    mantle_temperature = options["mantle temperature"]
+    lithosphere_thickness = options["lithosphere thickness"]
+    T = markers.scalarFields["T"]
 
+    Threads.@threads for i in 1:markers.nmark
+        my::Float64 = markers.x[2,i]
+        if my < 4e4
+            markers.scalars[T,i] = halfspace_cooling_from_thickness(273.0,mantle_temperature,1e-6,my,lithosphere_thickness)
+            # plate_cooling(273.0,mantle_temperature,1.5e5,1e-6,my,50e6*3.15e7)
+        end
+    end
 end
 
 function initial_conditions!(markers::Markers,materials::Materials,options::Dict)
@@ -188,7 +192,7 @@ function initial_conditions!(markers::Markers,materials::Materials,options::Dict
         mr = ((mx-0)^2 + (my-1.2e6)^2)^0.5 
         
         #define initial cmb hot layer geometry
-        h = 300e3 - (150e3)*(mx-0.0)/options["W"]
+        h = 1.5e5 - (1.5e5-1.12e5)*(mx)/options["W"]
                 
         #set material - eclogite at cmb
         if my > 2.85e6-h
@@ -198,10 +202,10 @@ function initial_conditions!(markers::Markers,materials::Materials,options::Dict
         end
         
         if my < lithosphere_thickness
-            markers.scalars[T,i] = plate_cooling(273.0,mantle_temperature + 273.0,1.5e5,1e-6,my,50e6*3.15e7)
+            markers.scalars[T,i] = plate_cooling(273.0,mantle_temperature,1.5e5,1e-6,my,50e6*3.15e7)
         else
             #markers.scalars[T,i] = 1350.0+273.0
-            markers.scalars[T,i] = halfspace_cooling_from_thickness(options["Tcmb"],mantle_temperature + 273.0,1e-6,options["H"]-my,h)
+            markers.scalars[T,i] = halfspace_cooling_from_thickness(options["Tcmb"],mantle_temperature,1e-6,options["H"]-my,h)
         end
                         
         ind = markers.integers[material,i]
@@ -244,16 +248,16 @@ end
 seconds_in_year = 3.15e7
 
 options = Dict()
-options["nx"] = 101
-options["ny"] = 285
+options["nx"] = 31#101
+options["ny"] = 51#285
 options["markx"] = 10
 options["marky"] = 10
 options["W"] = 1e6
 options["H"] = 2.850e6
 options["g"] = 10.0
-options["Tcmb"] = 1350.0 + 550.0
+options["Tcmb"] = 1350.0 + 550.0 + 273.0
 options["lithosphere thickness"] = 1.5e5
-options["mantle temperature"] = 1350.0 
+options["mantle temperature"] = 1350.0 + 273.0
 
 options["plot interval"] = 5e6*seconds_in_year
 options["melting plot interval"] = 1e5*seconds_in_year
@@ -269,7 +273,6 @@ function plume_model(options::Dict;max_step::Int64=-1,max_time::Float64=-1.0)
     gy = options["g"]
 
     Tbctype = [-1,-1,1,1] #left, right, top, bottom
-    tmp = initial_surface_geotherm(grid,options)
     Tbcval = [0.0,0.0,273.0,options["Tcmb"]]
     bc = BoundaryConditions(0,0,0,0) # currently does nothing but is required argument to stokes solver.
     materials = Materials()
@@ -321,9 +324,10 @@ function plume_model(options::Dict;max_step::Int64=-1,max_time::Float64=-1.0)
     local Xlast
     local Xnew
     local dXdt
+    local reset_temperature=false
+
     pardiso_solver = MKLPardisoSolver()
     set_nprocs!(pardiso_solver, 20)
-
     
     output_dir = options["output directory"]
     try
@@ -458,15 +462,19 @@ function plume_model(options::Dict;max_step::Int64=-1,max_time::Float64=-1.0)
             total_melt = 0.0
             dXdt = zeros(grid.ny+1,grid.nx+1)
         end
-	if total_melt > 1e28
-	println("melting error...")
-	   terminate=true
-	end	
-    compute_boundary_heat_flow(grid,Tnew,kThermal)
+        
+        if itime > 20 && total_melt > 0 && !reset_temperature
+            # when melting begins, re-assimilate the temperature in the lithosphere.
+            # only do this once.
+            reassimilate_lithosphere!(markers,options)
+            reset_temperature = true
+        end
+
+        compute_boundary_heat_flow(grid,Tnew,kThermal)
         # Add/remove markers. When markers are added, give them temperature using the nodal temp.
         new_markers = add_remove_markers!(markers,grid,Tnew,min_markers,target_markers,max_markers);
         update_melt!(markers,dt,new_markers); # set the correct melt fraction on new markers.
-                
+
         # Check Termination Criteria
         if time >= max_time || itime >= max_step
             terminate = true
@@ -480,7 +488,7 @@ function plume_model(options::Dict;max_step::Int64=-1,max_time::Float64=-1.0)
             name = @sprintf("%s/viz.%04d.vtr",output_dir,iout)
             println("Writing visualization fle ",name)
             vn = velocity_to_basic_nodes(grid,vxc,vyc)
-	    Tn = temperature_to_basic_nodes(grid,Tnew)
+	        Tn = temperature_to_basic_nodes(grid,Tnew)
             output_fields = Dict("rho"=>rho_c,"eta"=>eta_s,"velocity"=>vn,"pressure"=>P[2:end-1,2:end-1],"T"=>Tn,"dXdt"=>dXdt[2:end-1,2:end-1])
             @time visualization(grid,output_fields,time/seconds_in_year;filename=name)
             # Markers output:
