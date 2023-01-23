@@ -248,20 +248,22 @@ end
 seconds_in_year = 3.15e7
 
 options = Dict()
-options["nx"] = 31#101
-options["ny"] = 51#285
+options["nx"] = 101
+options["ny"] = 285
 options["markx"] = 10
 options["marky"] = 10
 options["W"] = 1e6
 options["H"] = 2.850e6
 options["g"] = 10.0
-options["Tcmb"] = 1350.0 + 550.0 + 273.0
+Tex = 300.0
+options["Tcmb"] = 1350.0 + Tex + 273.0
 options["lithosphere thickness"] = 1.5e5
 options["mantle temperature"] = 1350.0 + 273.0
 
-options["plot interval"] = 5e6*seconds_in_year
-options["melting plot interval"] = 1e5*seconds_in_year
-options["output directory"] = "plume_test_550_high"
+options["plot interval"] = 1e6*seconds_in_year
+options["melting plot interval"] = 1e4*seconds_in_year
+options["output directory"] = "plume_test_" * Tex * "_high"
+options["max time"] = 1e8*seconds_in_year
 
 function plume_model(options::Dict;max_step::Int64=-1,max_time::Float64=-1.0)
     nx = options["nx"]
@@ -482,7 +484,7 @@ function plume_model(options::Dict;max_step::Int64=-1,max_time::Float64=-1.0)
                 
         # Visualization Output
         this_plot_interval = total_melt > 0.0 ? options["melting plot interval"] : options["plot interval"]
-        if time == 0.0 || time - last_plot >= plot_interval || terminate
+        if time == 0.0 || time - last_plot >= this_plot_interval || terminate
             last_plot = time 
             # Eulerian grid output:
             name = @sprintf("%s/viz.%04d.vtr",output_dir,iout)
@@ -511,5 +513,5 @@ function plume_model(options::Dict;max_step::Int64=-1,max_time::Float64=-1.0)
      return grid,markers,vx,vy,vxc,vyc,rho_c,dTemp,Tnew,Tlast,time
  end
 
-@time grid,markers,vx,vy,vxc,vyc,rho_c,dTemp,Tnew,Tlast,time = plume_model(options,max_time=500e6*3.15e7);
+@time grid,markers,vx,vy,vxc,vyc,rho_c,dTemp,Tnew,Tlast,time = plume_model(options,max_time=options["max time"]);
 #@time grid,markers,vx,vy,vxc,vyc,rho_c,dTemp,Tnew,Tlast,time = plume_model(options,max_step=1)
