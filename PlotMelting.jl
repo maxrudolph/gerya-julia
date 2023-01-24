@@ -18,10 +18,10 @@ melt_km3yr = running_median(melt_km3yr, 1)
 # determine an appropriate plot range
 #mask = melt_km3yr .>0 
 figure(figsize=(4,2.5))
-plot(time.-282.0,melt_km3yr)
+plot(time,melt_km3yr)
 gca().set_yscale("log")
-gca().set_xlim([0,20])
-gca().set_ylim([1e-2,1e1])
+# gca().set_xlim([0,20])
+# gca().set_ylim([1e-2,1e1])
 gca().set_xlabel("Time (Myr)")
 gca().set_ylabel("Melt Production (-)")
 #show()
