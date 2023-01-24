@@ -1,7 +1,7 @@
 using CSV, DataFrames, FastRunningMedian
 using PyPlot
 
-output_directory = "plume_test_550_high"
+output_directory = "plume_test_300_high"
 
 filename = output_directory *"/statistics.txt"
 println(filename)

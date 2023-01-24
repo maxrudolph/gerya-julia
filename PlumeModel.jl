@@ -255,14 +255,14 @@ options["marky"] = 10
 options["W"] = 1e6
 options["H"] = 2.850e6
 options["g"] = 10.0
-Tex = 300.0
+Tex = 400.0
 options["Tcmb"] = 1350.0 + Tex + 273.0
 options["lithosphere thickness"] = 1.5e5
 options["mantle temperature"] = 1350.0 + 273.0
 
 options["plot interval"] = 1e6*seconds_in_year
-options["melting plot interval"] = 1e4*seconds_in_year
-options["output directory"] = "plume_test_" * Tex * "_high"
+options["melting plot interval"] = 1e5*seconds_in_year
+options["output directory"] = "plume_test_" * string(Tex) * "_high"
 options["max time"] = 1e8*seconds_in_year
 
 function plume_model(options::Dict;max_step::Int64=-1,max_time::Float64=-1.0)
