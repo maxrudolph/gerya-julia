@@ -1,3 +1,33 @@
+# Define options and parse command-line arguments:
+if length( ARGS ) < 2
+    error("specify excess temperature and lithosphere thickness (in m)")
+else
+    Tex = parse( Float64, ARGS[1] )
+    h = parse( Float64, ARGS[2] )
+end
+
+seconds_in_year = 3.15e7
+
+options = Dict()
+options["nx"] = 101
+options["ny"] = 285
+options["markx"] = 10
+options["marky"] = 10
+options["W"] = 1e6
+options["H"] = 2.850e6
+options["g"] = 10.0
+
+options["Tcmb"] = 1350.0 + Tex + 273.0
+options["lithosphere thickness"] = h
+options["mantle temperature"] = 1350.0 + 273.0
+
+options["plot interval"] = 1e6*seconds_in_year
+options["melting plot interval"] = 1e5*seconds_in_year
+options["output directory"] = "plume_test_" * string(Tex) * "_high"
+options["max time"] = 1e8*seconds_in_year
+
+println("Options: ", options )
+
 # Import necessary packages
 using SparseArrays
 using LinearAlgebra
@@ -167,7 +197,7 @@ function reassimilate_lithosphere!(markers::Markers,options::Dict)
 
     Threads.@threads for i in 1:markers.nmark
         my::Float64 = markers.x[2,i]
-        if my < 4e4
+        if my < 2e5
             markers.scalars[T,i] = halfspace_cooling_from_thickness(273.0,mantle_temperature,1e-6,my,lithosphere_thickness)
             # plate_cooling(273.0,mantle_temperature,1.5e5,1e-6,my,50e6*3.15e7)
         end
@@ -244,26 +274,6 @@ function update_statistics(stats_file,step,time,total_melt)
     write(stats_file, str) 
     flush(stats_file)
 end
-
-seconds_in_year = 3.15e7
-
-options = Dict()
-options["nx"] = 101
-options["ny"] = 285
-options["markx"] = 10
-options["marky"] = 10
-options["W"] = 1e6
-options["H"] = 2.850e6
-options["g"] = 10.0
-Tex = 400.0
-options["Tcmb"] = 1350.0 + Tex + 273.0
-options["lithosphere thickness"] = 1.5e5
-options["mantle temperature"] = 1350.0 + 273.0
-
-options["plot interval"] = 1e6*seconds_in_year
-options["melting plot interval"] = 1e5*seconds_in_year
-options["output directory"] = "plume_test_" * string(Tex) * "_high"
-options["max time"] = 1e8*seconds_in_year
 
 function plume_model(options::Dict;max_step::Int64=-1,max_time::Float64=-1.0)
     nx = options["nx"]
