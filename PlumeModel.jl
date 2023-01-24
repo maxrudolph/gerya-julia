@@ -23,7 +23,7 @@ options["mantle temperature"] = 1350.0 + 273.0
 
 options["plot interval"] = 1e6*seconds_in_year
 options["melting plot interval"] = 1e5*seconds_in_year
-options["output directory"] = "plume_test_" * string(Tex) * "_high"
+options["output directory"] = "plume_test_" * string(Tex) * "_" * string(h)
 options["max time"] = 1e8*seconds_in_year
 
 println("Options: ", options )
