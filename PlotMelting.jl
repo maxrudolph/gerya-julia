@@ -1,22 +1,31 @@
+# Usage: julia PlotMelting.jl output_directory start_time end_time
+# Give start time and end time in millions of years
+# output will be written in output_directory.
 using CSV, DataFrames, FastRunningMedian
 using PyPlot
 
-output_directory = "plume_test_550_high"
+eclogite_fraction = 0.15
+# Parse arguments:
+output_directory = ARGS[1]
+if length(ARGS) > 1
+    start_time = parse( Float64, ARGS[2] )
+    end_time = parse( Float64, ARGS[3] )
+end
 
+# Read statistics file:
 filename = output_directory *"/statistics.txt"
-println(filename)
+println("Reading from: ",filename)
 melt_output = CSV.read(filename,DataFrame,comment="#");
 time = melt_output[:,2]/3.15e7/1e6
 
-mask = time .> 20.0
+mask = (time .> start_time) .&& (time .<= end_time) 
 
 # melt output is in units of m^3/s
 time=time[mask]
-melt_km3yr = melt_output[mask,3] .* (3.15e7/1e9)
+melt_km3yr = melt_output[mask,3] .* (3.15e7/1e9)*eclogite_fraction
 melt_km3yr = running_median(melt_km3yr, 1)
 
 # determine an appropriate plot range
-#mask = melt_km3yr .>0 
 figure(figsize=(4,2.5))
 plot(time,melt_km3yr)
 gca().set_yscale("log")
@@ -24,7 +33,6 @@ gca().set_yscale("log")
 # gca().set_ylim([1e-2,1e1])
 gca().set_xlabel("Time (Myr)")
 gca().set_ylabel("Melt Production (-)")
-#show()
 savefig(output_directory * "/melt_vs_time.eps",bbox_inches="tight")
 
 n = length(melt_km3yr)
