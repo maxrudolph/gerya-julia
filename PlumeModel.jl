@@ -17,9 +17,9 @@ options["W"] = 1e6
 options["H"] = 2.850e6
 options["g"] = 10.0
 
-options["Tcmb"] = 1350.0 + Tex + 273.0
+options["Tcmb"] = 1300.0 + Tex + 273.0
 options["lithosphere thickness"] = h
-options["mantle temperature"] = 1350.0 + 273.0
+options["mantle temperature"] = 1300.0 + 273.0
 
 options["plot interval"] = 1e6*seconds_in_year
 options["melting plot interval"] = 1e5*seconds_in_year
@@ -123,7 +123,7 @@ viscosity_depth_function = setup_steinberger_viscosity()
 function viscosity(eta0::Float64,depth::Float64,T::Float64,E::Float64 ; visc_max=1.0e25)
    # E should be given in J/mol/K
    # Expect all temperatures in kelvin.
-   Tref = 1350.0+273.0
+   Tref = 1300.0+273.0
    R = 8.314 #J/mol/K
    depth_factor = depth > 6.6e5 ? 20.0 : 1.0
    #depth_factor = viscosity_depth_function(depth)
@@ -234,7 +234,7 @@ function initial_conditions!(markers::Markers,materials::Materials,options::Dict
         if my < lithosphere_thickness
             markers.scalars[T,i] = plate_cooling(273.0,mantle_temperature,1.5e5,1e-6,my,50e6*3.15e7)
         else
-            #markers.scalars[T,i] = 1350.0+273.0
+            #markers.scalars[T,i] = 1300.0+273.0
             markers.scalars[T,i] = halfspace_cooling_from_thickness(options["Tcmb"],mantle_temperature,1e-6,options["H"]-my,h)
         end
                         
