@@ -28,7 +28,8 @@ for i in 1:nfiles
     melt_output = CSV.read(filename,DataFrame,comment="#");
     
     time = melt_output[:,2]/3.15e7/1e6
-    ind = findfirst( melt_output[:,3] .> 0 .&& time .> 2.0 )
+    melt_km3yr = melt_output[:,3] .* (3.15e7/1e9)*eclogite_fraction
+    ind = findfirst( melt_km3yr .> 1e-3 .&& time .> 2.0 )
     
     mask = (time .> start_time) .&& (time .<= end_time) 
     mask[1:ind] .= false
