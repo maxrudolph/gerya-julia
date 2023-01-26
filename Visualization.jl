@@ -45,9 +45,9 @@ function visualization(markers::Markers,time; filename="markers.vtp")
         for key in keys(markers.scalarFields)
             vtk[key] = markers.scalars[markers.scalarFields[key],1:markers.nmark]
         end
-        #for key in keys(markers.integerFields)
-        #    vtk[key] = markers.integers[markers.integerFields[key],1:markers.nmark]
-        #end
+        for key in keys(markers.integerFields)
+            vtk[key] = Float64.(markers.integers[markers.integerFields[key],1:markers.nmark])
+        end
        vtk["TimeValue"] = time
     end
 end

@@ -10,7 +10,7 @@ seconds_in_year = 3.15e7
 
 options = Dict()
 options["nx"] = 101
-options["ny"] = 285
+options["ny"] = 286
 options["markx"] = 10
 options["marky"] = 10
 options["W"] = 1e6
@@ -155,11 +155,12 @@ function update_melt!(markers::Markers,dt::Float64,mask::BitVector)
     T = markers.scalarFields["T"]
     melt = markers.scalarFields["Xmelt"]
     dxdt = markers.scalarFields["dXdt"]
+    mat = markers.integerFields["material"]
     
     Threads.@threads for i in 1:markers.nmark
-        if mask[i]
+        if mask[i]            
             # note - melt fraction assumes celsius temperature:  
-            new_melt = melt_fraction(melt_model,markers.x[2,i],adiabatic_temperature(markers.x[2,i],markers.scalars[T,i])-273.0)
+            new_melt = markers.integers[mat,i] == 2 ? melt_fraction(melt_model,markers.x[2,i],adiabatic_temperature(markers.x[2,i],markers.scalars[T,i])-273.0) : 0.0
             old_melt = markers.scalars[melt,i]
             markers.scalars[dxdt,i] = new_melt > old_melt ? (new_melt - old_melt)/dt : 0.0
             markers.scalars[melt,i] = new_melt
@@ -231,8 +232,9 @@ function initial_conditions!(markers::Markers,materials::Materials,options::Dict
            markers.integers[material,i] = 1
         end
         
-        if my < lithosphere_thickness
-            markers.scalars[T,i] = plate_cooling(273.0,mantle_temperature,1.5e5,1e-6,my,50e6*3.15e7)
+        if my < 6.6e5
+            markers.scalars[T,i] = halfspace_cooling_from_thickness(273.0,mantle_temperature,1e-6,my,options["lithosphere thickness"])
+            #plate_cooling(273.0,mantle_temperature,1.5e5,1e-6,my,50e6*3.15e7)
         else
             #markers.scalars[T,i] = 1300.0+273.0
             markers.scalars[T,i] = halfspace_cooling_from_thickness(options["Tcmb"],mantle_temperature,1e-6,options["H"]-my,h)
@@ -427,8 +429,8 @@ function plume_model(options::Dict;max_step::Int64=-1,max_time::Float64=-1.0)
         end
         dt = compute_timestep(grid,vxc,vyc ; dtmax=this_dtmax,cfl=0.25)
         if dt < 0.1*seconds_in_year
-	        terminate=true
-	    end
+            terminate=true
+        end
         dTmax = Inf
         dTemp = nothing
         Tnew = nothing
