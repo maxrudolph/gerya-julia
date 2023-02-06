@@ -31,7 +31,6 @@ println("Options: ", options )
 # Import necessary packages
 using SparseArrays
 using LinearAlgebra
-using Pardiso
 using IterativeSolvers
 using WriteVTK
 using Printf
@@ -340,8 +339,8 @@ function plume_model(options::Dict;max_step::Int64=-1,max_time::Float64=-1.0)
     local dXdt
     local reset_temperature=false
 
-    pardiso_solver = MKLPardisoSolver()
-    set_nprocs!(pardiso_solver, 20)
+    #pardiso_solver = MKLPardisoSolver()
+    #set_nprocs!(pardiso_solver, 20)
     
     output_dir = options["output directory"]
     try
@@ -439,8 +438,8 @@ function plume_model(options::Dict;max_step::Int64=-1,max_time::Float64=-1.0)
             # assemble and solve the energy equation
             println("Trying with timestep ",dt/3.15e7/1e6," Myr")
             L,R = assemble_energy_equation_cylindrical(grid,rho_c,Cp_c,kThermal,H,Tlast,dt,Tbctype,Tbcval);
-            #Tnew = L\R;
-            Tnew = solve(pardiso_solver,L,R);
+            Tnew = L\R;
+            #Tnew = solve(pardiso_solver,L,R);
             Tnew = reshape(Tnew,grid.ny,grid.nx);
             Tnew = ghost_temperature_center(grid,Tnew,Tbctype,Tbcval);
 

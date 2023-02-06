@@ -391,9 +391,9 @@ function basic_node_to_markers!(m::Markers,grid::CartesianGrid,field::Matrix{Flo
         wy::Float64 = (m.x[2,i] - grid.y[celly])/(grid.y[celly+1]-grid.y[celly])
         
         m.scalars[k,i] = (1.0-wx)*(1.0-wy)*field[celly,cellx] +
-            + (wx)*(1.0-wy)*field[celly,cellx+1] +
-            + (1.0-wx)*(wy)*field[celly+1,cellx] +
-            + (wx)*(wy)*field[celly+1,cellx+1]
+            (wx)*(1.0-wy)*field[celly,cellx+1] +
+            (1.0-wx)*(wy)*field[celly+1,cellx] +
+            (wx)*(wy)*field[celly+1,cellx+1]
     end
 end
 
@@ -405,9 +405,9 @@ function basic_node_to_markers!(m::Markers,grid::CartesianGrid,field::Matrix{Flo
         wy::Float64 = (m.x[2,i] - grid.y[celly])/(grid.y[celly+1]-grid.y[celly])
         
         mfield[i] = (1.0-wx)*(1.0-wy)*field[celly,cellx] +
-            + (wx)*(1.0-wy)*field[celly,cellx+1] +
-            + (1.0-wx)*(wy)*field[celly+1,cellx] +
-            + (wx)*(wy)*field[celly+1,cellx+1]
+            (wx)*(1.0-wy)*field[celly,cellx+1] +
+            (1.0-wx)*(wy)*field[celly+1,cellx] +
+            (wx)*(wy)*field[celly+1,cellx+1]
     end
 end
 
@@ -446,9 +446,9 @@ function stag_to_points(x::Matrix{Float64},cell::Matrix{Int64},grid::CartesianGr
         end
                 
         mfield[1,i] = (1.0-wx)*(1.0-wy)*field[celly,cellx] +
-            + (wx)*(1.0-wy)*field[celly,cellx+1] +
-            + (1.0-wx)*(wy)*field[celly+1,cellx] +
-            + (wx)*(wy)*field[celly+1,cellx+1]
+            (wx)*(1.0-wy)*field[celly,cellx+1] +
+            (1.0-wx)*(wy)*field[celly+1,cellx] +
+            (wx)*(wy)*field[celly+1,cellx+1]
     end
     return mfield
     
@@ -477,9 +477,9 @@ function cell_center_to_markers!(m::Markers,grid::CartesianGrid,field::Matrix{Fl
         wy::Float64 = (m.x[2,i] - grid.yc[celly])/(grid.yc[celly+1]-grid.yc[celly])
         
         mfield[1,i] = (1.0-wx)*(1.0-wy)*field[celly,cellx] +
-            + (wx)*(1.0-wy)*field[celly,cellx+1] +
-            + (1.0-wx)*(wy)*field[celly+1,cellx] +
-            + (wx)*(wy)*field[celly+1,cellx+1]
+            (wx)*(1.0-wy)*field[celly,cellx+1] +
+            (1.0-wx)*(wy)*field[celly+1,cellx] +
+            (wx)*(wy)*field[celly+1,cellx+1]
     end
 end
 
@@ -507,9 +507,9 @@ function cell_center_change_to_markers!(m::Markers,grid::CartesianGrid,field::Ma
         wy::Float64 = (m.x[2,i] - grid.yc[celly])/(grid.yc[celly+1]-grid.yc[celly])
         
         m.scalars[k,i] += (1.0-wx)*(1.0-wy)*field[celly,cellx] +
-            + (wx)*(1.0-wy)*field[celly,cellx+1] +
-            + (1.0-wx)*(wy)*field[celly+1,cellx] +
-            + (wx)*(wy)*field[celly+1,cellx+1]
+            (wx)*(1.0-wy)*field[celly,cellx+1] +
+            (1.0-wx)*(wy)*field[celly+1,cellx] +
+            (wx)*(wy)*field[celly+1,cellx+1]
     end
 end
 
@@ -522,9 +522,9 @@ function basic_node_change_to_markers!(m::Markers,grid::CartesianGrid,field::Mat
         wy::Float64 = (m.x[2,i] - grid.y[celly])/(grid.y[celly+1]-grid.y[celly])
         
         m.scalars[k,i] += (1.0-wx)*(1.0-wy)*field[celly,cellx] +
-            + (wx)*(1.0-wy)*field[celly,cellx+1] +
-            + (1.0-wx)*(wy)*field[celly+1,cellx] +
-            + (wx)*(wy)*field[celly+1,cellx+1]
+            (wx)*(1.0-wy)*field[celly,cellx+1] +
+            (1.0-wx)*(wy)*field[celly+1,cellx] +
+            (wx)*(wy)*field[celly+1,cellx+1]
     end
 end
 
@@ -644,9 +644,9 @@ function velocity_nodes_to_points(x::Matrix{Float64},cell::Matrix{Int64},grid::C
         mdx::Float64 = (x[1,i] - grid.x[cellx])/(grid.x[cellx+1]-grid.x[cellx])
         mdy::Float64 = (x[2,i] - grid.yc[celly])/(grid.yc[celly+1]-grid.yc[celly])
         mvx[i] = (1-mdx)*(1-mdy)*vx[celly,cellx] +
-            + (mdx)*(1-mdy)*vx[celly,cellx+1] +
-            + (1-mdx)*(mdy)*vx[celly+1,cellx] +
-            + (mdx)*(mdy)*vx[celly+1,cellx+1]
+            (mdx)*(1-mdy)*vx[celly,cellx+1] +
+            (1-mdx)*(mdy)*vx[celly+1,cellx] +
+            (mdx)*(mdy)*vx[celly+1,cellx+1]
 
     end    
     mvy = Array{Float64,1}(undef,N) # y-velocities at specified locations
@@ -657,9 +657,9 @@ function velocity_nodes_to_points(x::Matrix{Float64},cell::Matrix{Int64},grid::C
         mdx::Float64 = (x[1,i] - grid.xc[cellx])/(grid.xc[cellx+1]-grid.xc[cellx])
         mdy::Float64 = (x[2,i] - grid.y[celly])/(grid.y[celly+1]-grid.y[celly])
         mvy[i] = (1-mdx)*(1-mdy)*vy[celly,cellx] +
-            + (mdx)*(1-mdy)*vy[celly,cellx+1] +
-            + (1-mdx)*(mdy)*vy[celly+1,cellx] +
-            + (mdx)*(mdy)*vy[celly+1,cellx+1]
+            (mdx)*(1-mdy)*vy[celly,cellx+1] +
+            (1-mdx)*(mdy)*vy[celly+1,cellx] +
+            (mdx)*(mdy)*vy[celly+1,cellx+1]
     end
     return mvx,mvy
 end
@@ -679,13 +679,13 @@ function velocity_center_to_points(x::Matrix{Float64},cell::Matrix{Int64},grid::
         local mdx::Float64 = (x[1,i] - grid.xc[cellx])/(grid.xc[cellx+1]-grid.xc[cellx])
         local mdy::Float64 = (x[2,i] - grid.yc[celly])/(grid.yc[celly+1]-grid.yc[celly])
         mvx[i] = (1-mdx)*(1-mdy)*vxc[celly,cellx] +
-            + (mdx)*(1-mdy)*vxc[celly,cellx+1] +
-            + (1-mdx)*(mdy)*vxc[celly+1,cellx] +
-            + (mdx)*(mdy)*vxc[celly+1,cellx+1]
+            (mdx)*(1-mdy)*vxc[celly,cellx+1] +
+            (1-mdx)*(mdy)*vxc[celly+1,cellx] +
+            (mdx)*(mdy)*vxc[celly+1,cellx+1]
         mvy[i] = (1-mdx)*(1-mdy)*vyc[celly,cellx] +
-            + (mdx)*(1-mdy)*vyc[celly,cellx+1] +
-            + (1-mdx)*(mdy)*vyc[celly+1,cellx] +
-            + (mdx)*(mdy)*vyc[celly+1,cellx+1]
+            (mdx)*(1-mdy)*vyc[celly,cellx+1] +
+            (1-mdx)*(mdy)*vyc[celly+1,cellx] +
+            (mdx)*(mdy)*vyc[celly+1,cellx+1]
     end    
     return mvx,mvy
 end
