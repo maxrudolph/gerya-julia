@@ -141,113 +141,12 @@ end
 #     ROUTINES RELATED TO MARKERS -> NODES
 #
 #
-# function marker_to_basic_node(m::Markers,grid::CartesianGrid,fieldnames::Vector{String})
-#     # move quantities from the markers to the basic nodes.
-#     # This is a convenience function that allows the field names to be passed as a list of strings.
-#     # m should be the Markers (see Markers.jl)
-#     # grid should be the Cartesian grid
-#     # fieldnames is a vector of strings such as ["rho","T"] that correspond to fields defined on the markers
-#     #
-#     nfields = length(fieldnames)
-#     # markerfields will be indices into the 'scalars' array
-#     markerfields = [m.scalarFields[tmp] for tmp in fieldnames]
-    
-#     return marker_to_basic_node(m,grid, m.scalars[markerfields,:] )
-# end
-
-# function marker_to_basic_node(m::Markers,grid::CartesianGrid,markerfield::Array{Float64,2})
-#      # move quantities from the markers to the basic nodes.
-#      # currently moves rho and eta.
-#      # returns rho, eta, each as a ny-by-nx matrix
-#      nfield = size(markerfield,1);
-
-#      weights = zeros(Float64,grid.ny,grid.nx)
-#      field = zeros(Float64,grid.ny,grid.nx,nfield)
-#      # loop over the markers
-#      for i in 1:m.nmark
-#         # calculate weights for four surrounding basic nodes
-#           cellx::Int64 = m.cell[1,i]
-#           celly::Int64 = m.cell[2,i]
-#           wx = (m.x[1,i] - grid.x[cellx])/(grid.x[cellx+1]-grid.x[cellx]) # mdx/dx
-#           wy = (m.x[2,i] - grid.y[celly])/(grid.y[celly+1]-grid.y[celly])
-#           #i,j
-#           wt_i_j=(1.0-wx)*(1.0-wy)
-#           #i+1,j        
-#           wt_i1_j = (1.0-wx)*(wy)
-#           #i,j+1
-#           wt_i_j1 = (wx)*(1.0-wy)
-#           #i+1,j+1
-#           wt_i1_j1 = (wx)*(wy)
-
-#           for k in 1:nfield
-#               field[celly,cellx,k] += wt_i_j*markerfield[k,i]
-#               field[celly+1,cellx,k] += wt_i1_j*markerfield[k,i]
-#               field[celly,cellx+1,k] += wt_i_j1*markerfield[k,i]
-#               field[celly+1,cellx+1,k] += wt_i1_j1*markerfield[k,i]
-#           end
-#           weights[celly,cellx] += wt_i_j
-#           weights[celly+1,cellx] += wt_i1_j
-#           weights[celly,cellx+1] += wt_i_j1
-#           weights[celly+1,cellx+1] += wt_i1_j1       
-#      end
-    
-#      return [field[:,:,k]./weights for k in 1:nfield]
-#  end
-
-
-# function marker_to_cell_center(m::Markers,grid::CartesianGrid,fieldnames::Vector{String})
-#     # move a list of fields (given as a list of strings in fieldnames) from markers to cell centers.
-#     nfields = length(fieldnames)
-#     # markerfields will be indices into the 'scalars' array
-#     markerfields = [m.scalarFields[tmp] for tmp in fieldnames]
-#     return marker_to_cell_center(m,grid,m.scalars[markerfields,:])
-# end
-
-# function marker_to_cell_center(m::Markers,grid::CartesianGrid,markerfield::Array{Float64,2})
-#     # markerfields will be indices into the 'scalars' array
-
-#     # loop over the markers    
-#     nfield = size(markerfield,1);
-
-#     weights = zeros(Float64,grid.ny+1,grid.nx+1)
-#     field = zeros(Float64,grid.ny+1,grid.nx+1,nfield)
-    
-#     for i in 1:m.nmark
-#        # calculate weights for four surrounding cell centers
-#          cellx::Int64 =  m.cell[1,i]
-#          cellx += cellx < grid.nx && m.x[1,i] >= grid.xc[cellx+1] ? 1 : 0
-#          celly::Int64 = m.cell[2,i]
-#          celly += celly < grid.ny && m.x[2,i] >= grid.yc[celly+1] ? 1 : 0
-        
-#          wx = (m.x[1,i] - grid.xc[cellx])/(grid.xc[cellx+1]-grid.xc[cellx]) # mdx/dx
-#          wy = (m.x[2,i] - grid.yc[celly])/(grid.yc[celly+1]-grid.yc[celly])
-#          #i,j
-#          wt_i_j =(1.0-wx)*(1.0-wy)
-#          #i+1,j        
-#          wt_i1_j = (1.0-wx)*(wy)
-#          #i,j+1
-#          wt_i_j1 = (wx)*(1.0-wy)
-#          #i+1,j+1
-#          wt_i1_j1 = (wx)*(wy)
-        
-#          for k in 1:nfield
-#              field[celly,cellx,k]     += wt_i_j*markerfield[k,i]
-#              field[celly+1,cellx,k]   += wt_i1_j*markerfield[k,i]
-#              field[celly,cellx+1,k]   += wt_i_j1*markerfield[k,i]
-#              field[celly+1,cellx+1,k] += wt_i1_j1*markerfield[k,i]
-#         end
-#          weights[celly,cellx] += wt_i_j
-#          weights[celly+1,cellx] += wt_i1_j
-#          weights[celly,cellx+1] += wt_i_j1
-#          weights[celly+1,cellx+1] += wt_i1_j1       
-#     end
-
-#     return [field[:,:,k]./weights for k in 1:nfield]
-# end
 
 function marker_to_stag(m::Markers,grid::CartesianGrid,markerfields::Array,node_type::String;method="arithmetic")
-    # move a list of fields (given as a list of strings in fieldnames) from markers to staggered grid
+    # Move the information stored in markerfields (an array) to the staggered grid.
+    # markerfields should be [nfields]x[nmark] where nfields is the number of fields to be transferred.
     # node type can be "basic","vx", "vy", or "center"
+    # method can be arithmetic, harmonic, or logarithmic
     stagx::Int64 = 0
     stagy::Int64 = 0
     if node_type == "basic"
@@ -527,20 +426,6 @@ function basic_node_change_to_markers!(m::Markers,grid::CartesianGrid,field::Mat
             (wx)*(wy)*field[celly+1,cellx+1]
     end
 end
-
-# function basic_node_to_markers!(m::Markers,grid::CartesianGrid,field::Matrix)
-#     Threads.@threads for i in 1:m.nmark
-#         cellx = m.cell[1,i]
-#         celly = m.cell[2,i]
-#         wx::Float64 = (m.x[1,i] - grid.x[cellx])/(grid.x[cellx+1]-grid.x[cellx]) # mdx/dx
-#         wy::Float64 = (m.x[2,i] - grid.y[celly])/(grid.y[celly+1]-grid.y[celly])
-        
-#         m.rho[i] = (1.0-wx)*(1.0-wy)*field[celly,cellx] +
-#             + (wx)*(1.0-wy)*field[celly,cellx+1] +
-#             + (1.0-wx)*(wy)*field[celly+1,cellx] +
-#             + (wx)*(wy)*field[celly+1,cellx+1]
-#     end
-# end
 
 function viscosity_to_cell_centers(grid::CartesianGrid,etas::Matrix{Float64})
     # compute the harmonic average of the viscosities at the nodal points
