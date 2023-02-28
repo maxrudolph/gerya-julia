@@ -245,7 +245,7 @@ end
 #     return [field[:,:,k]./weights for k in 1:nfield]
 # end
 
-function marker_to_stag(m::Markers,grid::CartesianGrid,markerfields::Array{Float64,2},node_type::String;method="arithmetic")
+function marker_to_stag(m::Markers,grid::CartesianGrid,markerfields::Array,node_type::String;method="arithmetic")
     # move a list of fields (given as a list of strings in fieldnames) from markers to staggered grid
     # node type can be "basic","vx", "vy", or "center"
     stagx::Int64 = 0
@@ -297,7 +297,7 @@ function marker_to_stag(m::Markers,grid::CartesianGrid,fieldnames::Vector{String
     return marker_to_stag(m,grid,m.scalars[markerfields,:],stagx,stagy,method=method)
 end
 
-function marker_to_stag(m::Markers,grid::CartesianGrid,markerfield::Array{Float64,2},stagx::Int64,stagy::Int64;method="arithmetic")
+function marker_to_stag(m::Markers,grid::CartesianGrid,markerfield::Array,stagx::Int64,stagy::Int64;method="arithmetic")
     # markerfields will be indices into the 'scalars' array
     # If stagx and stagy are zero, this function performs the same task as markers to basic nodes
     # if stagx=-1 and stagy=-1, this function performs interpolation to cell centers.
