@@ -44,19 +44,25 @@ for i in 1:nfiles
     ax1.set_yscale("log")
     ax1.set_xlabel("Time (Myr)")
     ax1.set_ylabel("Melt Production (km\$^3\$/yr)")
+
+    # make a figure in each output folder with the cumulative amount of melting.
+    n = length(melt_km3yr)
+    cumsum = zeros(n,1)
+    
+    for i=2:n
+        cumsum[i] = cumsum[i-1]+melt_km3yr[i]*(time[i]-time[i-1])
+    end
+    fig3,ax3 = plt.subplots(1,1)
+    ax3.plot(time,cumsum)
+    ax3.set_xlim([0.0,5.0])
+    fig3.savefig(output_directory * "/cumulative_melt.png")
+
+
+
 end
 ax1.set_ylim([1e-2,5e1])
 ax1.set_xlim([0.0,5.0])
 ax1.legend()
 fig1.savefig("./melt_vs_time.eps",bbox_inches="tight")
 
-n = length(melt_km3yr)
-cumsum = zeros(n,1)
 
-for i=2:n
-    cumsum[i] = cumsum[i-1]+melt_km3yr[i]*(time[i]-time[i-1])
-end
-figure()
-plot(time,cumsum)
-gca().set_xlim([120,130])
-savefig(output_directory * "/cumulative_melt.png")
