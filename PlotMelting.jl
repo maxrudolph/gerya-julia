@@ -55,7 +55,7 @@ for i in 1:nfiles
     fig3,ax3 = plt.subplots(1,1)
     ax3.plot(time,cumsum)
     ax3.set_xlim([0.0,5.0])
-    fig3.savefig(output_directory * "/cumulative_melt.png")
+    fig3.savefig(output_dirs[i] * "/cumulative_melt.png")
 
 
 
