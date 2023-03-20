@@ -7,8 +7,9 @@
 #SBATCH --mail-type=FAIL,TIME_LIMIT
 #SBATCH --mail-user=maxrudolph@ucdavis.edu
 #SBATCH --partition=high2
-#SBATCH --time=2-00:00:00
+#SBATCH --time=6-00:00:00
 source /home/rudolph/miniconda3/bin/activate
 which python3
 which julia
-julia --threads 64 -- PlumeModel.jl 500.0 90000.0
+julia --threads 64 -- PlumeModel.jl 300.0 90000.0
+

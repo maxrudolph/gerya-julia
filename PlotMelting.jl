@@ -29,7 +29,7 @@ for i in 1:nfiles
     
     time = melt_output[:,2]/3.15e7/1e6
     melt_km3yr = melt_output[:,3] .* (3.15e7/1e9)*eclogite_fraction
-    ind = findfirst( melt_km3yr .> 1e-3 .&& time .> 2.0 )
+    ind = findfirst( melt_km3yr .> 0.0 .&& time .> 2.0 )
     
     mask = (time .> start_time) .&& (time .<= end_time) 
     mask[1:ind] .= false
@@ -43,20 +43,20 @@ for i in 1:nfiles
     ax1.plot(time,melt_km3yr,label=output_dirs[i])
     ax1.set_yscale("log")
     ax1.set_xlabel("Time (Myr)")
-    ax1.set_ylabel("Melt Production (-)")
+    ax1.set_ylabel("Melt Production (km\$^3\$/yr)")
 end
 ax1.set_ylim([1e-2,5e1])
 ax1.set_xlim([0.0,5.0])
 ax1.legend()
 fig1.savefig("./melt_vs_time.eps",bbox_inches="tight")
 
-#n = length(melt_km3yr)
-#cumsum = zeros(n,1)
+n = length(melt_km3yr)
+cumsum = zeros(n,1)
 
-#for i=2:n
-#    cumsum[i] = cumsum[i-1]+melt_km3yr[i]*(time[i]-time[i-1])
-#end
-#figure()
-#plot(time,cumsum)
-#gca().set_xlim([120,130])
-#savefig(output_directory * "/cumulative_melt.png")
+for i=2:n
+    cumsum[i] = cumsum[i-1]+melt_km3yr[i]*(time[i]-time[i-1])
+end
+figure()
+plot(time,cumsum)
+gca().set_xlim([120,130])
+savefig(output_directory * "/cumulative_melt.png")
