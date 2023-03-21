@@ -491,6 +491,7 @@ function plume_model(options::Dict;max_step::Int64=-1,max_time::Float64=-1.0)
             println("total melt rate: ",total_melt)
         else
             total_melt = 0.0
+            total_carbon = 0.0
             dXdt = zeros(grid.ny+1,grid.nx+1)
             dC = zeros(grid.ny+1,grid.nx+1)
         end
