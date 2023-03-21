@@ -156,7 +156,7 @@ function update_melt!(markers::Markers,dt::Float64,mask::BitVector)
     dxdt = markers.scalarFields["dXdt"]
     mat = markers.integerFields["material"]
     carbon = markers.scalarFields["carbon"]
-    dcarbon = markers.scalarFields["carbon_release"]
+    dcarbon = markers.scalarFields["dC"]
     
     Threads.@threads for i in 1:markers.nmark
         if mask[i]            
@@ -224,6 +224,7 @@ function initial_conditions!(markers::Markers,materials::Materials,options::Dict
     Hr = markers.scalarFields["Hr"]
     dxdt = markers.scalarFields["dXdt"]
     carbon = markers.scalarFields["carbon"]
+    dC = markers.scalarFields["dC"]
 
     Threads.@threads for i in 1:markers.nmark
         mx = markers.x[1,i]
@@ -256,6 +257,7 @@ function initial_conditions!(markers::Markers,materials::Materials,options::Dict
         markers.scalars[cp,i] = materials.Cp[ind]  
         markers.scalars[Hr,i] = materials.Hr[ind]  
         markers.scalars[dxdt,i] = 0.0
+        markers.scalars[dC,i] = 0.0
     end
     update_marker_properties!(markers,materials)
 end
