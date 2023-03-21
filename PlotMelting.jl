@@ -71,5 +71,5 @@ fig1.savefig("./melt_vs_time.eps",bbox_inches="tight")
 ax4.legend()
 ax4.set_xlabel("Time (Myr)")
 ax4.set_ylabel("Cumulative Melt (10\$^6\$ km\$^3\$)")
-fig4.savefig("cumulative_melt.epd")
+fig4.savefig("cumulative_melt.eps")
 
