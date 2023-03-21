@@ -19,7 +19,7 @@ end
 # Create Figure Windows
 fig1,ax1 = plt.subplots(1,1, figsize=(4,2.5) )
 fig2,ax2 = plt.subplots(1,1, figsize=(4,2.5) )
-
+fig4,ax4 = plt.subplots(1,1, figsize=(4,2.5) )
 for i in 1:nfiles
     # Read statistics file:
 
@@ -59,7 +59,8 @@ for i in 1:nfiles
     ax3.set_ylabel("Cumulative Melt (10\$^6\$ km\$^3\$)")
     fig3.savefig(output_dirs[i] * "/cumulative_melt.png")
 
-
+    ax4.plot(time,cumsum,label=output_dirs[i])
+    ax4.set_xlim([0.0,5.0])
 
 end
 ax1.set_ylim([1e-2,5e1])
@@ -67,4 +68,8 @@ ax1.set_xlim([0.0,5.0])
 ax1.legend()
 fig1.savefig("./melt_vs_time.eps",bbox_inches="tight")
 
+ax4.legend()
+ax4.set_xlabel("Time (Myr)")
+ax4.set_ylabel("Cumulative Melt (10\$^6\$ km\$^3\$)")
+fig4.savefig("cumulative_melt.png")
 
