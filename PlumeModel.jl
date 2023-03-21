@@ -9,8 +9,8 @@ end
 seconds_in_year = 3.15e7
 
 options = Dict()
-options["nx"] = 201
-options["ny"] = 571
+options["nx"] = 101 #201
+options["ny"] = 285 #571
 options["markx"] = 10
 options["marky"] = 10
 options["W"] = 1e6
@@ -107,16 +107,16 @@ function halfspace_cooling_from_thickness(Tsurf,Tmantle,kappa,y,thickness)
     return halfspace_cooling(Tsurf,Tmantle,kappa,y,t)
 end
 
-function setup_steinberger_viscosity()
-   filename = "data/visc.sh08"
-   tmp = CSV.read(filename,DataFrame,comment="#");
-   radius_nondimensional = tmp[:,1]
-   depth_m = 6.371e6 .* (1.0 .- radius_nondimensional)
-   viscosity = tmp[:,2]
-   return linear_interpolation(reverse(depth_m),reverse(viscosity),extrapolation_bc=Line())
-end
+# function setup_steinberger_viscosity()
+#    filename = "data/visc.sh08"
+#    tmp = CSV.read(filename,DataFrame,comment="#");
+#    radius_nondimensional = tmp[:,1]
+#    depth_m = 6.371e6 .* (1.0 .- radius_nondimensional)
+#    viscosity = tmp[:,2]
+#    return linear_interpolation(reverse(depth_m),reverse(viscosity),extrapolation_bc=Line())
+# end
 
-viscosity_depth_function = setup_steinberger_viscosity()
+# viscosity_depth_function = setup_steinberger_viscosity()
 
 # function to compute viscosity
 function viscosity(eta0::Float64,depth::Float64,T::Float64,E::Float64 ; visc_max=1.0e25)
@@ -155,6 +155,8 @@ function update_melt!(markers::Markers,dt::Float64,mask::BitVector)
     melt = markers.scalarFields["Xmelt"]
     dxdt = markers.scalarFields["dXdt"]
     mat = markers.integerFields["material"]
+    carbon = markers.scalarFields["carbon"]
+    dcarbon = markers.scalarFields["carbon_release"]
     
     Threads.@threads for i in 1:markers.nmark
         if mask[i]            
@@ -163,6 +165,11 @@ function update_melt!(markers::Markers,dt::Float64,mask::BitVector)
             old_melt = markers.scalars[melt,i]
             markers.scalars[dxdt,i] = new_melt > old_melt ? (new_melt - old_melt)/dt : 0.0
             markers.scalars[melt,i] = new_melt
+            if new_melt > .01
+                # if melt fraction exceeds 1%, liberate all carbon
+                markers.scalars[dcarbon,i] = markers.scalars[carbon,i] # change in carbon is equal to amount of carbon
+                markers.scalars[carbon,i] = 0.0 # reset carbon to zero
+            end
         end
     end
 end
@@ -216,6 +223,8 @@ function initial_conditions!(markers::Markers,materials::Materials,options::Dict
     cp = markers.scalarFields["Cp"]
     Hr = markers.scalarFields["Hr"]
     dxdt = markers.scalarFields["dXdt"]
+    carbon = markers.scalarFields["carbon"]
+
     Threads.@threads for i in 1:markers.nmark
         mx = markers.x[1,i]
         my = markers.x[2,i]
@@ -225,10 +234,12 @@ function initial_conditions!(markers::Markers,materials::Materials,options::Dict
         h = 1.5e5 - (1.5e5-1.12e5)*(mx)/options["W"]
                 
         #set material - eclogite at cmb
-        if my > 2.85e6-h
+        if my > 2.85e6-h # eclogite-enriched material
            markers.integers[material,i] = 2
-        else
+           markers.scalars[carbon,i] = 900.0*0.15 + 137.0*0.85 # assume 900 ppm for eclogite, 137 ppm for peridotite
+        else # background mantle
            markers.integers[material,i] = 1
+           markers.scalars[carbon,i] = 1.0*137.0
         end
         
         if my < 6.6e5
@@ -259,19 +270,21 @@ function adiabatic_temperature(depth::Float64,T::Float64)
    return T + 0.4/1000.0 * depth
 end
 
-function total_melt_rate(grid::CartesianGrid,dXdt::Matrix{Float64})
+function total_melt_rate(grid::CartesianGrid,dXdt::Matrix{Float64},dC::Matrix{Float64})
     total_melt = 0.0
+    total_carbon = 0.0
      for j in 2:grid.nx
         for i in 2:grid.ny
             # 2 pi r dr dz
             total_melt += dXdt[i,j] > 0.0 ? 2.0*pi*grid.xc[j]*(grid.x[j]-grid.x[j-1])*(grid.y[i]-grid.y[i-1])*dXdt[i,j] : 0.0
+            total_carbon += dC[i,j] > 0.0 ? 2.0*pi*grid.xc[j]*(grid.x[j]-grid.x[j-1])*(grid.y[i]-grid.y[i-1])*dC[i,j] : 0.0
         end
     end
-    return total_melt
+    return total_melt,total_carbon
 end
 
-function update_statistics(stats_file,step,time,total_melt)
-    str = @sprintf("%d\t%e\t%e\n",step,time,total_melt);
+function update_statistics(stats_file,step,time,total_melt,total_carbon)
+    str = @sprintf("%d\t%e\t%e\n",step,time,total_melt,total_carbon);
     write(stats_file, str) 
     flush(stats_file)
 end
@@ -303,7 +316,7 @@ function plume_model(options::Dict;max_step::Int64=-1,max_time::Float64=-1.0)
     dtmax = plot_interval
     
     println("Creating Markers...")
-    @time markers = Markers(grid,["alpha","Cp","T","rho","eta","Hr","Xmelt","dXdt"],["material"] ; nmx=markx,nmy=marky,random=false)
+    @time markers = Markers(grid,["alpha","Cp","T","rho","eta","Hr","Xmelt","dXdt","carbon","dC"],["material"] ; nmx=markx,nmy=marky,random=false)
     println("Initial condition...")
     @time initial_conditions!(markers, materials, options)
 
@@ -337,6 +350,7 @@ function plume_model(options::Dict;max_step::Int64=-1,max_time::Float64=-1.0)
     local Xlast
     local Xnew
     local dXdt
+    local dC
     local reset_temperature=false
 
     #pardiso_solver = MKLPardisoSolver()
@@ -463,17 +477,20 @@ function plume_model(options::Dict;max_step::Int64=-1,max_time::Float64=-1.0)
 
         cell_center_change_to_markers!(markers,grid,dT_remaining,"T")
         
-        # compute the melt fraction on the markers using the NEW temperature.
-        if itime > 1            
+        # compute the melt fraction and carbon release on the markers using the NEW temperature.
+        if itime > 1
             update_melt!(markers,dt) # compute melt on the markers (using new temperature)
-            dXdt_new, = marker_to_stag(markers,grid,["dXdt",],"center")
+            dXdt_new,dC_new = marker_to_stag(markers,grid,["dXdt","dC"],"center")
             replace_nan!(dXdt,dXdt_new)
+            replace_nan!(dC,dC_new)
             dXdt = copy(dXdt_new)
-            total_melt = total_melt_rate(grid,dXdt)
+            dC = copy(dC_new)
+            total_melt,total_carbon = total_melt_rate(grid,dXdt,dC)
             println("total melt rate: ",total_melt)
         else
             total_melt = 0.0
             dXdt = zeros(grid.ny+1,grid.nx+1)
+            dC = zeros(grid.ny+1,grid.nx+1)
         end
         
         if itime > 20 && total_melt > 0 && !reset_temperature
@@ -511,7 +528,7 @@ function plume_model(options::Dict;max_step::Int64=-1,max_time::Float64=-1.0)
             
             iout += 1
         end
-        update_statistics(stats_file,itime,time,total_melt)
+        update_statistics(stats_file,itime,time,total_melt,total_carbon)
         
         # Move the markers and advance to the next timestep
         println("Min/Max velocity: ",minimum(vyc)," ",maximum(vyc))
