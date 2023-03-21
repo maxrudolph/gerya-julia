@@ -56,7 +56,7 @@ for i in 1:nfiles
     ax3.plot(time,cumsum)
     ax3.set_xlim([0.0,5.0])
     ax3.set_xlabel("Time (Myr)")
-    ax3.set_ylabel"Cumulative Melt (10\$^6\$ km\$^3\$)")
+    ax3.set_ylabel("Cumulative Melt (10\$^6\$ km\$^3\$)")
     fig3.savefig(output_dirs[i] * "/cumulative_melt.png")
 
 
