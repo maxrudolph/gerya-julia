@@ -286,7 +286,7 @@ function total_melt_rate(grid::CartesianGrid,dXdt::Matrix{Float64},dC::Matrix{Fl
 end
 
 function update_statistics(stats_file,step,time,total_melt,total_carbon)
-    str = @sprintf("%d\t%e\t%e\n",step,time,total_melt,total_carbon);
+    str = @sprintf("%d\t%e\t%e\t%e\n",step,time,total_melt,total_carbon);
     write(stats_file, str) 
     flush(stats_file)
 end
