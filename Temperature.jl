@@ -1,5 +1,5 @@
 # Define a function to form the energy equation left hand side and right hand side
-function assemble_energy_equation_center(grid::CartesianGrid,rho_c::Matrix{Float64},Cp_c::Matrix{Float64},kThermal::Matrix{Float64},H::Matrix{Float64},Tlast::Matrix{Float64},dt::Float64,bcval)
+function assemble_energy_equation_center(grid::CartesianGrid,rho_c::Matrix{Float64},Cp_c::Matrix{Float64},kThermal::Matrix{Float64},H::Matrix{Float64},Tlast::Matrix{Float64},dt::Float64,bc,bcval)
     # Assemble the left hand side for the energy equation
     # Inputs:
     # grid - this is the CartesianGrid
@@ -13,10 +13,14 @@ function assemble_energy_equation_center(grid::CartesianGrid,rho_c::Matrix{Float
     # Returns:
     # L,R, the left hand side and right hand side of the energy equation
     
-    bcleft  = -1   # -1 = insulating, 1 = constant temp
-    bcright = -1   #
-    bctop   =  1
-    bcbottom  = 1
+    #bcleft  = -1   # -1 = insulating, 1 = constant temp
+    #bcright = -1   #
+    #bctop   =  1
+    #bcbottom  = 1
+    bcleft   = bc[1]
+    bcright  = bc[2]
+    bctop    = bc[3]
+    bcbottom = bc[4]
     # bcval should contain temperature or dT/dx values for left,right,top,bottom
     
     N = grid.nx*grid.ny
