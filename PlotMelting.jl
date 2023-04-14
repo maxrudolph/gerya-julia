@@ -19,7 +19,9 @@ end
 # Create Figure Windows
 fig1,ax1 = plt.subplots(1,1, figsize=(4,2.5) )
 fig2,ax2 = plt.subplots(1,1, figsize=(4,2.5) )
+fig5,ax5 = plt.subplots(1,1, figsize=(4,2.5) )
 fig4,ax4 = plt.subplots(1,1, figsize=(4,2.5) )
+
 for i in 1:nfiles
     # Read statistics file:
 
@@ -29,21 +31,29 @@ for i in 1:nfiles
     
     time = melt_output[:,2]/3.15e7/1e6
     melt_km3yr = melt_output[:,3] .* (3.15e7/1e9)*eclogite_fraction
+    carbon = melt_output[:,4] .* (3.15e7/1e9)
     ind = findfirst( melt_km3yr .> 0.0 .&& time .> 2.0 )
     
     mask = (time .> start_time) .&& (time .<= end_time) 
     mask[1:ind] .= false
 
     # melt output is in units of m^3/s
-    time=time[mask]
+    time = time[mask]
     time = time .- time[1]
     melt_km3yr = melt_output[mask,3] .* (3.15e7/1e9)*eclogite_fraction
     melt_km3yr = running_median(melt_km3yr, 1)
+    carbon = melt_output[mask,4] .* (3.15e7/1e9)
 
     ax1.plot(time,melt_km3yr,label=output_dirs[i])
     ax1.set_yscale("log")
     ax1.set_xlabel("Time (Myr)")
     ax1.set_ylabel("Melt Production (km\$^3\$/yr)")
+
+    ax5.plot(time,carbon,label=output_dirs[i])
+    ax5.set_yscale("log")
+    ax5.set_xlabel("Time (Myr)")
+    ax5.set_ylabel("Carbon release (km\$^3\$/yr)")
+
 
     # make a figure in each output folder with the cumulative amount of melting.
     n = length(melt_km3yr)
@@ -73,3 +83,7 @@ ax4.set_xlabel("Time (Myr)")
 ax4.set_ylabel("Cumulative Melt (10\$^6\$ km\$^3\$)")
 fig4.savefig("cumulative_melt.eps")
 
+ax5.legend()
+ax5.set_xlabel("Time (Myr)")
+ax5.set_ylabel("Cumulative Carbon (10\$^6\$ km\$^3\$)")
+fig5.savefig("cumulative_carbon.eps")
