@@ -9,8 +9,8 @@ end
 seconds_in_year = 3.15e7
 
 options = Dict()
-options["nx"] = 101 #201
-options["ny"] = 285 #571
+options["nx"] = 134 #201
+options["ny"] = 381 #571
 options["markx"] = 10
 options["marky"] = 10
 options["W"] = 1e6
