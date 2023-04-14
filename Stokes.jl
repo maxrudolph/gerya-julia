@@ -303,6 +303,7 @@ function form_stokes(grid::CartesianGrid,eta_s::Matrix,eta_n::Matrix,rhoX::Matri
     return L,R    
 end
 
+
 function unpack(solution, grid::CartesianGrid; ghost::Bool=false)
     if ghost
         nx1 = grid.nx+1
