@@ -1,3 +1,4 @@
+Threads.nthreads()=24
 # Define options and parse command-line arguments:
 if length( ARGS ) < 3
     error("specify excess temperature (K)/lithosphere thickness (m)/plume radius (m)")
@@ -10,11 +11,11 @@ end
 seconds_in_year = 3.15e7
 
 options = Dict()
-options["nx"] = 286 #201
+options["nx"] = 285+1 #201
 options["ny"] = 286 #571
 options["markx"] = 7
 options["marky"] = 7
-options["W"] = 2.85e6
+options["W"] = 2.850e6
 options["H"] = 2.850e6
 options["g"] = 10.0
 
@@ -22,11 +23,11 @@ options["Tcmb"] = 2305.445 + 1200.
 options["lithosphere thickness"] = h
 options["plume radius"] = r
 
-options["plot interval"] = 1e6*seconds_in_year
-options["melting plot interval"] = 1e5*seconds_in_year
-options["output directory"] = "plume_test_" * string(Tex) * "_" * string(h) 
+options["plot interval"] = 2e6*seconds_in_year
+options["melting plot interval"] = 4e5*seconds_in_year
+options["output directory"] = "plume_test_" * string(Tex) * "_" * string(h)
 options["max time"] = 1e8*seconds_in_year
-options["max step"] = 700
+options["max step"] = 1
 
 println("Options: ", options )
 
@@ -440,7 +441,19 @@ function plume_model(options::Dict;max_step::Int64=-1,max_time::Float64=-1.0)
         println(stats_file,"# ",key," => ",options[key])
     end
     flush(stats_file)
-        
+    
+    depth = LinRange(0,H,ny)
+    T_adiabat=zeros(Float64,ny,nx)
+    rho_ecl = zeros(Float64,ny,nx)
+    #print(type(depth[1]))
+    for i in 1:ny
+        d::Float64 = depth[i]
+        a = adiabatic_temperature(d)
+        T_adiabat[i,:] .= a
+        b = ecl_diff(d)
+        rho_ecl[i,:] .= b
+    end
+    
     local terminate = false
     while !terminate        
         update_marker_properties!(markers,materials)#itime==1 ? 0.0 : dt)
@@ -502,7 +515,7 @@ function plume_model(options::Dict;max_step::Int64=-1,max_time::Float64=-1.0)
         vxc,vyc = velocity_to_centers(grid,vx,vy)
         adiabatic_heating = compute_adiabatic_heating(grid,rho_c,Tlast,alpha,gx,gy,vxc,vyc)
         shear_heating = compute_shear_heating(grid,vx,vy,eta_n,eta_s)
-        H = (adiabatic_heating .+ shear_heating).*0.0
+        H = (adiabatic_heating .+ shear_heating.*0.0)
     
         # 3. Compute the advection timestep:
         if itime > 1
@@ -591,7 +604,11 @@ function plume_model(options::Dict;max_step::Int64=-1,max_time::Float64=-1.0)
             println("Writing visualization fle ",name)
             vn = velocity_to_basic_nodes(grid,vxc,vyc)
 	        Tn = temperature_to_basic_nodes(grid,Tnew)
-            output_fields = Dict("rho"=>rho_c[2:end-1,2:end-1],"eta"=>eta_s,"velocity"=>vn,"pressure"=>P[2:end-1,2:end-1],"T"=>Tn,"dXdt"=>dXdt[2:end-1,2:end-1])
+            delta_T = Tn .- T_adiabat
+            frac_n, = marker_to_stag(markers,grid,["frac",],"basic",method=visc_method);
+            alpha_n, = marker_to_stag(markers,grid,["alpha",],"basic",method=visc_method);
+            delta_rho = frac_n .* rho_ecl .- alpha_n .* delta_T 
+            output_fields = Dict("rho"=>rho_c,"eta"=>eta_s,"velocity"=>vn,"pressure"=>P[2:end-1,2:end-1],"T"=>Tn,"dT"=>delta_T,"frac"=>frac_n,"drho"=>delta_rho,"dXdt"=>dXdt[2:end-1,2:end-1])
             @time visualization(grid,output_fields,time/seconds_in_year;filename=name)
             # Markers output:
             name1 = @sprintf("%s/markers.%04d.vtp",output_dir,iout)
