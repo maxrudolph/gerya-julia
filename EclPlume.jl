@@ -25,7 +25,7 @@ options["plume radius"] = r
 
 options["plot interval"] = 2e6*seconds_in_year
 options["melting plot interval"] = 4e5*seconds_in_year
-options["output directory"] = "plume_test_" * string(Tex) * "_" * string(h)*"1"
+options["output directory"] = "plume_test_" * string(Tex) * "_" * string(h)
 options["max time"] = 1e8*seconds_in_year
 options["max step"] = 1
 
