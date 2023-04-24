@@ -1,5 +1,5 @@
 # Define a function to form the energy equation left hand side and right hand side
-function assemble_energy_equation_center(grid::CartesianGrid,rho_c::Matrix{Float64},Cp_c::Matrix{Float64},kThermal::Matrix{Float64},H::Matrix{Float64},Tlast::Matrix{Float64},dt::Float64,bcval)
+function assemble_energy_equation_center(grid::CartesianGrid,rho_c::Matrix{Float64},Cp_c::Matrix{Float64},kThermal::Matrix{Float64},H::Matrix{Float64},Tlast::Matrix{Float64},dt::Float64,bctype,bcval)
     # Assemble the left hand side for the energy equation
     # Inputs:
     # grid - this is the CartesianGrid
@@ -9,14 +9,15 @@ function assemble_energy_equation_center(grid::CartesianGrid,rho_c::Matrix{Float
     # H - volumetric rate of internal heating at the cell centers
     # Tlast - the previous-timestep temperature.
     # dt - the time step
-    # bcval - a vector containing the temperature or dT/dn values at the [left, right, top, bottom]
+    # bctype - a vector containing a flag (-1=prescribed gradient, +1=prescribed value) for [left,right,top,bottom]
+    # bcval - a vector containing the temperature or normal gradient values at the [left, right, top, bottom]
     # Returns:
     # L,R, the left hand side and right hand side of the energy equation
     
-    bcleft  = -1   # -1 = insulating, 1 = constant temp
-    bcright = -1   #
-    bctop   =  1
-    bcbottom  = 1
+    bcleft  = bctype[1]   # -1 = insulating, 1 = constant temp
+    bcright = bctype[2]   #
+    bctop   = bctype[3]
+    bcbottom  = bctype[4]
     # bcval should contain temperature or dT/dx values for left,right,top,bottom
     
     N = grid.nx*grid.ny
