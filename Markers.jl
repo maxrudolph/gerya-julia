@@ -614,7 +614,7 @@ function move_markers_rk2!(markers::Markers,grid::CartesianGrid,vx::Matrix{Float
         cell[2,i] = find_cell(xB[2,i], grid.y, grid.ny, guess=cell[2,i])
     end
     # compute velocity at xB
-    mvx, mvy = velocity_to_points(xB,cell,grid,vxc,vyc,continuity_weight=continuity_weight)
+    mvx, mvy = velocity_to_points(xB,cell,grid,vx,vy,continuity_weight=continuity_weight)
     # Move the markers using the velocity at xB.
      for i in 1:markers.nmark
          markers.x[1,i] += dt*mvx[i]
