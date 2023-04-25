@@ -152,6 +152,7 @@ function ghost_temperature_center(grid::CartesianGrid,T::Matrix{Float64},bctype,
     if bcleft == -1
        Tpad[:,1] = Tpad[:,2] # insulating
     elseif bcleft == 1
+        println("assigning left boundary temperature ",bcval[1])
        Tpad[:,1] = 2.0*bcval[1] .- Tpad[:,2]
     end
 
