@@ -353,24 +353,54 @@ function stag_to_points(x::Matrix{Float64},cell::Matrix{Int64},grid::CartesianGr
     
 end
 
-function cell_center_to_markers!(m::Markers,grid::CartesianGrid,field::Matrix{Float64},mfield::Array{Float64,2})
-    if size(field,1) == grid.nx+1
+function cell_center_to_markers!(m::Markers,grid::CartesianGrid,field::Matrix{Float64},mfield::String)
+    if size(field,2) == grid.nx+1
         cellx_max = grid.nx
     else
         cellx_max = grid.nx-1
     end
-    if size(field,2) == grid.ny+1
+    if size(field,1) == grid.ny+1
         celly_max = grid.ny
     else
         celly_max = grid.ny-1
     end
-    
+    k = m.scalarFields[mfield]
+
     Threads.@threads for i in 1:m.nmark
         local cellx::Int64 = m.cell[1,i]
         local celly::Int64 = m.cell[2,i]
         
-        cellx += cellx < cellx_max && m.x[1,i] >= grid.xc[cellx+1] ? 1 : 0
-        celly += celly < celly_max && m.x[2,i] >= grid.yc[celly+1] ? 1 : 0
+        cellx += (cellx < cellx_max && m.x[1,i] >= grid.xc[cellx+1]) ? 1 : 0
+        celly += (celly < celly_max && m.x[2,i] >= grid.yc[celly+1]) ? 1 : 0
+        
+        wx::Float64 = (m.x[1,i] - grid.xc[cellx])/(grid.xc[cellx+1]-grid.xc[cellx]) # mdx/dx
+        wy::Float64 = (m.x[2,i] - grid.yc[celly])/(grid.yc[celly+1]-grid.yc[celly])
+        
+        m.scalars[k,i] = (1.0-wx)*(1.0-wy)*field[celly,cellx] +
+            (wx)*(1.0-wy)*field[celly,cellx+1] +
+            (1.0-wx)*(wy)*field[celly+1,cellx] +
+            (wx)*(wy)*field[celly+1,cellx+1]
+    end
+end
+
+function cell_center_to_markers!(m::Markers,grid::CartesianGrid,field::Matrix{Float64},mfield::Array{Float64,2})
+    if size(field,2) == grid.nx+1
+        cellx_max = grid.nx
+    else
+        cellx_max = grid.nx-1
+    end
+    if size(field,1) == grid.ny+1
+        celly_max = grid.ny
+    else
+        celly_max = grid.ny-1
+    end
+
+    Threads.@threads for i in 1:m.nmark
+        local cellx::Int64 = m.cell[1,i]
+        local celly::Int64 = m.cell[2,i]
+        
+        cellx += (cellx < cellx_max && m.x[1,i] >= grid.xc[cellx+1]) ? 1 : 0
+        celly += (celly < celly_max && m.x[2,i] >= grid.yc[celly+1]) ? 1 : 0
         
         wx::Float64 = (m.x[1,i] - grid.xc[cellx])/(grid.xc[cellx+1]-grid.xc[cellx]) # mdx/dx
         wy::Float64 = (m.x[2,i] - grid.yc[celly])/(grid.yc[celly+1]-grid.yc[celly])
@@ -383,12 +413,12 @@ function cell_center_to_markers!(m::Markers,grid::CartesianGrid,field::Matrix{Fl
 end
 
 function cell_center_change_to_markers!(m::Markers,grid::CartesianGrid,field::Matrix{Float64},mfield::String)
-    if size(field,1) == grid.nx+1
+    if size(field,2) == grid.nx+1
         cellx_max = grid.nx
     else
         cellx_max = grid.nx-1
     end
-    if size(field,2) == grid.ny+1
+    if size(field,1) == grid.ny+1
         celly_max = grid.ny
     else
         celly_max = grid.ny-1
@@ -614,7 +644,7 @@ function move_markers_rk2!(markers::Markers,grid::CartesianGrid,vx::Matrix{Float
         cell[2,i] = find_cell(xB[2,i], grid.y, grid.ny, guess=cell[2,i])
     end
     # compute velocity at xB
-    mvx, mvy = velocity_to_points(xB,cell,grid,vxc,vyc,continuity_weight=continuity_weight)
+    mvx, mvy = velocity_to_points(xB,cell,grid,vx,vy,continuity_weight=continuity_weight)
     # Move the markers using the velocity at xB.
      for i in 1:markers.nmark
          markers.x[1,i] += dt*mvx[i]
