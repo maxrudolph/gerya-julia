@@ -21,6 +21,8 @@ fig1,ax1 = plt.subplots(1,1, figsize=(4,2.5) )
 fig2,ax2 = plt.subplots(1,1, figsize=(4,2.5) )
 fig5,ax5 = plt.subplots(1,1, figsize=(4,2.5) )
 fig4,ax4 = plt.subplots(1,1, figsize=(4,2.5) )
+fig6,ax6 = plt.subplots(1,1, figsize=(4,2.5) )
+
 
 for i in 1:nfiles
     # Read statistics file:
@@ -31,7 +33,7 @@ for i in 1:nfiles
     
     time = melt_output[:,2]/3.15e7/1e6
     melt_km3yr = melt_output[:,3] .* (3.15e7/1e9)*eclogite_fraction
-    carbon = melt_output[:,4] .* (3.15e7/1e9)
+    
     ind = findfirst( melt_km3yr .> 0.0 .&& time .> 2.0 )
     
     mask = (time .> start_time) .&& (time .<= end_time) 
@@ -42,7 +44,9 @@ for i in 1:nfiles
     time = time .- time[1]
     melt_km3yr = melt_output[mask,3] .* (3.15e7/1e9)*eclogite_fraction
     melt_km3yr = running_median(melt_km3yr, 1)
-    carbon = melt_output[mask,4] .* (3.15e7/1e9)
+    # carbon should be measured in units of kg/yr
+    # (integrated wt ppm (ppm*m^3)) * (kg/m^3) * (1 tonne)/(1000 kg)
+    carbon = melt_output[mask,4] .* (1e-6) .* 3300.0 /1e3
 
     ax1.plot(time,melt_km3yr,label=output_dirs[i])
     ax1.set_yscale("log")
@@ -72,6 +76,14 @@ for i in 1:nfiles
     ax4.plot(time,cumsum,label=output_dirs[i])
     ax4.set_xlim([0.0,5.0])
 
+    # cumulative amount of carbon
+    n = length(carbon)
+    cumsum = zeros(n,1)
+    for i=2:n
+        cumsum[i] = cumsum[i-1]+carbon[i]
+    end
+    ax6.plot(time,cumsum,label=output_dirs[i])
+    ax6.set_xlim([0.0,5.0])
 end
 ax1.set_ylim([1e-2,5e1])
 ax1.set_xlim([0.0,5.0])
@@ -85,5 +97,10 @@ fig4.savefig("cumulative_melt.eps")
 
 ax5.legend()
 ax5.set_xlabel("Time (Myr)")
-ax5.set_ylabel("Cumulative Carbon (10\$^6\$ km\$^3\$)")
-fig5.savefig("cumulative_carbon.eps")
+ax5.set_ylabel("Carbon (Tonne)")
+fig5.savefig("carbon.eps")
+
+ax6.legend()
+ax6.set_xlabel("Time (Myr)")
+ax6.set_ylabel("Carbon (Tonne)")
+fig6.savefig("cumulative_carbon.eps")
