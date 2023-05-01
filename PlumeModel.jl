@@ -25,7 +25,7 @@ options["plot interval"] = 1e6*seconds_in_year
 options["melting plot interval"] = 1e5*seconds_in_year
 options["output directory"] = "plume_" * string(Tex) * "_" * string(h)
 options["max time"] = 1e8*seconds_in_year
-
+options["max step"] = 10
 println("Options: ", options )
 
 # Import necessary packages
@@ -581,5 +581,7 @@ function plume_model(options::Dict;max_step::Int64=-1,max_time::Float64=-1.0)
      return grid,markers,vx,vy,vxc,vyc,rho_c,dTemp,Tnew,Tlast,time
  end
 
-@time grid,markers,vx,vy,vxc,vyc,rho_c,dTemp,Tnew,Tlast,time = plume_model(options,max_time=options["max time"]);
+using Profile, FileIO
+@profile grid,markers,vx,vy,vxc,vyc,rho_c,dTemp,Tnew,Tlast,time = plume_model(options,max_time=options["max time"],max_step=options["max step"]);
+save("test.jlprof",Profile.retrieve() )
 #@time grid,markers,vx,vy,vxc,vyc,rho_c,dTemp,Tnew,Tlast,time = plume_model(options,max_step=1)

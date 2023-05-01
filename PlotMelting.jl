@@ -86,7 +86,7 @@ for i in 1:nfiles
     ax6.set_xlim([0.0,5.0])
 end
 ax1.set_ylim([1e-2,5e1])
-ax1.set_xlim([0.0,5.0])
+ax1.set_xlim([0.0,10.0])
 ax1.legend()
 fig1.savefig("./melt_vs_time.eps",bbox_inches="tight")
 
@@ -101,6 +101,7 @@ ax5.set_ylabel("Carbon (Tonne)")
 fig5.savefig("carbon.eps")
 
 ax6.legend()
+ax6.set_xlim([0.0,10.0])
 ax6.set_xlabel("Time (Myr)")
 ax6.set_ylabel("Carbon (Tonne)")
 fig6.savefig("cumulative_carbon.eps")
