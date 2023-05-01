@@ -222,7 +222,7 @@ function initial_carbon!(markers::Markers,mask::BitVector)
     melt = markers.scalarFields["Xmelt"]
     carbon = markers.scalarFields["carbon"]
     dcarbon = markers.scalarFields["dC"]
-    for i in 1:markers.nmark
+    Threads.@threads for i in 1:markers.nmark
         if mask[i]
             if markers.scalars[melt,i] > .01
                 markers.scalars[carbon,i] = 0.0
