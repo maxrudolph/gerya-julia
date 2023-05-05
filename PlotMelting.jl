@@ -51,7 +51,7 @@ fig4,ax4 = plt.subplots(1,1, figsize=(4,2.5) )
 fig6,ax6 = plt.subplots(1,1, figsize=(4,2.5) )
 
 
-for i in 1:nfiles
+for ifile in 1:nfiles
     # Read statistics file:
 
     filename = output_dirs[i] * "/statistics.txt"
@@ -75,7 +75,7 @@ for i in 1:nfiles
     # (integrated wt ppm (ppm*m^3)) * (kg/m^3) * (1 tonne)/(1000 kg)
     carbon = melt_output[mask,4] .* (1e-6) .* 3300.0 /1e3
 
-    ax1.plot(time,melt_km3yr,label=output_dirs[i],color=line_colors[)
+    ax1.plot(time,melt_km3yr,label=output_dirs[ifile],color=line_colors[ifile],linestyle=line_styles[ifile])
     ax1.set_yscale("log")
     ax1.set_xlabel("Time (Myr)")
     ax1.set_ylabel("Melt Production (km\$^3\$/yr)")
@@ -88,13 +88,13 @@ for i in 1:nfiles
         cumsum[i] = cumsum[i-1]+melt_km3yr[i]*(time[i]-time[i-1])
     end
     fig3,ax3 = plt.subplots(1,1)
-    ax3.plot(time,cumsum)
+    ax3.plot(time,cumsum,color=line_colors[ifile],linestyle=line_styles[ifile])
     ax3.set_xlim([0.0,5.0])
     ax3.set_xlabel("Time (Myr)")
     ax3.set_ylabel("Cumulative Melt (10\$^6\$ km\$^3\$)")
-    fig3.savefig(output_dirs[i] * "/cumulative_melt.png")
+    fig3.savefig(output_dirs[ifile] * "/cumulative_melt.png")
 
-    ax4.plot(time,cumsum,label=output_dirs[i])
+    ax4.plot(time,cumsum,label=output_dirs[ifile],color=line_colors[ifile],linestyle=line_styles[ifile])
     ax4.set_xlim([0.0,5.0])
 
     # cumulative amount of carbon
@@ -103,7 +103,7 @@ for i in 1:nfiles
     for i=2:n
         cumsum[i] = cumsum[i-1]+carbon[i]
     end
-    ax6.plot(time,cumsum,label=output_dirs[i])
+    ax6.plot(time,cumsum,label=output_dirs[ifile],color=line_colors[ifile],linestyle=line_styles[ifile])
     ax6.set_xlim([0.0,5.0])
 
     # put the carbon release onto a uniformly-spaced time vector
@@ -116,7 +116,7 @@ for i in 1:nfiles
     	dCdt[i+1] = (carbon_plot[i+1]-carbon_plot[i])/(time_plot[i+1]-time_plot[i])/1e6
     end
     
-    ax5.plot(time_plot,dCdt,label=output_dirs[i])
+    ax5.plot(time_plot,dCdt,label=output_dirs[ifile],color=line_colors[ifile],linestyle=line_styles[ifile])
     ax5.set_yscale("log")
     ax5.set_xlabel("Time (Myr)")
     ax5.set_ylabel("Carbon release (Tonne/yr)")
