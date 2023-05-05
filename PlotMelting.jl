@@ -54,7 +54,7 @@ fig6,ax6 = plt.subplots(1,1, figsize=(4,2.5) )
 for ifile in 1:nfiles
     # Read statistics file:
 
-    filename = output_dirs[i] * "/statistics.txt"
+    filename = output_dirs[ifile] * "/statistics.txt"
     println("Reading from: ",filename)
     melt_output = CSV.read(filename,DataFrame,comment="#");
     
