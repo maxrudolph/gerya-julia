@@ -134,11 +134,11 @@ fig4.savefig("cumulative_melt.eps",bbox_inches="tight")
 
 ax5.legend()
 ax5.set_xlabel("Time (Myr)")
-ax5.set_ylabel("CO$_2$ (Tonne/yr)")
+ax5.set_ylabel("CO\$_2\$ (Tonne/yr)")
 fig5.savefig("carbon_vs_time.eps",bbox_inches="tight")
 
 ax6.legend()
 ax6.set_xlim([0.0,10.0])
 ax6.set_xlabel("Time (Myr)")
-ax6.set_ylabel("CO$_2$ (Tonne)")
+ax6.set_ylabel("CO\$_2\$ (Tonne)")
 fig6.savefig("cumulative_carbon.eps",bbox_inches="tight")
