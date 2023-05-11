@@ -58,7 +58,7 @@ function assemble_energy_equation_center(grid::CartesianGrid,rho_c::Matrix{Float
                 val[k] = bctop/2.0
                 k+=1
                 
-#                 R[this_row] = bcval[3]
+                #R[this_row] = bcval[3]
                 R[this_row] = Tsurf[j]
             elseif j==1 # ghost nodes along left side.
                 row[k] = this_row
@@ -84,7 +84,7 @@ function assemble_energy_equation_center(grid::CartesianGrid,rho_c::Matrix{Float
                 # diagonal entry
                 row[k] = this_row;
                 col[k] = this_row;
-                val[k] = (rho_c[i,j]*Cp_c[i,j])/dt + kB/dxp/dxc + kA/dxm/dxc + kD/dyp/dyc + kC/dyp/dyc;
+                val[k] = 0.0*(rho_c[i,j]*Cp_c[i,j])/dt + kB/dxp/dxc + kA/dxm/dxc + kD/dyp/dyc + kC/dyp/dyc;
                 k+=1
                 # right
                 row[k] = this_row;
@@ -107,7 +107,7 @@ function assemble_energy_equation_center(grid::CartesianGrid,rho_c::Matrix{Float
                 val[k] = -kC/dyp/dyc;
                 k+=1
                 
-                R[this_row] = Tlast[i,j]*rho_c[i,j]*Cp_c[i,j]/dt + H[i,j];
+                R[this_row] = 0.0*Tlast[i,j]*rho_c[i,j]*Cp_c[i,j]/dt + H[i,j];
                 if j==grid.nx
                     R[this_row] += 2*bcval[2]*bcright*kB/dxp/dxc
                 end
