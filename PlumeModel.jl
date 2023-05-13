@@ -11,8 +11,8 @@ seconds_in_year = 3.15e7
 options = Dict()
 options["nx"] = 134 #201
 options["ny"] = 381 #571
-options["markx"] = 10
-options["marky"] = 10
+options["markx"] = 12
+options["marky"] = 24
 options["W"] = 1e6
 options["H"] = 2.850e6
 options["g"] = 10.0
@@ -23,9 +23,9 @@ options["mantle temperature"] = 1300.0 + 273.0
 
 options["plot interval"] = 1e6*seconds_in_year
 options["melting plot interval"] = 1e5*seconds_in_year
-options["output directory"] = "plume_test_" * string(Tex) * "_" * string(h)
+options["output directory"] = "plume_" * string(Tex) * "_" * string(h)
 options["max time"] = 1e8*seconds_in_year
-
+options["max step"] = 10
 println("Options: ", options )
 
 # Import necessary packages
@@ -149,8 +149,11 @@ struct Materials
     end
 end
 
-function update_melt!(markers::Markers,dt::Float64,mask::BitVector)
+function update_melt!(markers::Markers,dt::Float64,mask::BitVector;new_markers::Bool=false)
     # update the melt fraction on the markers.
+    # Also update the carbon content on the markers
+    # if markers are newly added, the flag new_markers should be True. In this case, the melt fraction should be set
+    # according to the interpolated temperature. The carbon should be set in accordance with the melt fraction.
     T = markers.scalarFields["T"]
     melt = markers.scalarFields["Xmelt"]
     dxdt = markers.scalarFields["dXdt"]
@@ -165,10 +168,12 @@ function update_melt!(markers::Markers,dt::Float64,mask::BitVector)
             old_melt = markers.scalars[melt,i]
             markers.scalars[dxdt,i] = new_melt > old_melt ? (new_melt - old_melt)/dt : 0.0
             markers.scalars[melt,i] = new_melt
-            if new_melt > .01
+            if new_melt > .01 && new_melt > old_melt
                 # if melt fraction exceeds 1%, liberate all carbon
                 markers.scalars[dcarbon,i] = markers.scalars[carbon,i] # change in carbon is equal to amount of carbon
                 markers.scalars[carbon,i] = 0.0 # reset carbon to zero
+            else
+                markers.scalars[dcarbon,i] = 0.0
             end
         end
     end
@@ -211,6 +216,37 @@ function reassimilate_lithosphere!(markers::Markers,options::Dict)
     end
 end
 
+function initial_carbon!(markers::Markers,mask::BitVector)
+    # initialize the carbon content on each marker.
+    material = markers.integerFields["material"]
+    melt = markers.scalarFields["Xmelt"]
+    carbon = markers.scalarFields["carbon"]
+    dcarbon = markers.scalarFields["dC"]
+    Threads.@threads for i in 1:markers.nmark
+        if mask[i]
+            if markers.scalars[melt,i] > .01
+                markers.scalars[carbon,i] = 0.0
+                markers.scalars[dcarbon,i] = 0.0
+            else
+                if markers.integers[material,i] == 2
+                    # eclogite-enriched component
+                    markers.scalars[carbon,i] = 900.0*0.15 + 137.0*0.85 # assume 900 ppm for eclogite, 137 ppm for peridotite                    
+                else
+                    # background mantle
+                    markers.scalars[carbon,i] = 1.0*137.0
+                end
+                markers.scalars[dcarbon,i] = 0.0
+            end
+        end
+    end
+end
+
+function initial_carbon!(markers::Markers)
+    mask = BitArray{1}(undef,markers.nmark)
+    mask[:] .= true
+    initial_carbon!(markers,mask)
+end
+
 function initial_conditions!(markers::Markers,materials::Materials,options::Dict)
     # Define geometric properties
     lithosphere_thickness = options["lithosphere thickness"]
@@ -237,10 +273,8 @@ function initial_conditions!(markers::Markers,materials::Materials,options::Dict
         #set material - eclogite at cmb
         if my > 2.85e6-h # eclogite-enriched material
            markers.integers[material,i] = 2
-           markers.scalars[carbon,i] = 900.0*0.15 + 137.0*0.85 # assume 900 ppm for eclogite, 137 ppm for peridotite
         else # background mantle
            markers.integers[material,i] = 1
-           markers.scalars[carbon,i] = 1.0*137.0
         end
         
         if my < 6.6e5
@@ -260,6 +294,7 @@ function initial_conditions!(markers::Markers,materials::Materials,options::Dict
         markers.scalars[dC,i] = 0.0
     end
     update_marker_properties!(markers,materials)
+    initial_carbon!(markers)
 end
 
 # Data and functions related to melting model
@@ -308,8 +343,8 @@ function plume_model(options::Dict;max_step::Int64=-1,max_time::Float64=-1.0)
     markx = options["markx"]
     marky = options["marky"]
     target_markers = markx*marky
-    min_markers = Int(floor(target_markers*0.75))
-    max_markers = Int(ceil(target_markers*2.0))
+    min_markers = Int(floor(target_markers*0.1))
+    max_markers = Int(ceil(target_markers*10.0))
 
     plot_interval = options["plot interval"] # plot interval in seconds
     max_time::Float64 = max_time == -1.0 ? typemax(Float64) : max_time
@@ -318,7 +353,7 @@ function plume_model(options::Dict;max_step::Int64=-1,max_time::Float64=-1.0)
     dtmax = plot_interval
     
     println("Creating Markers...")
-    @time markers = Markers(grid,["alpha","Cp","T","rho","eta","Hr","Xmelt","dXdt","carbon","dC"],["material"] ; nmx=markx,nmy=marky,random=false)
+    @time markers = Markers(grid,["alpha","Cp","T","rho","eta","Hr","Xmelt","dXdt","carbon","dC"],["material"] ; nmx=markx,nmy=marky,random=true)
     println("Initial condition...")
     @time initial_conditions!(markers, materials, options)
 
@@ -504,9 +539,6 @@ function plume_model(options::Dict;max_step::Int64=-1,max_time::Float64=-1.0)
         end
 
         compute_boundary_heat_flow(grid,Tnew,kThermal)
-        # Add/remove markers. When markers are added, give them temperature using the nodal temp.
-        new_markers = add_remove_markers!(markers,grid,Tnew,min_markers,target_markers,max_markers);
-        update_melt!(markers,dt,new_markers); # set the correct melt fraction on new markers.
 
         # Check Termination Criteria
         if time >= max_time || itime >= max_step
@@ -522,7 +554,7 @@ function plume_model(options::Dict;max_step::Int64=-1,max_time::Float64=-1.0)
             println("Writing visualization fle ",name)
             vn = velocity_to_basic_nodes(grid,vxc,vyc)
 	        Tn = temperature_to_basic_nodes(grid,Tnew)
-            output_fields = Dict("rho"=>rho_c,"eta"=>eta_s,"velocity"=>vn,"pressure"=>P[2:end-1,2:end-1],"T"=>Tn,"dXdt"=>dXdt[2:end-1,2:end-1])
+            output_fields = Dict("rho"=>rho_c,"eta"=>eta_s,"velocity"=>vn,"pressure"=>P[2:end-1,2:end-1],"T"=>Tn,"dXdt"=>dXdt[2:end-1,2:end-1],"dC"=>dC[2:end-1,2:end-1])
             @time visualization(grid,output_fields,time/seconds_in_year;filename=name)
             # Markers output:
             name1 = @sprintf("%s/markers.%04d.vtp",output_dir,iout)
@@ -533,6 +565,11 @@ function plume_model(options::Dict;max_step::Int64=-1,max_time::Float64=-1.0)
         end
         update_statistics(stats_file,itime,time,total_melt,total_carbon)
         
+        # Add/remove markers. When markers are added, give them temperature using the nodal temp.
+        new_markers = add_remove_markers!(markers,grid,Tnew,min_markers,target_markers,max_markers)
+        update_melt!(markers,dt,new_markers) # set the correct melt fraction on new markers.
+        initial_carbon!(markers,new_markers)
+
         # Move the markers and advance to the next timestep
         println("Min/Max velocity: ",minimum(vyc)," ",maximum(vyc))
         move_markers_rk4!(markers,grid,vx,vy,dt,continuity_weight=1.0/3.0)
@@ -544,5 +581,7 @@ function plume_model(options::Dict;max_step::Int64=-1,max_time::Float64=-1.0)
      return grid,markers,vx,vy,vxc,vyc,rho_c,dTemp,Tnew,Tlast,time
  end
 
-@time grid,markers,vx,vy,vxc,vyc,rho_c,dTemp,Tnew,Tlast,time = plume_model(options,max_time=options["max time"]);
+using Profile, FileIO
+@profile grid,markers,vx,vy,vxc,vyc,rho_c,dTemp,Tnew,Tlast,time = plume_model(options,max_time=options["max time"],max_step=options["max step"]);
+save("test.jlprof",Profile.retrieve() )
 #@time grid,markers,vx,vy,vxc,vyc,rho_c,dTemp,Tnew,Tlast,time = plume_model(options,max_step=1)
