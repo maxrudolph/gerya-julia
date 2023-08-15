@@ -23,7 +23,7 @@ temperature = td;
 # linear interpolation
 interp_linear = linear_interpolation((pressure,temperature),entropy)
 
-function get_entropy(markers::Markers)
+function update_entropy(markers::Markers)
     for i in 1:markers.nmark
         markers.scalars[markers.scalarFields["En"],i] = interp_linear(markers.scalars[markers.scalarFields["hp"],i],markers.scalars[markers.scalarFields["T"],i])
     end
@@ -47,7 +47,7 @@ function analytic_hydrostatic_pressure(grid::CartesianGrid,density::Array,gy::Fl
 
     for i in 1:grid.ny+1
         if grid.yc[i] < hsurf
-            pressure[i] = density[1]*gy*abs(grid.yc[i])
+            pressure[i] = density[1]*gy*grid.yc[i]
         elseif hsurf < grid.yc[i] < hice
             Pair = density[1]*gy*hsurf
             pressure[i] = Pair + density[2]*gy*(grid.yc[i]-hsurf)
@@ -63,7 +63,7 @@ end
 function numerical_hydrostatic_pressure(grid::CartesianGrid,rho_vy::Matrix{Float64},gy::Float64)
     """
     Arguments:
-    rho_vy -- the density on the y-velocity node in(kg/^3)
+    rho_vy -- the density on the y-velocity node in(kg/m^3)
     gy -- the acceleration due to gravity in the y-direction in (m/s^2)
     
     Returns: 

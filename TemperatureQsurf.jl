@@ -1,5 +1,5 @@
 # Define a function to form the energy equation left hand side and right hand side
-function assemble_energy_equation_center(grid::CartesianGrid,rho_c::Matrix{Float64},Cp_c::Matrix{Float64},kThermal::Matrix{Float64},H::Matrix{Float64},Tlast::Matrix{Float64},dt::Float64,bctype,bcval)
+function assemble_energy_equation_center(grid::CartesianGrid,rho_c::Matrix{Float64},Cp_c::Matrix{Float64},kThermal::Matrix{Float64},H::Matrix{Float64},Tlast::Matrix{Float64},dt::Float64,bctype,bcval,Tsurf::Vector{Float64})
     # Assemble the left hand side for the energy equation
     # Inputs:
     # grid - this is the CartesianGrid
@@ -58,7 +58,8 @@ function assemble_energy_equation_center(grid::CartesianGrid,rho_c::Matrix{Float
                 val[k] = bctop/2.0
                 k+=1
                 
-                R[this_row] = bcval[3]
+                #R[this_row] = bcval[3]
+                R[this_row] = Tsurf[j]
             elseif j==1 # ghost nodes along left side.
                 row[k] = this_row
                 col[k] = this_row
@@ -83,7 +84,7 @@ function assemble_energy_equation_center(grid::CartesianGrid,rho_c::Matrix{Float
                 # diagonal entry
                 row[k] = this_row;
                 col[k] = this_row;
-                val[k] = (rho_c[i,j]*Cp_c[i,j])/dt + kB/dxp/dxc + kA/dxm/dxc + kD/dyp/dyc + kC/dyp/dyc;
+                val[k] = 0.0*(rho_c[i,j]*Cp_c[i,j])/dt + kB/dxp/dxc + kA/dxm/dxc + kD/dyp/dyc + kC/dyp/dyc;
                 k+=1
                 # right
                 row[k] = this_row;
@@ -106,7 +107,7 @@ function assemble_energy_equation_center(grid::CartesianGrid,rho_c::Matrix{Float
                 val[k] = -kC/dyp/dyc;
                 k+=1
                 
-                R[this_row] = Tlast[i,j]*rho_c[i,j]*Cp_c[i,j]/dt + H[i,j];
+                R[this_row] = 0.0*Tlast[i,j]*rho_c[i,j]*Cp_c[i,j]/dt + H[i,j];
                 if j==grid.nx
                     R[this_row] += 2*bcval[2]*bcright*kB/dxp/dxc
                 end
@@ -123,7 +124,7 @@ function assemble_energy_equation_center(grid::CartesianGrid,rho_c::Matrix{Float
     return L,R
 end
 
-function ghost_temperature_center(grid::CartesianGrid,T::Matrix{Float64},bctype,bcval)
+function ghost_temperature_center(grid::CartesianGrid,T::Matrix{Float64},bctype,bcval,Tsurf::Vector{Float64})
     # Define a new grid that is (ny+1)x(nx+1) and insert the ghost temperature values.
     # bcval shoud be a vector containing the temperatures or temperature gradients 
     # along the left, right, top, and bottom (in that order)
@@ -137,7 +138,8 @@ function ghost_temperature_center(grid::CartesianGrid,T::Matrix{Float64},bctype,
 
     # enforce BCs along top and bottom.
     if bctop == 1
-        Tpad[1,2:grid.nx] = 2.0*bcval[3] .- Tpad[2,2:grid.nx]
+        Tpad[1,2:grid.nx] = 2.0*Tsurf[2:grid.nx] .- Tpad[2,2:grid.nx]
+#         Tpad[1,2:grid.nx] = 2.0*bcval[3] .- Tpad[2,2:grid.nx]
     elseif bctop == -1
 	    Tpad[1,2:grid.nx] = Tpad[2,2:grid.nx] .- ((grid.yc[2]-grid.yc[1]) * bcval[3])
     end
@@ -150,10 +152,10 @@ function ghost_temperature_center(grid::CartesianGrid,T::Matrix{Float64},bctype,
 
     # Left boundary
     if bcleft == -1
-        Tpad[:,1] = Tpad[:,2] # insulating
+       Tpad[:,1] = Tpad[:,2] # insulating
     elseif bcleft == 1
         println("assigning left boundary temperature ",bcval[1])
-        Tpad[:,1] = 2.0*bcval[1] .- Tpad[:,2]
+       Tpad[:,1] = 2.0*bcval[1] .- Tpad[:,2]
     end
 
     # Right boundary
