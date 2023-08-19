@@ -207,18 +207,18 @@ function get_topography_plots(grid::CartesianGrid,i_mat::Matrix{Float64},mat::Ma
     gca().set_xlabel(L"x\,(km)")
     show()
 
-    # Profile of ice-water inferface topograpgy over time 
-    figure()
-    for i in 1:10:100
-        plot(grid.xc,topography[i],label=(L"At",@sprintf("%.3g",times[i]/3.15e7/1e3),L"kyr"))
-    end
-    title(L"Profile\,\,of\,\,Ice-Water\,\,Interface\,\,Topography\,\,Over\,\,Time")
-#     gca().set_xlim([0.0,1e4])
-#     gca().set_ylim([1.8e4,2.2e4])
-    gca().invert_yaxis()
-    # Legend is at the bottom
-    legend(loc="upper center", bbox_to_anchor=(0.5, -0.15),fancybox="True",shadow="True", ncol=5)
-    show()
+#     # Profile of ice-water inferface topograpgy over time 
+#     figure()
+#     for i in 1:10:100
+#         plot(grid.xc,topography[i],label=(L"At",@sprintf("%.3g",times[i]/3.15e7/1e3),L"kyr"))
+#     end
+#     title(L"Profile\,\,of\,\,Ice-Water\,\,Interface\,\,Topography\,\,Over\,\,Time")
+# #     gca().set_xlim([0.0,1e4])
+# #     gca().set_ylim([1.8e4,2.2e4])
+#     gca().invert_yaxis()
+#     # Legend is at the bottom
+#     legend(loc="upper center", bbox_to_anchor=(0.5, -0.15),fancybox="True",shadow="True", ncol=5)
+#     show()
 
 #     # Profile of maximum topograpgy over time 
 #     figure()
