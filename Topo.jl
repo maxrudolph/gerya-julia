@@ -1,6 +1,3 @@
-using PyPlot
-using Printf
-
 # function initial_ice_depth(x::Float64,ice_thickness::Float64,wavelength::Float64,amplitude::Float64,initial_surface_depth::Float64)
 #     """
 #     Arguments:
@@ -45,7 +42,7 @@ using Printf
 #     return interface_position
 # end
 
-function get_time_viscous(lambda::Float64)
+function get_halfspace_time_viscous(lambda::Float64)
     """
     Arguments:
     lambda::Float64 --- Topography Wavelength in (m)
@@ -60,7 +57,7 @@ function get_time_viscous(lambda::Float64)
     delta_rho --- Difference of density in (kg/m^3)
     """
     g = 0.113 
-    ice_viscosity = 10^15
+    ice_viscosity = 1e15
     delta_rho = 80
     time = (4*pi)*(ice_viscosity)*(1/g)*(1/delta_rho)*(1/lambda)
     return time/3.15e7
@@ -110,7 +107,8 @@ function get_thickening_time(hice::Float64)
     return time/3.15e7
 end
 
-function get_numerical_time_viscous(i_interface_1::Vector{Float64},interface_1::Vector{Float64},i_interface_2::Vector{Float64},interface_2::Vector{Float64},time::Float64)
+function get_numerical_time_viscous(initial_amplitude::Float64,final_amplitude::Float64,time::Float64)
+# function get_numerical_time_viscous(i_interface_1::Vector{Float64},interface_1::Vector{Float64},i_interface_2::Vector{Float64},interface_2::Vector{Float64},time::Float64)
     """
     Arguments:
     time::Float64 --- model time run in (seconds)
@@ -125,15 +123,15 @@ function get_numerical_time_viscous(i_interface_1::Vector{Float64},interface_1::
     i_amp --- Initial amplitude
     amp --- Final amplitude
     """   
-    initial_max_ice_shell_thickness = maximum(i_interface_2.-i_interface_1)
-    initial_avg_ice_shell_thickness = mean(i_interface_2.-i_interface_1)
-    initial_amplitude = initial_max_ice_shell_thickness-initial_avg_ice_shell_thickness
-    max_ice_shell_thickness = maximum(interface_2.-interface_1)
-    avg_ice_shell_thickness = mean(interface_2.-interface_1)
-    amplitude = max_ice_shell_thickness-avg_ice_shell_thickness
-    t = time/3.15e7
-    tr = -(t)/log(amplitude/initial_amplitude)
-    return tr
+    # initial_max_ice_shell_thickness = maximum(i_interface_2-i_interface_1)
+    # initial_avg_ice_shell_thickness = mean(i_interface_2-i_interface_1)
+    # initial_amplitude = initial_max_ice_shell_thickness-initial_avg_ice_shell_thickness
+    # max_ice_shell_thickness = maximum(interface_2-interface_1)
+    # avg_ice_shell_thickness = mean(interface_2-interface_1)
+    # amplitude = max_ice_shell_thickness-avg_ice_shell_thickness
+    lnratio = log2(final_amplitude)-log2(initial_amplitude)
+    tr = -time/lnratio
+    return tr/3.15e7
 end
 
 # function get_topography_info(interface_1::Vector{Float64},interface_2::Vector{Float64},time::Float64,time_type::String)
