@@ -87,11 +87,11 @@ function get_thickening_rate(hice::Float64)
     L = 334*10^3 
     rho = 1000
     q = kthermal*(delta_T/hice)
-    rate = q/L/rho   
+    rate = q/(L*rho)   
     return rate
 end
 
-function get_thickening_time(hice::Float64)
+function get_thickening_time(hice::Float64,rate::Float64)
     """
     Arguments:
     hice::Float64 --- Ice shell thickness in (m)
@@ -102,7 +102,6 @@ function get_thickening_time(hice::Float64)
     Info:
     rate --- Rate of thickening in (m/s) 
     """
-    rate = get_thickening_rate(hice)
     time = hice/rate
     return time/3.15e7
 end

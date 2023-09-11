@@ -36,61 +36,68 @@ function model_runtime(sub_dir::String,time_type::String)
 end
 
 ########## Output for Fitted Data ##########
-function topo_fitting_data(topography::Vector{Any},times::Vector{Any},itime::Int64,sub_dir_plots::String)
-    topofit = []
-    for i in 1:itime-1
-        amp = maximum(topography[i])-minimum(topography[i])
-        append!(topofit,amp)
-    end
-    x = convert(Array{Float64}, times)
-    y = convert(Array{Float64}, topofit)
-    fit = fitexp(x/3.15e7,y,options=Options(besttol=100))
-    # figure()
-    for i in 1:itime-1
-        plot(times[i]/3.15e7,maximum(topography[i])-minimum(topography[i]),".") 
-    end
-    plot(fit.x,fit.y,"r-",label="fitted data")
-    gca().set_ylabel(L"Amplitude\,(m)")
-    gca().set_xlabel(L"Time\,(years)")
-    legend(fancybox="True",shadow="True")
-    savefig(sub_dir_plots*"/Fitted_Topo_Data.pdf")
-    close()
-    fitted_time = fit.b
-    return fitted_time
-end
+# function topo_fitting_data(topography::Vector{Any},times::Vector{Any},itime::Int64,sub_dir_plots::String)
+#     topofit = []
+#     for i in 1:itime-1
+#         amp = maximum(topography[i])-minimum(topography[i])
+#         append!(topofit,amp)
+#     end
+#     x = convert(Array{Float64}, times)
+#     y = convert(Array{Float64}, topofit)
+#     fit = fitexp(x/3.15e7,y,options=Options(besttol=100))
+#     # figure()
+#     for i in 1:itime-1
+#         plot(times[i]/3.15e7,maximum(topography[i])-minimum(topography[i]),".") 
+#     end
+#     plot(fit.x,fit.y,"r-",label="fitted data")
+#     gca().set_ylabel(L"Amplitude\,(m)")
+#     gca().set_xlabel(L"Time\,(years)")
+#     legend(fancybox="True",shadow="True")
+#     savefig(sub_dir_plots*"/Fitted_Topo_Data.pdf")
+#     close()
+#     fitted_time = fit.b
+#     return fitted_time
+# end
 
-function amp_fitting_data(amplitude::Vector{Any},times::Vector{Any},itime::Int64,sub_dir_plots::String)
-    ampfit = []
-    for i in 1:itime-1
-        amp = amplitude[i]
-        append!(ampfit,amp)
-    end
-    x = convert(Array{Float64}, times)
-    y = convert(Array{Float64}, ampfit)
-    fit = fitexp(x/3.15e7,y,options=Options(besttol=100))
-    # figure()
-    for i in 1:itime-1
-        plot(times[i]/3.15e7,amplitude[i],".") 
-    end
-    plot(fit.x,fit.y,"r-",label="fitted data")
-    gca().set_ylabel(L"Amplitude\,(m)")
-    gca().set_xlabel(L"Time\,(years)")
-    legend(fancybox="True",shadow="True")
-    savefig(sub_dir_plots*"/Fitted_Amp_Data.pdf")
-    close()
-    fitted_time = fit.b
-    return fitted_time
-end
+# function amp_fitting_data(amplitude::Vector{Any},times::Vector{Any},itime::Int64,sub_dir_plots::String)
+#     ampfit = []
+#     for i in 1:itime-1
+#         amp = amplitude[i]
+#         append!(ampfit,amp)
+#     end
+#     xx = convert(Array{Float64}, times)
+#     yy = convert(Array{Float64}, ampfit)
+#     fitt = fitexp(xx/3.15e7,yy,options=Options(besttol=100))
+#     # figure()
+#     for i in 1:itime-1
+#         plot(times[i]/3.15e7,ampfit[i],".") 
+#     end
+#     plot(fitt.x,fitt.y,"r-",label="fitted data")
+#     gca().set_ylabel(L"Amplitude\,(m)")
+#     gca().set_xlabel(L"Time\,(years)")
+#     legend(fancybox="True",shadow="True")
+#     savefig(sub_dir_plots*"/Fitted_Amp_Data.pdf")
+#     close()
+#     fitted_time = fitt.b
+#     fitted_amp = last(fitt.y)
+#     # fitted_time is in yr
+#     # fitted_amp is in meters
+#     return fitted_time,fitted_amp
+# end
 
 ########## Output for Plots ##########
-function get_topography_plots(grid::CartesianGrid,i_mat::Matrix{Float64},mat::Matrix{Float64},i_interface_1::Vector{Float64},interface_1::Vector{Float64},i_interface_2::Vector{Float64},interface_2::Vector{Float64},times::Vector{Any},topography::Vector{Any},time::Float64,itime::Int64,sub_dir_plots::String)
+function get_topography_plots(grid::CartesianGrid,i_mat::Matrix{Float64},mat::Matrix{Float64},i_interface_1::Vector{Float64},interface_1::Vector{Float64},i_interface_2::Vector{Float64},interface_2::Vector{Float64},time::Float64,itime::Int64,sub_dir_plots::String)
+# function get_topography_plots(grid::CartesianGrid,i_mat::Matrix{Float64},mat::Matrix{Float64},i_interface_1::Vector{Float64},interface_1::Vector{Float64},i_interface_2::Vector{Float64},interface_2::Vector{Float64},times::Vector{Any},time::Float64,itime::Int64,sub_dir_plots::String)
+        # topography::Vector{Any},time::Float64,itime::Int64,sub_dir_plots::String)
     x_time = @sprintf("%.3g",time/3.15e7/1e3)
     # Inital Model Schematic Profile
     figure() 
     pcolor(grid.xc/1000,grid.yc/1000,i_mat)
     colorbar(cmap="viridis")
+    # plot(grid.xc/1000,i_interface_1/1000,"m",label="air-ice interface")
+    # plot(grid.xc/1000,i_interface_2/1000,"r",label="ocean-ice interface")
     plot(grid.xc[2:end-1]/1000,i_interface_1/1000,"m",label="air-ice interface")
-    plot(grid.xc[2:end-1]/1000,i_interface_2/1000,"r",label="air-ice interface")
+    plot(grid.xc[2:end-1]/1000,i_interface_2/1000,"r",label="ocean-ice interface")
     title(L"Initial\,\,Model\,\,Schematic")
     gca().invert_yaxis()
     gca().set_aspect("equal")
@@ -115,6 +122,8 @@ function get_topography_plots(grid::CartesianGrid,i_mat::Matrix{Float64},mat::Ma
     figure()
     pcolor(grid.xc/1000,grid.yc/1000,mat)
     colorbar(cmap="viridis")
+    # plot(grid.xc/1000,interface_1/1000,"m",label="air-ice interface")
+    # plot(grid.xc/1000,interface_2/1000,"r",label="ocean-ice interface")
     plot(grid.xc[2:end-1]/1000,interface_1/1000,"m",label="air-ice interface")
     plot(grid.xc[2:end-1]/1000,interface_2/1000,"r",label="ocean-ice interface")
     gca().invert_yaxis()
@@ -138,18 +147,18 @@ function get_topography_plots(grid::CartesianGrid,i_mat::Matrix{Float64},mat::Ma
     # close()
 
     # Profile of ice-water inferface topograpgy over time
-    figure()
-    for i in 1:5:itime-1
-        plot(grid.xc[2:end-1],topography[i])
-    end
-    title(L"Profile\,\,of\,\,Ice-Water\,\,Interface\,\,Topography\,\,Over\,\,Time")
-    gca().invert_yaxis()
-    #     gca().set_xlim([0.0,1e4])
-    #     gca().set_ylim([1.8e4,2.2e4])
-    # Legend is at the bottom
-    # legend(loc="upper center", bbox_to_anchor=(0.5, -0.15),fancybox="True",shadow="True", ncol=5)
-    savefig(sub_dir_plots*"/Ice_Water_Inferface_Topography.pdf")            
-    close()
+    # figure()
+    # for i in 1:5:itime-1
+    #     plot(grid.xc[2:end-1],topography[i])
+    # end
+    # title(L"Profile\,\,of\,\,Ice-Water\,\,Interface\,\,Topography\,\,Over\,\,Time")
+    # gca().invert_yaxis()
+    # #     gca().set_xlim([0.0,1e4])
+    # #     gca().set_ylim([1.8e4,2.2e4])
+    # # Legend is at the bottom
+    # # legend(loc="upper center", bbox_to_anchor=(0.5, -0.15),fancybox="True",shadow="True", ncol=5)
+    # savefig(sub_dir_plots*"/Ice_Water_Inferface_Topography.pdf")            
+    # close()
 
     # # Profile of maximum topograpgy over time 
     # figure()
@@ -158,4 +167,32 @@ function get_topography_plots(grid::CartesianGrid,i_mat::Matrix{Float64},mat::Ma
     # gca().set_ylabel(L"Max.\,topography\,(km)")
     # gca().set_xlabel(L"Time\,(ka)")
     # show()
+end
+
+function data_to_hdf5_file(lambda::Any,hice::Any,t_halfspace::Matrix{Float64},t_rel::Matrix{Float64},t_tic::Matrix{Float64},top_dir::String)
+# function data_to_hdf5_file(lambda::Any,hice::Any,t_halfspace::Vector{Any},t_rel::Vector{Any},t_tic::Vector{Any},t_rel_fitted_time::Vector{Any},t_rel_fitted_amp::Vector{Any},top_dir::String)
+    lambda = vcat(map(x->x',lambda)...)
+    hice = vcat(map(x->x',hice)...)
+    # t_halfspace = vcat(map(x->x',t_halfspace)...)
+    # t_vis = vcat(map(x->x',t_vis)...)
+    # t_tic = vcat(map(x->x',t_tic)...)
+    # t_vis_fitted_time = vcat(map(x->x',t_vis_fitted_time)...)
+    # t_vis_fitted_amp = vcat(map(x->x',t_vis_fitted_amp)...)
+    h5open(top_dir*"/data.hdf5", "w") do file
+        println("Creating HDF5 File")
+        println("Saving Data into a HDF5 File")
+        # Creating Groups for Data
+        g = create_group(file, "Model Run")
+        # Storing Data Inside the Group
+        g["Wavelength"] = lambda[:]
+        g["Ice Shell Thickness"] = hice[:]
+        g["Viscous Relaxation Time(Half-Space)"] = t_halfspace
+        g["Viscous Relaxation Time(Model)"] = t_rel
+        g["Thickening Time"] = t_tic
+        # g["Fitted Viscous Relaxation Time"] = t_rel_fitted_time
+        # g["Viscous Relaxation Time with Fitted Amplitude(Model)"] = t_rel_fitted_amp
+        # Apply an Attribute to Groups
+        attrs(g)["Description"] = "This group contains only a 4 dataset"
+        println("Finished Saving Data into a HDF5 File")
+    end
 end

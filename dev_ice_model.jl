@@ -1,36 +1,42 @@
-println("Input the arugments for a julia range function for ice shell thickness")
-print("Type in arugments separated by a space: ")
-userinput_ice = readline()
-userinput_ice = rsplit(userinput_ice," ")
-userinput_ice = map(x->parse(Float64,x),userinput_ice)
-ice_length = convert(Int64,userinput_ice[3])
-# range(start=userinput_ice[1],stop=userinput_ice[2],length=ice_length)
-if length(userinput_ice) != 3
-    error("specify proper input arguments for range function")
+# println("Input the arugments for a julia range function for ice shell thickness")
+# print("Type in arugments separated by a space: ")
+# userinput_ice = readline()
+# userinput_ice = rsplit(userinput_ice," ")
+# userinput_ice = map(x->parse(Float64,x),userinput_ice)
+# ice_length = convert(Int64,userinput_ice[3])
+if length(ARGS) > 6
+    error("specify proper input arguments for range function for ice shell thickness and wavelength topogaphy for ocean-ice interface")
 else
-    println(range(start=userinput_ice[1],stop=userinput_ice[2],length=ice_length))
+    ice_start = parse(Float64,ARGS[1])
+    ice_stop = parse(Float64,ARGS[2])
+    ice_length = parse(Int64,ARGS[3])
+    wavelength_start = parse(Float64,ARGS[4])
+    wavelength_stop = parse(Float64,ARGS[5])
+    wavelength_length = parse(Int64,ARGS[6])   
+    println("Ice Shell Thickness Range(start:difference between two subsequent objects:stop): ",range(ice_start,ice_stop,ice_length))
+    println("Wavelength Topography for Ocean-Ice Interface Range(start:difference between two subsequent objects:stop): ",range(wavelength_start,wavelength_stop,wavelength_length))
 end
-println("Input the arugments for a julia range function for wavelength topography")
-print("Type in arugments separated by a space: ")
-userinput_wavelength = readline()
-userinput_wavelength = rsplit(userinput_wavelength," ")
-userinput_wavelength = map(x->parse(Float64,x),userinput_wavelength)
-wavelength_length = convert(Int64,userinput_wavelength[3])
-if length(userinput_wavelength) != 3
-    error("specify proper input arguments for range function")
-else
-    println(range(start=userinput_wavelength[1],stop=userinput_wavelength[2],length=wavelength_length))
-end
+# println("Input the arugments for a julia range function for wavelength topography")
+# print("Type in arugments separated by a space: ")
+# userinput_wavelength = readline()
+# userinput_wavelength = rsplit(userinput_wavelength," ")
+# userinput_wavelength = map(x->parse(Float64,x),userinput_wavelength)
+# wavelength_length = convert(Int64,userinput_wavelength[3])
+# if length(userinput_wavelength) != 3
+#     error("specify proper input arguments for range function")
+# else
+#     println(range(start=userinput_wavelength[1],stop=userinput_wavelength[2],length=wavelength_length))
+# end
 
 # Importing (using/include) packages and files needed for the code to run
 using SparseArrays
 using LinearAlgebra
 using IterativeSolvers
-using WriteVTK
+# using WriteVTK
 using Printf
 using Statistics 
 using Dates
-using EasyFit
+# using EasyFit
 using Printf
 using HDF5
 include("Grid.jl")
@@ -169,14 +175,35 @@ function get_interface(grid::CartesianGrid,mat::Matrix{Float64},contour_value::F
     return interface_position
 end
 
+# function get_interface(grid::CartesianGrid,mat::Matrix{Float64},contour_value::Float64)
+#     # Finding interfaces 
+#     interface_position = zeros(Float64,grid.nx+1);
+#     for j in 1:grid.nx+1
+#         i = 1
+#         while i <= grid.ny
+#             if mat[i,j] == contour_value
+#                 interface_position[j] = grid.yc[i]
+#                 break
+#             elseif mat[i+1,j] < contour_value
+#                 # interface is located within this cell.
+#                 interface_position[j] = grid.yc[i] + (grid.yc[i+1]-grid.yc[i])/(mat[i+1,j]-mat[i,j])*(contour_value-mat[i,j])
+#                 break
+#             end
+#             i = i+1
+#         end
+#     end
+#     return interface_position
+# end
+
 function run(options::Dict)
     W = options["wavelength"]
     H = options["ice thickness"] + options["surface depth"] + options["amplitude"] + 1e4
     ny = 151
-    # ny = 251
     nx = Int64(ceil(W/H*ny))
     gx = 0.0
     gy = 0.113
+    
+    println("nx: $nx, ny: $ny")
 
     # Tbctype = [-1,-1,1,1] #left, right, top, bottom
     Tbctype = [-1,-1,1,1]
@@ -197,19 +224,19 @@ function run(options::Dict)
     println("Initial condition...")
     @time initial_conditions!(markers, materials,options)
 
-    local time_plot = []
-    local topography = []
-    local amplitude = []
+    # local time_plot = []
+    # local topography = []
+    # local amplitude = []
     
     ### Setting up agruments for interface function ###
     # initial 
     i_mat, = marker_to_stag(markers,grid,markers.integers[[markers.integerFields["material"]],:],"center")
-    i_air_ice_interface = get_interface(grid,i_mat,2.5)
-    i_ocean_ice_interface = get_interface(grid,i_mat,1.5)
+    # i_air_ice_interface = get_interface(grid,i_mat,2.5)
+    # i_ocean_ice_interface = get_interface(grid,i_mat,1.5)
     Ai = options["amplitude"] 
 
     ### Setting up agruments for termination criteria ###
-    max_step::Int64=50
+    max_step::Int64=100
     max_time::Float64=-1.0
     max_time = max_time == -1.0 ? typemax(Float64) : max_time
     max_step = max_step == -1 ? typemax(Int64) : max_step
@@ -236,8 +263,9 @@ function run(options::Dict)
     Tlast = nothing 
     x_time = nothing
     kThermal = nothing
-    ocean_ice_interface = nothing
+    # ocean_ice_interface = nothing
     mat = nothing
+    Af = nothing
 
     itime = 1
     output_dir = "test"
@@ -348,6 +376,9 @@ function run(options::Dict)
         max_ice_shell_thickness = maximum(ocean_ice_interface)-maximum(air_ice_interface)
         avg_ice_shell_thickness = mean(ocean_ice_interface)-mean(air_ice_interface)
         Af = max_ice_shell_thickness-avg_ice_shell_thickness
+        i_A = @sprintf("%.6g",Ai/1e3)
+        f_A = @sprintf("%.6g",Af/1e3)
+        println("Initial Amplitude: $i_A (km), Finial Amplitude: $f_A (km)")
         # Checking Termination Criteria, time is in Myr
         if time >= max_time || itime >= max_step || Af/Ai <= 1/exp(1)
             terminate = true
@@ -360,87 +391,113 @@ function run(options::Dict)
         time += dt
         itime += 1
         println("Finished Step ",itime," time=",time/seconds_in_year/1e3," kyr")
-        mat, = marker_to_stag(markers,grid,markers.integers[[markers.integerFields["material"]],:],"center")
-        ocean_ice_interface = get_interface(grid,mat,1.5)
-        air_ice_interface = get_interface(grid,mat,2.5)
-        append!(time_plot,time)
-        append!(topography,[ocean_ice_interface])
-        append!(amplitude,Af)
+        # mat, = marker_to_stag(markers,grid,markers.integers[[markers.integerFields["material"]],:],"center")
+        # ocean_ice_interface = get_interface(grid,mat,1.5)
+        # air_ice_interface = get_interface(grid,mat,2.5)
+        # append!(time_plot,time)
+        # append!(topography,[ocean_ice_interface])
+        # append!(amplitude,Af)
     end
-    return grid,i_mat,mat,time_plot,topography,time,itime,amplitude
+    return grid,i_mat,mat,time,itime
+    # return grid,i_mat,mat,time_plot,time,itime,amplitude
 end
 
 include("Topo.jl")
 include("Outputs.jl")
 
 function model_run()
+    options = Dict()   
     top_dir = mk_modelrun_dir()
-    options = Dict()
     nlambda = wavelength_length
-    nhice = ice_length
-    local lambda = range(userinput_wavelength[1],userinput_wavelength[2],nlambda)
-    local hice =  range(userinput_ice[1],userinput_ice[2],nhice)
+    nhice = ice_length   
+    local lambda = range(wavelength_start,wavelength_stop,nlambda)
+    local hice =  range(ice_start,ice_stop,nhice)
     t_halfspace = zeros(nlambda,nhice)
-    t_vis = zeros(nlambda,nhice)
+    t_rel = zeros(nlambda,nhice)
     t_tic = zeros(nlambda,nhice)
-    t_vis_fitted_topo = zeros(nlambda,nhice)
-    t_vis_fitted_amp = zeros(nlambda,nhice)
+    # t_rel_fitted_time = zeros(nlambda,nhice)
+    # t_rel_fitted_amp = zeros(nlambda,nhice)
     irun = 1
     for i in 1:nlambda
         for j in 1:nhice
             options["wavelength"] = lambda[i]*1e3
             options["ice thickness"] = hice[j]*1e3
             if options["wavelength"] >= options["ice thickness"]
-                sub_dir,sub_dir_plots,sub_dir_data = mk_output_dir(top_dir,irun)
-                options["amplitude"] = 0.10*options["ice thickness"]
+                sub_dir,sub_dir_plots,sub_dir_data = mk_output_dir(top_dir,irun)             
+                options["amplitude"] = 0.30*options["ice thickness"]
                 options["surface depth"] = options["amplitude"] 
-                println("Using Wavelength: ",options["wavelength"]/1e3,"(km)")
-                println("Using Ice Shell Thickness: ",options["ice thickness"]/1e3,"(km)")                
-                model_runtime(sub_dir,"Start")
-                grid,i_mat,mat,times,topography,time,itime,amplitude = run(options)
-                model_runtime(sub_dir,"End")
-                air_ice_interface = get_interface(grid,mat,2.5)
-                ocean_ice_interface = get_interface(grid,mat,1.5)
-                i_air_ice_interface = get_interface(grid,i_mat,2.5)
-                i_ocean_ice_interface = get_interface(grid,i_mat,1.5)
-                max_ice_shell_thickness = maximum(ocean_ice_interface)-maximum(air_ice_interface)
-                avg_ice_shell_thickness = mean(ocean_ice_interface)-mean(air_ice_interface)
-                Af = max_ice_shell_thickness-avg_ice_shell_thickness
-                ths = get_halfspace_time_viscous(options["wavelength"])
-                t_halfspace[i,j] = ths
-                tvis = get_numerical_time_viscous(options["amplitude"],Af,last(times))
-                t_vis[i,j] = tvis
-                ttic = get_thickening_time(options["ice thickness"])
-                t_tic[i,j] = ttic
-                t_vis_fitted_topo[i,j] = topo_fitting_data(topography,times,itime,sub_dir_plots)
-                t_vis_fitted_amp[i,j] = amp_fitting_data(amplitude,times,itime,sub_dir_plots)
-                get_topography_plots(grid,i_mat,mat,i_air_ice_interface,air_ice_interface,i_ocean_ice_interface,ocean_ice_interface,times,topography,time,itime,sub_dir_plots)
+                println("Starting model execution for model run $irun...")
+                open(sub_dir*"/output.txt", "w") do out
+                    redirect_stdout(out) do
+                        println("Using Wavelength: ",options["wavelength"]/1e3,"(km)"," , ","Using Ice Shell Thickness: ",options["ice thickness"]/1e3,"(km)")   
+                        model_runtime(sub_dir,"Start")
+                        grid,i_mat,mat,time,itime = run(options)
+                        model_runtime(sub_dir,"End")
+                        air_ice_interface = get_interface(grid,mat,2.5)
+                        ocean_ice_interface = get_interface(grid,mat,1.5)
+                        i_air_ice_interface = get_interface(grid,i_mat,2.5)
+                        i_ocean_ice_interface = get_interface(grid,i_mat,1.5)
+                        max_ice_shell_thickness = maximum(ocean_ice_interface)-maximum(air_ice_interface)
+                        avg_ice_shell_thickness = mean(ocean_ice_interface)-mean(air_ice_interface)
+                        Af = max_ice_shell_thickness-avg_ice_shell_thickness
+                        t_halfspace[i,j] = get_halfspace_time_viscous(options["wavelength"])
+                        t_rel[i,j] = get_numerical_time_viscous(options["amplitude"],Af,time)
+                        rate = get_thickening_rate(options["ice thickness"])
+                        t_tic[i,j] = get_thickening_time(options["ice thickness"],rate)
+                        # fitted_time,fitted_amp = amp_fitting_data(amplitude,times,itime,sub_dir_plots)
+                        # t_rel_fitted_time[i,j] = fitted_time
+                        # t_rel_fitted_amp[i,j] = get_numerical_time_viscous(options["amplitude"],fitted_amp,last(times))
+                        get_topography_plots(grid,i_mat,mat,i_air_ice_interface,air_ice_interface,i_ocean_ice_interface,ocean_ice_interface,time,itime,sub_dir_plots)
+                    end
+                end
+                println("Model ran successfully for model run $irun. Outputs saved to output.txt")
                 irun += 1
             end
         end
     end
-    return lambda,hice,t_halfspace,t_vis,t_tic,t_vis_fitted_topo,t_vis_fitted_amp
+    return lambda,hice,t_halfspace,t_rel,t_tic,top_dir
+    # return lambda,hice,t_halfspace,t_rel,t_tic,t_rel_fitted_time,t_rel_fitted_amp,top_dir
 end
 
-lambda,hice,t_halfspace,t_vis,t_tic,t_vis_fitted_topo,t_vis_fitted_amp = model_run()
-
-lambda = vcat(map(x->x',lambda)...)
-hice = vcat(map(x->x',hice)...)
-
-h5open("runtestv4.hdf5", "w") do file
-    println("Creating HDF5 File")
-    println("Saving Data into a HDF5 File")
-    # Creating Groups for Data
-    g = create_group(file, "Model Run")
-    # Storing Data Inside the Group
-    g["Wavelength"] = lambda[:]
-    g["Ice Shell Thickness"] = hice[:]
-    g["Relaxation Time(Model)"] = t_vis
-    g["Fitted Topography Relaxation Time(Model)"] = t_vis_fitted_topo
-    g["Fitted Amplitude Relaxation Time(Model)"] = t_vis_fitted_amp
-    g["Relaxation Time(Halfspace)"] = t_halfspace 
-    g["Thickening Time"] = t_tic
-    # Apply an Attribute to Groups
-    attrs(g)["Description"] = "This group contains only a 4 dataset"
-    println("Finished Saving Data into a HDF5 File")
+try
+    results = model_run()  
+    data_to_hdf5_file(results[1],results[2],results[3],results[4],results[5],results[6])
+catch e
+    println("Mo encountered an error. Error details saved to error_log.txt")
+    open("error_log.txt","w")do out
+        redirect_stdout(out) do
+            showerror(stdout,e,catch_backtrace())
+        end
+    end
+    @error "Something went wrong" exception=(e, catch_backtrace())
 end
+
+# open(sub_dir*"/Output.txt","w") do io
+#     redirect_stdout(io) do
+#         options["amplitude"] = 0.10*options["ice thickness"]
+#         options["surface depth"] = options["amplitude"] 
+#         println("Using Wavelength: ",options["wavelength"]/1e3,"(km)"," , ","Using Ice Shell Thickness: ",options["ice thickness"]/1e3,"(km)")                     
+#         model_runtime(sub_dir,"Start")
+#         grid,i_mat,mat,times,time,itime,amplitude = run(options)
+#         model_runtime(sub_dir,"End")
+#         air_ice_interface = get_interface(grid,mat,2.5)
+#         ocean_ice_interface = get_interface(grid,mat,1.5)
+#         i_air_ice_interface = get_interface(grid,i_mat,2.5)
+#         i_ocean_ice_interface = get_interface(grid,i_mat,1.5)
+#         max_ice_shell_thickness = maximum(ocean_ice_interface)-maximum(air_ice_interface)
+#         avg_ice_shell_thickness = mean(ocean_ice_interface)-mean(air_ice_interface)
+#         Af = max_ice_shell_thickness-avg_ice_shell_thickness
+#         ths = get_halfspace_time_viscous(options["wavelength"])
+#         t_halfspace[i,j] = ths
+#         tvis = get_numerical_time_viscous(options["amplitude"],Af,last(times))
+#         t_vis[i,j] = tvis
+#         ttic = get_thickening_time(options["ice thickness"])
+#         t_tic[i,j] = ttic
+#         fitted_time,fitted_amp = amp_fitting_data(amplitude,times,itime,sub_dir_plots)
+#         t_vis_fitted_amp_time[i,j] = fitted_time
+#         t_vis_fitted_amp[i,j] = get_numerical_time_viscous(options["amplitude"],fitted_amp,last(times))
+#         get_topography_plots(grid,i_mat,mat,i_air_ice_interface,air_ice_interface,i_ocean_ice_interface,ocean_ice_interface,times,time,itime,sub_dir_plots)
+#         # topography,time,itime,sub_dir_plots)     
+#         showerror(io,catch_backtrace())
+#     end
+# end 
