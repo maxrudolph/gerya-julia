@@ -215,9 +215,8 @@ function subgrid_temperature_relaxation_center!(markers::Markers,grid::Cartesian
     # dTm, = marker_to_cell_center(markers,grid,dT_subgrid_m)
     # use a special weighted version of marker to stag:
     
-    
-    
-    dTm, = marker_to_stag(markers,grid,dT_subgrid_m,"center")
+    rhocp = markers.scalars[rho,:] .* markers.scalars[Cp,:]    
+    dTm, = marker_to_stag(markers,grid,dT_subgrid_m,"center",extra_weight=rhocp)
     dTm[isnan.(dTm)] .= 0.0
     return dTm
 end

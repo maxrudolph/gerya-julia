@@ -198,7 +198,7 @@ function marker_to_stag(m::Markers,grid::CartesianGrid,fieldnames::Vector{String
     return marker_to_stag(m,grid,m.scalars[markerfields,:],stagx,stagy,method=method,extra_weight=extra_weight)
 end
 
-function marker_to_stag(m::Markers,grid::CartesianGrid,markerfield::Array,stagx::Int64,stagy::Int64;method="arithmetic",extra_weight::Array{Float64}=nothing)
+function marker_to_stag(m::Markers,grid::CartesianGrid,markerfield::Array,stagx::Int64,stagy::Int64;method="arithmetic",extra_weight=nothing)
     # markerfields will be indices into the 'scalars' array
     # If stagx and stagy are zero, this function performs the same task as markers to basic nodes
     # if stagx=-1 and stagy=-1, this function performs interpolation to cell centers.
@@ -257,13 +257,13 @@ function marker_to_stag(m::Markers,grid::CartesianGrid,markerfield::Array,stagx:
             wy = (m.x[2,i] - grid.y[celly])/(grid.y[celly+1]-grid.y[celly])
          end
          #i,j
-         wt_i_j = (1.0-wx)*(1.0-wy)*extra_weight[1,i]
+         wt_i_j = (1.0-wx)*(1.0-wy)*extra_weight[i]
          #i+1,j        
-         wt_i1_j = (1.0-wx)*(wy)*extra_weight[1,i]
+         wt_i1_j = (1.0-wx)*(wy)*extra_weight[i]
          #i,j+1
-         wt_i_j1 = (wx)*(1.0-wy)*extra_weight[1,i]
+         wt_i_j1 = (wx)*(1.0-wy)*extra_weight[i]
          #i+1,j+1
-         wt_i1_j1 = (wx)*(wy)*extra_weight[1,i]
+         wt_i1_j1 = (wx)*(wy)*extra_weight[i]
         
          for k in 1:nfield
              field[celly,cellx,k] += wt_i_j*forward(markerfield[k,i])
