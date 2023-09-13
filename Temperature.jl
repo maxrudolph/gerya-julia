@@ -181,7 +181,7 @@ function temperature_to_basic_nodes(grid::CartesianGrid,Tc::Matrix{Float64})
     return Tn
 end
 
-function subgrid_temperature_relaxation_center!(markers::Markers,grid::CartesianGrid,Tlast::Matrix,Cp,kThermal,dt::Float64)
+function subgrid_temperature_relaxation_center!(markers::Markers,grid::CartesianGrid,Tlast::Matrix,dt::Float64)
     # Perform the sub-grid scale temperature diffusion operation
     # Inputs:
     # markers - the markers
@@ -200,17 +200,23 @@ function subgrid_temperature_relaxation_center!(markers::Markers,grid::Cartesian
 
     # compute the subgrid temperature changes on the markers
     rho = markers.scalarFields["rho"]
+    Cp = markers.scalarFields["Cp"]
     T = markers.scalarFields["T"]
+    kThermal = markers.scalarFields["kThermal"]
     Threads.@threads for i in 1:markers.nmark
         dx2 = (grid.x[markers.cell[1,i]+1] - grid.x[markers.cell[1,i]])^2
         dy2 = (grid.y[markers.cell[2,i]+1] - grid.y[markers.cell[2,i]])^2
-        tdiff = markers.scalars[rho,i]*Cp/kThermal / (2/dx2 + 2/dy2)
+        tdiff = markers.scalars[rho,i]*markers.scalars[Cp,i]/markers.scalars[kThermal,i] / (2/dx2 + 2/dy2)
         dT_subgrid_m[i] = (dT_subgrid_m[i]-markers.scalars[T,i])*( 1.0 - exp(-dsubgrid*dt/tdiff) )
     end
     # interpolate subgrid temperature changes back onto basic nodes.
     markers.scalars[T,1:markers.nmark] += dT_subgrid_m[1,:]
     # zero out nodal values for any cells without markers (nan values)
     # dTm, = marker_to_cell_center(markers,grid,dT_subgrid_m)
+    # use a special weighted version of marker to stag:
+    
+    
+    
     dTm, = marker_to_stag(markers,grid,dT_subgrid_m,"center")
     dTm[isnan.(dTm)] .= 0.0
     return dTm
