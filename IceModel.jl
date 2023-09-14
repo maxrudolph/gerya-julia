@@ -1,5 +1,3 @@
-Threads.nthreads() = 12
-
 println("Input the arugments for a julia range function for ice shell thickness")
 print("Type in arugments separated by a space: ")
 userinput_ice = readline()
@@ -248,7 +246,7 @@ function run(options::Dict)
     Ai = initial_max_ice_shell_thickness-initial_avg_ice_shell_thickness
 
     ### Setting up agruments for termination criteria ###
-    max_step::Int64=-1
+    max_step::Int64=5
     max_time::Float64=-1.0
     max_time = max_time == -1.0 ? typemax(Float64) : max_time
     max_step = max_step == -1 ? typemax(Int64) : max_step
@@ -418,7 +416,7 @@ function run(options::Dict)
         move_markers_rk4!(markers,grid,vx,vy,dt,continuity_weight=1/3)
         time += dt
         itime += 1
-        # println("Finished Step ",itime," time=",time/seconds_in_year/1e3," kyr")
+        println("Finished Step ",itime," time=",time/seconds_in_year/1e3," kyr")
         # mat, = marker_to_stag(markers,grid,markers.integers[[markers.integerFields["material"]],:],"center")
         # ocean_ice_interface = get_interface(grid,mat,1.5)
         # air_ice_interface = get_interface(grid,mat,2.5)
@@ -428,6 +426,8 @@ function run(options::Dict)
     end
     return grid,i_mat,mat,time_plot,topography,max_step,time
 end
+
+import Base: redirect_stdout
 
 function model_run()
     options = Dict()
@@ -444,7 +444,7 @@ function model_run()
             options["ice thickness"] = hice[j]*1e3
             if options["wavelength"] >= options["ice thickness"]
                 options["surface depth"] = 0.50*options["ice thickness"]
-                options["amplitude"] = 0.10*options["ice thickness"]
+       	    	options["amplitude"] = 0.10*options["ice thickness"]
                 println("Using Wavelength: ",options["wavelength"]/1e3,"(km)")
                 println("Using Ice Shell Thickness: ",options["ice thickness"]/1e3,"(km)")
                 grid,i_mat,mat,times,topography,max_step,time = run(options)
@@ -459,6 +459,10 @@ function model_run()
                 ttic = get_thickening_time(options["ice thickness"])
                 t_tic[i,j] = ttic
                 # get_topography_plots(grid,i_mat,mat,i_air_ice_interface,air_ice_interface,i_ocean_ice_interface,ocean_ice_interface,topography,times,time)
+		
+		f = open("output.txt","w") # Get your file
+		output_io = TeeIO(f)
+		close(f)
             end
         end
     end

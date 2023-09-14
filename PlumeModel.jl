@@ -257,6 +257,7 @@ function initial_conditions!(markers::Markers,materials::Materials,options::Dict
     eta = markers.scalarFields["eta"]
     alpha = markers.scalarFields["alpha"]
     cp = markers.scalarFields["Cp"]
+    kThermal = markers.scalarFields["kThermal"]
     Hr = markers.scalarFields["Hr"]
     dxdt = markers.scalarFields["dXdt"]
     carbon = markers.scalarFields["carbon"]
@@ -288,7 +289,8 @@ function initial_conditions!(markers::Markers,materials::Materials,options::Dict
         ind = markers.integers[material,i]
         markers.scalars[eta,i] = viscosity(materials.eta[ind],markers.x[2,i],markers.scalars[T,i],materials.Ea[ind])
         markers.scalars[alpha,i] = materials.alpha[ind]            
-        markers.scalars[cp,i] = materials.Cp[ind]  
+        markers.scalars[cp,i] = materials.Cp[ind]
+        markers.scalars[kThermal,i] = materials.kThermal[ind]
         markers.scalars[Hr,i] = materials.Hr[ind]  
         markers.scalars[dxdt,i] = 0.0
         markers.scalars[dC,i] = 0.0
@@ -353,7 +355,7 @@ function plume_model(options::Dict;max_step::Int64=-1,max_time::Float64=-1.0)
     dtmax = plot_interval
     
     println("Creating Markers...")
-    @time markers = Markers(grid,["alpha","Cp","T","rho","eta","Hr","Xmelt","dXdt","carbon","dC"],["material"] ; nmx=markx,nmy=marky,random=true)
+    @time markers = Markers(grid,["alpha","Cp","T","kThermal","rho","eta","Hr","Xmelt","dXdt","carbon","dC"],["material"] ; nmx=markx,nmy=marky,random=true)
     println("Initial condition...")
     @time initial_conditions!(markers, materials, options)
 
@@ -417,6 +419,10 @@ function plume_model(options::Dict;max_step::Int64=-1,max_time::Float64=-1.0)
         # 1b. Cell Centers
         rho_c_new,Cp_c_new,alpha_new,Tlast_new = marker_to_stag(markers,grid,["rho","Cp","alpha","T"],"center")
         eta_n_new, = marker_to_stag(markers,grid,["eta",],"center",method=visc_method);
+        # Temperature field
+        rhocp = markers.scalars[markers.scalarFields["rho"],:] .* markers.scalars[markers.scalarFields["Cp"],:]
+        Tlast_new, = marker_to_stag(markers,grid,["T"],"center",extra_weight = rhocp)
+        
         # 1c. Vx and Vy nodes:        
         eta_vx_new, = marker_to_stag(markers,grid,["eta"],"vx",method=visc_method)
         eta_vy_new, = marker_to_stag(markers,grid,["eta"],"vy",method=visc_method)
@@ -509,9 +515,8 @@ function plume_model(options::Dict;max_step::Int64=-1,max_time::Float64=-1.0)
             println("nan in density")
             break
         end
-        dT_subgrid_node = subgrid_temperature_relaxation_center!(markers,grid,dTemp,Cp_c[1,1],kThermal[1,1],dt)
+        dT_subgrid_node = subgrid_temperature_relaxation_center!(markers,grid,Tlast,dt)
         dT_remaining = dTemp - dT_subgrid_node
-
         cell_center_change_to_markers!(markers,grid,dT_remaining,"T")
         
         # compute the melt fraction and carbon release on the markers using the NEW temperature.
