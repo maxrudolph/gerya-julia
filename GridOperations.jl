@@ -99,4 +99,18 @@ function replace_nan!(old_field::Matrix{Float64},new_field::Matrix{Float64})
     #
     local nanind = findall(isnan.(new_field))
     new_field[nanind] = old_field[nanind]
+<<<<<<< HEAD
+=======
+end
+
+function get_interface(grid::CartesianGrid,mat::Matrix{Float64},contour_level::Float64)
+    for i in 1:grid.nx
+        j=1;
+        while j < contour_level
+                
+        
+           j+=1 
+        end
+    end
+>>>>>>> aac6bdb6701598d804a6533dbd969be3ac08d936
 end
