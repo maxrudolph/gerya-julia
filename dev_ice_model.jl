@@ -199,9 +199,9 @@ function get_interface(grid::CartesianGrid,mat::Matrix{Float64},contour_value::F
 end
 
 function run(options::Dict)
-    W = options["wavelength"]/2
-    H = options["ice thickness"] + options["surface depth"] + options["amplitude"] + options["ice thickness"]
-    ny = 101
+    W = options["wavelength"]
+    H = options["ice thickness"] + options["surface depth"] + options["amplitude"] + options["ice thickness"]/2
+    ny = 151
     nx = Int64(ceil(W/H*ny))
     gx = 0.0
     gy = 0.113
@@ -512,9 +512,9 @@ function model_run()
         for j in 1:nhice
             options["wavelength"] = lambda[i]*1e3
             options["ice thickness"] = hice[j]*1e3
-            options["amplitude"] = 0.30*options["ice thickness"]
+            options["amplitude"] = 0.10*options["ice thickness"]
             options["surface depth"] = options["amplitude"] 
-            if options["wavelength"] >= options["ice thickness"]            
+            if true #options["wavelength"] >= options["ice thickness"]            
                 println("Starting model execution for model run $irun...")
                 println("Using Wavelength: ",options["wavelength"]/1e3,"(km)"," , ","Using Ice Shell Thickness: ",options["ice thickness"]/1e3,"(km)")   
                 grid,i_mat,mat,time,itime = run(options)
