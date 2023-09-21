@@ -52,7 +52,7 @@ include("Topo.jl")
 include("Outputs.jl")
 
 function initial_ice_depth(x::Float64,ice_thickness::Float64,wavelength::Float64,amplitude::Float64,initial_surface_depth::Float64)
-    return ice_thickness + initial_surface_depth + amplitude*sin( 2*pi/wavelength*x )
+    return ice_thickness + initial_surface_depth + amplitude*cos( 2*pi/wavelength*x )
 end
 
 function ice_viscosity(T::Float64)
@@ -199,7 +199,7 @@ function get_interface(grid::CartesianGrid,mat::Matrix{Float64},contour_value::F
 end
 
 function run(options::Dict)
-    W = options["wavelength"]
+    W = options["wavelength"]/2
     H = options["ice thickness"] + options["surface depth"] + options["amplitude"] + options["ice thickness"]
     ny = 101
     nx = Int64(ceil(W/H*ny))
@@ -347,7 +347,8 @@ function run(options::Dict)
         dt = compute_timestep(grid,vxc,vyc;dtmax=this_dtmax,cfl=0.25)
         diffusion_timestep = (grid.x[2]-grid.x[1])^2 / 1e-6
         if dt > diffusion_timestep
-            dt = diffusion_timestep
+            #dt = diffusion_timestep
+            println("ignoring diffusion timestep")
         end
 
         dTmax = Inf
@@ -378,24 +379,24 @@ function run(options::Dict)
 
         cell_center_change_to_markers!(markers,grid,dT_remaining,"T")
         
-        # if time == 0.0 || mod(itime,10) == 0
-        #     last_plot = time 
-        #     # Gird output
-        #     name1 = @sprintf("%s/viz.%04d.vtr",output_dir,iout)
-        #     println("Writing visualization file = ",name1)
-        #     vn = velocity_to_basic_nodes(grid,vxc,vyc)
-        #     visualization(grid,rho_c,eta_s,vn,P,Tnew[2:end-1,2:end-1],time/seconds_in_year;filename=name1)
-        #     # Markers output
-        #     name2 = @sprintf("%s/markers.%04d.vtp",output_dir,iout)
-        #     println("Writing visualization file = ",name2)
-        #     visualization(markers,time/seconds_in_year;filename=name2)
-        #     #Hydrostatic Pressure output
-        #     #name3 = @sprintf("%s/hp.%04d.vtr",output_dir,iout)
-        #     #println("Writing visualization file = ",name3)
-        #     #output_fields = Dict("Hydrostatic Pressure"=>hp[2:end-1,2:end-1])
-        #     #visualization(grid,output_fields,time/seconds_in_year;filename=name3)
-        #     iout += 1
-        # end
+        if time == 0.0 || mod(itime,10) == 0
+            last_plot = time 
+            # Gird output
+            name1 = @sprintf("%s/viz.%04d.vtr",output_dir,iout)
+            println("Writing visualization file = ",name1)
+            vn = velocity_to_basic_nodes(grid,vxc,vyc)
+            visualization(grid,rho_c,eta_s,vn,P,Tnew[2:end-1,2:end-1],time/seconds_in_year;filename=name1)
+            # Markers output
+            name2 = @sprintf("%s/markers.%04d.vtp",output_dir,iout)
+            println("Writing visualization file = ",name2)
+            visualization(markers,time/seconds_in_year;filename=name2)
+            #Hydrostatic Pressure output
+            #name3 = @sprintf("%s/hp.%04d.vtr",output_dir,iout)
+            #println("Writing visualization file = ",name3)
+            #output_fields = Dict("Hydrostatic Pressure"=>hp[2:end-1,2:end-1])
+            #visualization(grid,output_fields,time/seconds_in_year;filename=name3)
+            iout += 1
+        end
 
         mat, = marker_to_stag(markers,grid,markers.integers[[markers.integerFields["material"]],:],"center")
         ocean_ice_interface = get_interface(grid,mat,1.5)
