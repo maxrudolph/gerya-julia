@@ -34,7 +34,7 @@ include("Topo.jl")
 include("Outputs.jl")
 
 function initial_ice_depth(x::Float64,ice_thickness::Float64,wavelength::Float64,amplitude::Float64,initial_surface_depth::Float64)
-    return ice_thickness + initial_surface_depth + amplitude*cos( pi/wavelength*x )
+    return ice_thickness + initial_surface_depth + amplitude*sin( 2*pi/wavelength*x )
 end
 
 function ice_viscosity(T::Float64)
@@ -189,9 +189,9 @@ function run(options::Dict)
     println("Initial condition...")
     @time initial_conditions!(markers, materials,options)
 
-    local time_thickening = []
-    local amplitude = []
+    # local time_plot = []
     # local topography = []
+    # local amplitude = []
     
     ### Setting up agruments for interface function ###
     # initial 
@@ -233,8 +233,7 @@ function run(options::Dict)
     Af = nothing
 
     itime = 1
-    output_dir = "test"
-    output_text = "text"
+    output_dir = options["visualization file path"]*"/CSV_Data"
 
     terminate = false
     while !terminate
@@ -341,29 +340,7 @@ function run(options::Dict)
 
         cell_center_change_to_markers!(markers,grid,dT_remaining,"T")
         
-        mat, = marker_to_stag(markers,grid,markers.integers[[markers.integerFields["material"]],:],"center")
-        ocean_ice_interface = get_interface(grid,mat,1.5)
-        air_ice_interface = get_interface(grid,mat,2.5)
-        max_ice_shell_thickness = maximum(ocean_ice_interface)-maximum(air_ice_interface)
-        avg_ice_shell_thickness = mean(ocean_ice_interface)-mean(air_ice_interface)
-        Af = max_ice_shell_thickness-avg_ice_shell_thickness
-        i_A = @sprintf("%.6g",Ai/1e3)
-        f_A = @sprintf("%.6g",Af/1e3)
-        println("Initial Amplitude: $i_A (km), Finial Amplitude: $f_A (km)")
-        
-        if mod(Af,1/exp(1)) == 0.3 || itime == 40
-            rate = get_thickening_rate(avg_ice_shell_thickness)
-            tic_time = get_thickening_time(avg_ice_shell_thickness,rate)
-            println(Af)
-            println(tic_time)
-        end
-        
-        # Checking Termination Criteria, time is in Myr
-        if time >= max_time || itime >= max_step || Af/Ai <= 1/exp(1)
-            terminate = true
-        end
-        
-        if time == 0.0 || mod(itime,100) == 0 || terminate
+        if time == 0.0 || mod(itime,10) == 0 
             last_plot = time 
             # Gird output
             name1 = @sprintf("%s/viz.%04d.vtr",output_dir,iout)
@@ -374,20 +351,34 @@ function run(options::Dict)
             name2 = @sprintf("%s/markers.%04d.vtp",output_dir,iout)
             println("Writing visualization file = ",name2)
             visualization(markers,time/seconds_in_year;filename=name2)
-            # # Hydrostatic Pressure output
-            # name3 = @sprintf("%s/hp.%04d.vtr",output_dir,iout)
-            # println("Writing visualization file = ",name3)
-            # output_fields = Dict("Hydrostatic Pressure"=>hp[2:end-1,2:end-1])
-            # visualization(grid,output_fields,time/seconds_in_year;filename=name3)
+            #Hydrostatic Pressure output
+            #name3 = @sprintf("%s/hp.%04d.vtr",output_dir,iout)
+            #println("Writing visualization file = ",name3)
+            #output_fields = Dict("Hydrostatic Pressure"=>hp[2:end-1,2:end-1])
+            #visualization(grid,output_fields,time/seconds_in_year;filename=name3)
             iout += 1
         end
+
+        mat, = marker_to_stag(markers,grid,markers.integers[[markers.integerFields["material"]],:],"center")
+        ocean_ice_interface = get_interface(grid,mat,1.5)
+        air_ice_interface = get_interface(grid,mat,2.5)
+        max_ice_shell_thickness = maximum(ocean_ice_interface)-maximum(air_ice_interface)
+        avg_ice_shell_thickness = mean(ocean_ice_interface)-mean(air_ice_interface)
+        Af = max_ice_shell_thickness-avg_ice_shell_thickness
+        # i_A = @sprintf("%.6g",Ai/1e3)
+        # f_A = @sprintf("%.6g",Af/1e3)
+        # println("Initial Amplitude: $i_A (km), Current Amplitude: $f_A (km)")
+        # Checking Termination Criteria, time is in Myr
+        if time >= max_time || itime >= max_step || Af/Ai <= 1/exp(1)
+            terminate = true
+            println("Finished Step ",itime," time=",time/seconds_in_year/1e3," kyr")
+        end     
 
         # println("Min/Max velocity: ",minimum(vyc)," ",maximum(vyc))            
         # Moving the markers and advancing to the next timestep
         move_markers_rk4!(markers,grid,vx,vy,dt,continuity_weight=1/3)
         time += dt
         itime += 1
-        println("Finished Step ",itime," time=",time/seconds_in_year/1e3," kyr")
         # println("Finished Step ",itime," time=",time/seconds_in_year/1e3," kyr")
         # mat, = marker_to_stag(markers,grid,markers.integers[[markers.integerFields["material"]],:],"center")
         # ocean_ice_interface = get_interface(grid,mat,1.5)
@@ -396,13 +387,14 @@ function run(options::Dict)
         # append!(topography,[ocean_ice_interface])
         # append!(amplitude,Af)
     end
-    return grid,i_mat,mat,time,itime,time_thickening,amplitude
+    return grid,i_mat,mat,time,itime
     # return grid,i_mat,mat,time_plot,time,itime,amplitude
 end
 
 function model_run()
     options = Dict()   
     nlambda = wavelength_length
+    top_dir = mk_modelrun_dir()
     nhice = ice_length   
     local lambda = range(wavelength_start,wavelength_stop,nlambda)
     local hice =  range(ice_start,ice_stop,nhice)
@@ -412,52 +404,54 @@ function model_run()
     irun = 1
     for i in 1:nlambda
         for j in 1:nhice
+            amplitude_percentage = 20.0
+            amp_decimal = amplitude_percentage/100
             options["wavelength"] = lambda[i]*1e3
             options["ice thickness"] = hice[j]*1e3
-            options["amplitude"] = 0.30*options["ice thickness"]
+            options["amplitude"] = options["amplitude percentage"]*options["ice thickness"]
             options["surface depth"] = options["amplitude"] 
-            # if options["wavelength"] >= options["ice thickness"]            
-                println("Starting model execution for model run $irun...")
-                println("Using Wavelength: ",options["wavelength"]/1e3,"(km)"," , ","Using Ice Shell Thickness: ",options["ice thickness"]/1e3,"(km)")   
-                grid,i_mat,mat,time,itime,time_thickening,amplitude = run(options)
-                air_ice_interface = get_interface(grid,mat,2.5)
-                ocean_ice_interface = get_interface(grid,mat,1.5)
-                # i_air_ice_interface = get_interface(grid,i_mat,2.5)
-                # i_ocean_ice_interface = get_interface(grid,i_mat,1.5)
-                max_ice_shell_thickness = maximum(ocean_ice_interface)-maximum(air_ice_interface)
-                avg_ice_shell_thickness = mean(ocean_ice_interface)-mean(air_ice_interface)
-                Af = max_ice_shell_thickness-avg_ice_shell_thickness
-                # t_halfspace[i,j] = get_halfspace_time_viscous(options["wavelength"])
-                # t_rel[i,j] = get_numerical_time_viscous(options["amplitude"],Af,time)
-                rate = get_thickening_rate(options["ice thickness"])
-                t_tic[i,j] = get_thickening_time(options["ice thickness"],rate)
-                println(t_tic)
-                println("Model ran successfully for model run $irun.")
-                # println("Model ran successfully for model run $irun. Outputs saved to output.txt")
-                irun += 1
+            # if options["wavelength"] >= options["ice thickness"] 
+            sub_dir_by_percentage_amp,sub_dir_by_run,sub_dir_plots,sub_dir_data = mk_output_dir(top_dir,irun,amplitude_percentage)
+            data_info(ice_start,ice_stop,nhice,wavelength_start,wavelength_stop,nlambda,top_dir)
+            options["visualization file path"] = sub_dir_by_run
+            println("Starting model execution for model run $irun...")
+            println("Using Wavelength: ",options["wavelength"]/1e3,"(km)"," , ","Using Ice Shell Thickness: ",options["ice thickness"]/1e3,"(km)"," , ","Using Amplitde Percentage: $amplitude_percentage%")
+            open(sub_dir_by_run*"/output.txt", "w") do out
+                redirect_stdout(out) do
+                    model_runtime(sub_dir_by_run,"Start")
+                    grid,i_mat,mat,time,itime = run(options)
+                    model_runtime(sub_dir_by_run,"End")
+                    air_ice_interface = get_interface(grid,mat,2.5)
+                    ocean_ice_interface = get_interface(grid,mat,1.5)
+                    max_ice_shell_thickness = maximum(ocean_ice_interface)-maximum(air_ice_interface)
+                    avg_ice_shell_thickness = mean(ocean_ice_interface)-mean(air_ice_interface)
+                    Af = max_ice_shell_thickness-avg_ice_shell_thickness
+                    t_halfspace[i,j] = get_halfspace_time_viscous(options["wavelength"])
+                    t_rel[i,j] = get_numerical_time_viscous(options["amplitude"],Af,time)
+                    rate = get_thickening_rate(options["ice thickness"])
+                    t_tic[i,j] = get_thickening_time(options["ice thickness"],rate)
+                    println("Analytic relaxation time :",t_halfspace[i,j]/1e3,"(kyr) or ",t_halfspace[i,j]/1e6,"(Myr)")
+                    println("Numerical relaxation time :",t_rel[i,j]/1e3,"(kyr) or ",t_rel[i,j]/1e6,"(Myr)")
+                    println("Thickening time :",t_tic[i,j]/1e3,"(kyr) or ",t_tic[i,j]/1e6,"(Myr)")
+                end
+            end
+            println("Model ran successfully for model run $irun. Outputs saved to output.txt")
+            irun += 1
             # end
         end
     end
-    return lambda,hice,t_halfspace,t_rel,t_tic
+    return lambda,hice,t_halfspace,t_rel,t_tic,top_dir
 end
 
-lambda,hice,t_halfspace,t_rel,t_tic = model_run()
-
-# lambda = vcat(map(x->x',lambda)...)
-# hice = vcat(map(x->x',hice)...)
-
-
-# h5open("timedata.hdf5", "w") do file
-#     println("Saving Data into a HDF5 File")
-#     # Creating Groups for Data
-#     g = create_group(file, "Model Run")
-#     # Storing Data Inside the Group
-#     g["Wavelength"] = lambda[:]
-#     g["Ice Shell Thickness"] = hice[:]
-#     g["Viscous Relaxation Time(Model)"] = t_rel
-#     g["Viscous Relaxation Time(Halfspace)"] = t_halfspace 
-#     g["Thickening Time"] = t_tic
-#     # Apply an Attribute to Groups
-#     attrs(g)["Description"] = "This group contains only a 4 dataset"
-#     println("Finished Saving Data into a HDF5 File")
-# end
+try
+    results = model_run()
+    data_to_hdf5_file(results[1],results[2],results[3],results[4],results[5],results[6])
+catch e
+    println("Mo encountered an error. Error details saved to error_log.txt")
+    open("error_log.txt","w")do out
+        redirect_stdout(out) do
+            showerror(stdout,e,catch_backtrace())
+        end
+    end
+    @error "Something went wrong" exception=(e, catch_backtrace())
+end
