@@ -1,6 +1,3 @@
-using PyPlot
-using Printf
-
 # function initial_ice_depth(x::Float64,ice_thickness::Float64,wavelength::Float64,amplitude::Float64,initial_surface_depth::Float64)
 #     """
 #     Arguments:
@@ -45,7 +42,7 @@ using Printf
 #     return interface_position
 # end
 
-function get_time_viscous(lambda::Float64)
+function get_halfspace_time_viscous(lambda::Float64)
     """
     Arguments:
     lambda::Float64 --- Topography Wavelength in (m)
@@ -60,7 +57,7 @@ function get_time_viscous(lambda::Float64)
     delta_rho --- Difference of density in (kg/m^3)
     """
     g = 0.113 
-    ice_viscosity = 10^15
+    ice_viscosity = 1e15
     delta_rho = 80
     time = (4*pi)*(ice_viscosity)*(1/g)*(1/delta_rho)*(1/lambda)
     return time/3.15e7
@@ -90,11 +87,11 @@ function get_thickening_rate(hice::Float64)
     L = 334*10^3 
     rho = 1000
     q = kthermal*(delta_T/hice)
-    rate = q/L/rho   
+    rate = q/(L*rho)   
     return rate
 end
 
-function get_thickening_time(hice::Float64)
+function get_thickening_time(hice::Float64,rate::Float64)
     """
     Arguments:
     hice::Float64 --- Ice shell thickness in (m)
@@ -105,12 +102,12 @@ function get_thickening_time(hice::Float64)
     Info:
     rate --- Rate of thickening in (m/s) 
     """
-    rate = get_thickening_rate(hice)
     time = hice/rate
     return time/3.15e7
 end
 
-function get_numerical_time_viscous(i_interface_1::Vector{Float64},interface_1::Vector{Float64},i_interface_2::Vector{Float64},interface_2::Vector{Float64},time::Float64)
+function get_numerical_time_viscous(initial_amplitude::Float64,final_amplitude::Float64,time::Float64)
+# function get_numerical_time_viscous(i_interface_1::Vector{Float64},interface_1::Vector{Float64},i_interface_2::Vector{Float64},interface_2::Vector{Float64},time::Float64)
     """
     Arguments:
     time::Float64 --- model time run in (seconds)
@@ -125,15 +122,15 @@ function get_numerical_time_viscous(i_interface_1::Vector{Float64},interface_1::
     i_amp --- Initial amplitude
     amp --- Final amplitude
     """   
-    initial_max_ice_shell_thickness = maximum(i_interface_2.-i_interface_1)
-    initial_avg_ice_shell_thickness = mean(i_interface_2.-i_interface_1)
-    initial_amplitude = initial_max_ice_shell_thickness-initial_avg_ice_shell_thickness
-    max_ice_shell_thickness = maximum(interface_2.-interface_1)
-    avg_ice_shell_thickness = mean(interface_2.-interface_1)
-    amplitude = max_ice_shell_thickness-avg_ice_shell_thickness
-    t = time/3.15e7
-    tr = -(t)/log(amplitude/initial_amplitude)
-    return tr
+    # initial_max_ice_shell_thickness = maximum(i_interface_2-i_interface_1)
+    # initial_avg_ice_shell_thickness = mean(i_interface_2-i_interface_1)
+    # initial_amplitude = initial_max_ice_shell_thickness-initial_avg_ice_shell_thickness
+    # max_ice_shell_thickness = maximum(interface_2-interface_1)
+    # avg_ice_shell_thickness = mean(interface_2-interface_1)
+    # amplitude = max_ice_shell_thickness-avg_ice_shell_thickness
+    lnratio = log2(final_amplitude)-log2(initial_amplitude)
+    tr = -time/lnratio
+    return tr/3.15e7
 end
 
 # function get_topography_info(interface_1::Vector{Float64},interface_2::Vector{Float64},time::Float64,time_type::String)
@@ -156,75 +153,3 @@ end
 #         return infot,info1,info2,info3
 #     end
 # end 
-
-function get_topography_plots(grid::CartesianGrid,i_mat::Matrix{Float64},mat::Matrix{Float64},i_interface_1::Vector{Float64},interface_1::Vector{Float64},i_interface_2::Vector{Float64},interface_2::Vector{Float64},topography::Vector{Any},times::Vector{Any},time::Float64)
-    x_time = @sprintf("%.3g",time/3.15e7/1e3)
-    # Inital Model Schematic Profile
-    figure() 
-    pcolor(grid.xc/1000,grid.yc/1000,i_mat)
-    colorbar(cmap="viridis")
-    plot(grid.xc/1000,i_interface_1/1000,"m",label="air-ice interface")
-    plot(grid.xc/1000,i_interface_2/1000,"r",label="ocean-ice interface")
-    title(L"Initial\,\,Model\,\,Schematic")
-    gca().invert_yaxis()
-    gca().set_aspect("equal")
-    gca().set_ylabel(L"Height\,(km)")
-    gca().set_xlabel(L"Width\,(km)")
-    # Legend is at the bottom
-    legend(loc="upper center", bbox_to_anchor=(0.5, -0.15),fancybox="True",shadow="True", ncol=5)
-    show()
-
-    # Initial ice shell thickness profile along the horizontal direction
-    figure() 
-    plot(grid.xc/1000,(i_interface_2.-i_interface_1)/1000)
-    title(L"Initial\,\,Ice\,\,Shell\,\,Thickness\,\,Across\,\,the\,\,Horizontal\,\,Direction")
-    gca().invert_yaxis()
-    gca().set_ylabel(L"thickness\,(km)")
-    gca().set_xlabel(L"x\,(km)")
-    show()
-
-    # Model Schematic Profile
-    figure()
-    pcolor(grid.xc/1000,grid.yc/1000,mat)
-    colorbar(cmap="viridis")
-    plot(grid.xc/1000,interface_1/1000,"m",label="air-ice interface")
-    plot(grid.xc/1000,interface_2/1000,"r",label="ocean-ice interface")
-    gca().invert_yaxis()
-    gca().set_aspect("equal")
-    gca().set_ylabel(L"Height\,(km)")
-    gca().set_xlabel(L"Width\,(km)")
-    title(L"Final\,\,Model\,\,Schematic")
-    # Legend is at the bottom
-    legend(loc="upper center", bbox_to_anchor=(0.5, -0.15),fancybox="True",shadow="True", ncol=5)        
-    show()
-
-    # Ice shell thickness profile along the horizontal direction
-    figure()
-    plot(grid.xc/1000,(interface_2.-interface_1)./1000)
-    title(L"Ice\,\,Shell\,\,Thickness\,\,Across\,\,the\,\,Horizontal\,\,Direction\,\,at\,\,%$x_time\,kyr")
-    gca().invert_yaxis()
-    gca().set_ylabel(L"thickness\,(km)")
-    gca().set_xlabel(L"x\,(km)")
-    show()
-
-#     # Profile of ice-water inferface topograpgy over time 
-#     figure()
-#     for i in 1:10:100
-#         plot(grid.xc,topography[i],label=(L"At",@sprintf("%.3g",times[i]/3.15e7/1e3),L"kyr"))
-#     end
-#     title(L"Profile\,\,of\,\,Ice-Water\,\,Interface\,\,Topography\,\,Over\,\,Time")
-# #     gca().set_xlim([0.0,1e4])
-# #     gca().set_ylim([1.8e4,2.2e4])
-#     gca().invert_yaxis()
-#     # Legend is at the bottom
-#     legend(loc="upper center", bbox_to_anchor=(0.5, -0.15),fancybox="True",shadow="True", ncol=5)
-#     show()
-
-#     # Profile of maximum topograpgy over time 
-#     figure()
-#     plot(times/3.15e7/1e3,max_topo/1000)
-#     title(L"Maximum\,\,Topography\,\,After\,\,%$x_time\,ka")
-#     gca().set_ylabel(L"Max.\,topography\,(km)")
-#     gca().set_xlabel(L"Time\,(ka)")
-#     show()
-end 

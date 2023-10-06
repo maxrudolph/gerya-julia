@@ -1,31 +1,38 @@
 using Interpolations
 using HDF5
 
-fname = "SeaFreeze_table.hdf5"
+fname = "SeaFreeze_table_with_density.hdf5"
 # Opening file
 fid = h5open(fname, "r");
 # Reading Data from file
 entropy = fid["Entropy"];
 pressure = fid["Pressure"];
 temperature = fid["Temperature"];
+density = fid["Density"];
 # Accessing Entropy contents
 ed = read(entropy, "Data");
 # Accessing Pressure content that I want
 pd = read(pressure, "Data");
 # Accessing Temperature content that I want
 td = read(temperature, "Data");
+# Accessing Density content that I want
+rhod = read(density, "Data");
 # Close file
 close(fid)
 
 entropy = ed;
 pressure = pd*1e6;
 temperature = td;
-# linear interpolation
-interp_linear = linear_interpolation((pressure,temperature),entropy)
+density = rhod;
+# linear interpolation for entropy
+interp_linear_entropy = linear_interpolation((pressure,temperature),entropy)
+
+# linear interpolation for density
+interp_linear_density = linear_interpolation((pressure,temperature),density)
 
 function update_entropy(markers::Markers)
     for i in 1:markers.nmark
-        markers.scalars[markers.scalarFields["En"],i] = interp_linear(markers.scalars[markers.scalarFields["hp"],i],markers.scalars[markers.scalarFields["T"],i])
+        markers.scalars[markers.scalarFields["En"],i] = interp_linear_entropy(markers.scalars[markers.scalarFields["hp"],i],markers.scalars[markers.scalarFields["T"],i])
     end
 end
 

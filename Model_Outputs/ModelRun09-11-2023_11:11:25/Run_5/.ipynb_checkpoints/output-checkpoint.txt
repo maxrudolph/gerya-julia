@@ -1,0 +1,260 @@
+Using Wavelength: 26.0(km) , Using Ice Shell Thickness: 18.0(km)
+nx: 102, ny: 151
+Creating Markers...
+  0.008090 seconds (19 allocations: 56.176 MiB)
+Initial condition...
+  0.357574 seconds (5.04 M allocations: 78.142 MiB)
+Initial Amplitude: 5.4 (km), Finial Amplitude: 5.36861 (km)
+Finished Step 2 time=0.25831824700021394 kyr
+Initial Amplitude: 5.4 (km), Finial Amplitude: 5.31953 (km)
+Finished Step 3 time=0.5178469469477955 kyr
+Initial Amplitude: 5.4 (km), Finial Amplitude: 5.27924 (km)
+Finished Step 4 time=0.7789101463492274 kyr
+Initial Amplitude: 5.4 (km), Finial Amplitude: 5.23564 (km)
+Finished Step 5 time=1.0407667840734767 kyr
+Initial Amplitude: 5.4 (km), Finial Amplitude: 5.16046 (km)
+Finished Step 6 time=1.305464356442825 kyr
+Initial Amplitude: 5.4 (km), Finial Amplitude: 5.09238 (km)
+Finished Step 7 time=1.5741274678370847 kyr
+Initial Amplitude: 5.4 (km), Finial Amplitude: 5.05032 (km)
+Finished Step 8 time=1.8431600059726063 kyr
+Initial Amplitude: 5.4 (km), Finial Amplitude: 5.01406 (km)
+Finished Step 9 time=2.112726377194778 kyr
+Initial Amplitude: 5.4 (km), Finial Amplitude: 4.97209 (km)
+Finished Step 10 time=2.385267732894603 kyr
+Initial Amplitude: 5.4 (km), Finial Amplitude: 4.90103 (km)
+Finished Step 11 time=2.6597695006118705 kyr
+Initial Amplitude: 5.4 (km), Finial Amplitude: 4.83573 (km)
+Finished Step 12 time=2.9391256765394425 kyr
+Initial Amplitude: 5.4 (km), Finial Amplitude: 4.79402 (km)
+Finished Step 13 time=3.225559273804883 kyr
+Initial Amplitude: 5.4 (km), Finial Amplitude: 4.7584 (km)
+Finished Step 14 time=3.5201424058355495 kyr
+Initial Amplitude: 5.4 (km), Finial Amplitude: 4.71743 (km)
+Finished Step 15 time=3.8179980516025 kyr
+Initial Amplitude: 5.4 (km), Finial Amplitude: 4.65486 (km)
+Finished Step 16 time=4.113398024910956 kyr
+Initial Amplitude: 5.4 (km), Finial Amplitude: 4.58363 (km)
+Finished Step 17 time=4.409464852290202 kyr
+Initial Amplitude: 5.4 (km), Finial Amplitude: 4.54158 (km)
+Finished Step 18 time=4.71705867597648 kyr
+Initial Amplitude: 5.4 (km), Finial Amplitude: 4.50705 (km)
+Finished Step 19 time=5.037334124299819 kyr
+Initial Amplitude: 5.4 (km), Finial Amplitude: 4.47044 (km)
+Finished Step 20 time=5.372486992859522 kyr
+Initial Amplitude: 5.4 (km), Finial Amplitude: 4.41814 (km)
+Finished Step 21 time=5.721333286227438 kyr
+Initial Amplitude: 5.4 (km), Finial Amplitude: 4.33741 (km)
+Finished Step 22 time=6.077785605180496 kyr
+Initial Amplitude: 5.4 (km), Finial Amplitude: 4.2871 (km)
+Finished Step 23 time=6.444926725898422 kyr
+Initial Amplitude: 5.4 (km), Finial Amplitude: 4.249 (km)
+Finished Step 24 time=6.813726242941934 kyr
+Initial Amplitude: 5.4 (km), Finial Amplitude: 4.21186 (km)
+Finished Step 25 time=7.182106083243765 kyr
+Initial Amplitude: 5.4 (km), Finial Amplitude: 4.16328 (km)
+Finished Step 26 time=7.550225862693094 kyr
+Initial Amplitude: 5.4 (km), Finial Amplitude: 4.0903 (km)
+Finished Step 27 time=7.91844485942975 kyr
+Initial Amplitude: 5.4 (km), Finial Amplitude: 4.0386 (km)
+Finished Step 28 time=8.286914995351882 kyr
+Initial Amplitude: 5.4 (km), Finial Amplitude: 4.00316 (km)
+Finished Step 29 time=8.655534056113597 kyr
+Initial Amplitude: 5.4 (km), Finial Amplitude: 3.97317 (km)
+Finished Step 30 time=9.024317920066807 kyr
+Initial Amplitude: 5.4 (km), Finial Amplitude: 3.93955 (km)
+Finished Step 31 time=9.393515942663418 kyr
+Initial Amplitude: 5.4 (km), Finial Amplitude: 3.89553 (km)
+Finished Step 32 time=9.763195188562033 kyr
+Initial Amplitude: 5.4 (km), Finial Amplitude: 3.82937 (km)
+Finished Step 33 time=10.133457589268582 kyr
+Initial Amplitude: 5.4 (km), Finial Amplitude: 3.78289 (km)
+Finished Step 34 time=10.504303315935115 kyr
+Initial Amplitude: 5.4 (km), Finial Amplitude: 3.74853 (km)
+Finished Step 35 time=10.875479519831492 kyr
+Initial Amplitude: 5.4 (km), Finial Amplitude: 3.71895 (km)
+Finished Step 36 time=11.247009598125883 kyr
+Initial Amplitude: 5.4 (km), Finial Amplitude: 3.69152 (km)
+Finished Step 37 time=11.619036399844857 kyr
+Initial Amplitude: 5.4 (km), Finial Amplitude: 3.6591 (km)
+Finished Step 38 time=11.991238837887265 kyr
+Initial Amplitude: 5.4 (km), Finial Amplitude: 3.61278 (km)
+Finished Step 39 time=12.363700446067709 kyr
+Initial Amplitude: 5.4 (km), Finial Amplitude: 3.55507 (km)
+Finished Step 40 time=12.736658424409432 kyr
+Initial Amplitude: 5.4 (km), Finial Amplitude: 3.51706 (km)
+Finished Step 41 time=13.110291554754193 kyr
+Initial Amplitude: 5.4 (km), Finial Amplitude: 3.48838 (km)
+Finished Step 42 time=13.484983889084956 kyr
+Initial Amplitude: 5.4 (km), Finial Amplitude: 3.46299 (km)
+Finished Step 43 time=13.86064858846994 kyr
+Initial Amplitude: 5.4 (km), Finial Amplitude: 3.43844 (km)
+Finished Step 44 time=14.236960990467146 kyr
+Initial Amplitude: 5.4 (km), Finial Amplitude: 3.41386 (km)
+Finished Step 45 time=14.61415680554294 kyr
+Initial Amplitude: 5.4 (km), Finial Amplitude: 3.38212 (km)
+Finished Step 46 time=14.992283787639405 kyr
+Initial Amplitude: 5.4 (km), Finial Amplitude: 3.33345 (km)
+Finished Step 47 time=15.371595567351832 kyr
+Initial Amplitude: 5.4 (km), Finial Amplitude: 3.28524 (km)
+Finished Step 48 time=15.752187457084794 kyr
+Initial Amplitude: 5.4 (km), Finial Amplitude: 3.25453 (km)
+Finished Step 49 time=16.134256591566878 kyr
+Initial Amplitude: 5.4 (km), Finial Amplitude: 3.23054 (km)
+Finished Step 50 time=16.517604272344123 kyr
+Initial Amplitude: 5.4 (km), Finial Amplitude: 3.20891 (km)
+Finished Step 51 time=16.90195810411537 kyr
+Initial Amplitude: 5.4 (km), Finial Amplitude: 3.1889 (km)
+Finished Step 52 time=17.287466210882137 kyr
+Initial Amplitude: 5.4 (km), Finial Amplitude: 3.16866 (km)
+Finished Step 53 time=17.673857173238265 kyr
+Initial Amplitude: 5.4 (km), Finial Amplitude: 3.14491 (km)
+Finished Step 54 time=18.061155223551353 kyr
+Initial Amplitude: 5.4 (km), Finial Amplitude: 3.11751 (km)
+Finished Step 55 time=18.44961655869411 kyr
+Initial Amplitude: 5.4 (km), Finial Amplitude: 3.08133 (km)
+Finished Step 56 time=18.83985856618842 kyr
+Initial Amplitude: 5.4 (km), Finial Amplitude: 3.04048 (km)
+Finished Step 57 time=19.2319875099196 kyr
+Initial Amplitude: 5.4 (km), Finial Amplitude: 3.01105 (km)
+Finished Step 58 time=19.625583275329117 kyr
+Initial Amplitude: 5.4 (km), Finial Amplitude: 2.98923 (km)
+Finished Step 59 time=20.020718800971277 kyr
+Initial Amplitude: 5.4 (km), Finial Amplitude: 2.97116 (km)
+Finished Step 60 time=20.41756046044968 kyr
+Initial Amplitude: 5.4 (km), Finial Amplitude: 2.95484 (km)
+Finished Step 61 time=20.81601930715613 kyr
+Initial Amplitude: 5.4 (km), Finial Amplitude: 2.94 (km)
+Finished Step 62 time=21.216750587128463 kyr
+Initial Amplitude: 5.4 (km), Finial Amplitude: 2.92468 (km)
+Finished Step 63 time=21.619706478078907 kyr
+Initial Amplitude: 5.4 (km), Finial Amplitude: 2.90898 (km)
+Finished Step 64 time=22.024731709482875 kyr
+Initial Amplitude: 5.4 (km), Finial Amplitude: 2.89125 (km)
+Finished Step 65 time=22.431872137657916 kyr
+Initial Amplitude: 5.4 (km), Finial Amplitude: 2.87102 (km)
+Finished Step 66 time=22.8403989311486 kyr
+Initial Amplitude: 5.4 (km), Finial Amplitude: 2.84593 (km)
+Finished Step 67 time=23.250427083778295 kyr
+Initial Amplitude: 5.4 (km), Finial Amplitude: 2.81092 (km)
+Finished Step 68 time=23.662458346923895 kyr
+Initial Amplitude: 5.4 (km), Finial Amplitude: 2.77791 (km)
+Finished Step 69 time=24.077119227760758 kyr
+Initial Amplitude: 5.4 (km), Finial Amplitude: 2.75258 (km)
+Finished Step 70 time=24.49351523727495 kyr
+Initial Amplitude: 5.4 (km), Finial Amplitude: 2.73245 (km)
+Finished Step 71 time=24.911710039450444 kyr
+Initial Amplitude: 5.4 (km), Finial Amplitude: 2.71577 (km)
+Finished Step 72 time=25.33225869541918 kyr
+Initial Amplitude: 5.4 (km), Finial Amplitude: 2.7013 (km)
+Finished Step 73 time=25.754675747378197 kyr
+Initial Amplitude: 5.4 (km), Finial Amplitude: 2.68705 (km)
+Finished Step 74 time=26.178921954845904 kyr
+Initial Amplitude: 5.4 (km), Finial Amplitude: 2.67272 (km)
+Finished Step 75 time=26.603749636429008 kyr
+Initial Amplitude: 5.4 (km), Finial Amplitude: 2.65933 (km)
+Finished Step 76 time=27.02839609120796 kyr
+Initial Amplitude: 5.4 (km), Finial Amplitude: 2.64669 (km)
+Finished Step 77 time=27.45429516482222 kyr
+Initial Amplitude: 5.4 (km), Finial Amplitude: 2.63427 (km)
+Finished Step 78 time=27.882130182252038 kyr
+Initial Amplitude: 5.4 (km), Finial Amplitude: 2.61915 (km)
+Finished Step 79 time=28.31297811395854 kyr
+Initial Amplitude: 5.4 (km), Finial Amplitude: 2.60101 (km)
+Finished Step 80 time=28.746079789416353 kyr
+Initial Amplitude: 5.4 (km), Finial Amplitude: 2.57965 (km)
+Finished Step 81 time=29.179050621933513 kyr
+Initial Amplitude: 5.4 (km), Finial Amplitude: 2.55421 (km)
+Finished Step 82 time=29.613489881457856 kyr
+Initial Amplitude: 5.4 (km), Finial Amplitude: 2.52771 (km)
+Finished Step 83 time=30.05027168126022 kyr
+Initial Amplitude: 5.4 (km), Finial Amplitude: 2.50606 (km)
+Finished Step 84 time=30.487777885613934 kyr
+Initial Amplitude: 5.4 (km), Finial Amplitude: 2.48763 (km)
+Finished Step 85 time=30.92658252684565 kyr
+Initial Amplitude: 5.4 (km), Finial Amplitude: 2.4717 (km)
+Finished Step 86 time=31.367857834314737 kyr
+Initial Amplitude: 5.4 (km), Finial Amplitude: 2.45829 (km)
+Finished Step 87 time=31.812187514823666 kyr
+Initial Amplitude: 5.4 (km), Finial Amplitude: 2.44655 (km)
+Finished Step 88 time=32.25978636413166 kyr
+Initial Amplitude: 5.4 (km), Finial Amplitude: 2.43619 (km)
+Finished Step 89 time=32.709534801928015 kyr
+Initial Amplitude: 5.4 (km), Finial Amplitude: 2.42667 (km)
+Finished Step 90 time=33.160769301405935 kyr
+Initial Amplitude: 5.4 (km), Finial Amplitude: 2.41749 (km)
+Finished Step 91 time=33.61418928347021 kyr
+Initial Amplitude: 5.4 (km), Finial Amplitude: 2.40833 (km)
+Finished Step 92 time=34.07076833147521 kyr
+Initial Amplitude: 5.4 (km), Finial Amplitude: 2.39796 (km)
+Finished Step 93 time=34.53162613495094 kyr
+Initial Amplitude: 5.4 (km), Finial Amplitude: 2.38618 (km)
+Finished Step 94 time=34.9965490349457 kyr
+Initial Amplitude: 5.4 (km), Finial Amplitude: 2.37475 (km)
+Finished Step 95 time=35.464650238942944 kyr
+Initial Amplitude: 5.4 (km), Finial Amplitude: 2.36253 (km)
+Finished Step 96 time=35.9364525950462 kyr
+Initial Amplitude: 5.4 (km), Finial Amplitude: 2.35043 (km)
+Finished Step 97 time=36.41293620595526 kyr
+Initial Amplitude: 5.4 (km), Finial Amplitude: 2.33643 (km)
+Finished Step 98 time=36.89226406899473 kyr
+Initial Amplitude: 5.4 (km), Finial Amplitude: 2.32105 (km)
+Finished Step 99 time=37.37564854961382 kyr
+Initial Amplitude: 5.4 (km), Finial Amplitude: 2.30103 (km)
+Finished Step 100 time=37.86362220797318 kyr
+Initial Amplitude: 5.4 (km), Finial Amplitude: 2.27847 (km)
+Finished Step 101 time=38.35639110041814 kyr
+Initial Amplitude: 5.4 (km), Finial Amplitude: 2.26008 (km)
+Finished Step 102 time=38.85370511797974 kyr
+Initial Amplitude: 5.4 (km), Finial Amplitude: 2.24426 (km)
+Finished Step 103 time=39.355549481621935 kyr
+Initial Amplitude: 5.4 (km), Finial Amplitude: 2.22972 (km)
+Finished Step 104 time=39.862236630811765 kyr
+Initial Amplitude: 5.4 (km), Finial Amplitude: 2.21706 (km)
+Finished Step 105 time=40.374413037691504 kyr
+Initial Amplitude: 5.4 (km), Finial Amplitude: 2.20648 (km)
+Finished Step 106 time=40.8923376457048 kyr
+Initial Amplitude: 5.4 (km), Finial Amplitude: 2.19671 (km)
+Finished Step 107 time=41.41407411431359 kyr
+Initial Amplitude: 5.4 (km), Finial Amplitude: 2.18736 (km)
+Finished Step 108 time=41.94071501479291 kyr
+Initial Amplitude: 5.4 (km), Finial Amplitude: 2.17801 (km)
+Finished Step 109 time=42.473068149044316 kyr
+Initial Amplitude: 5.4 (km), Finial Amplitude: 2.16878 (km)
+Finished Step 110 time=43.01185339468919 kyr
+Initial Amplitude: 5.4 (km), Finial Amplitude: 2.15953 (km)
+Finished Step 111 time=43.55742521194731 kyr
+Initial Amplitude: 5.4 (km), Finial Amplitude: 2.1503 (km)
+Finished Step 112 time=44.10933305964604 kyr
+Initial Amplitude: 5.4 (km), Finial Amplitude: 2.1414 (km)
+Finished Step 113 time=44.66762622436492 kyr
+Initial Amplitude: 5.4 (km), Finial Amplitude: 2.13293 (km)
+Finished Step 114 time=45.23347080513322 kyr
+Initial Amplitude: 5.4 (km), Finial Amplitude: 2.12492 (km)
+Finished Step 115 time=45.806707951947736 kyr
+Initial Amplitude: 5.4 (km), Finial Amplitude: 2.11691 (km)
+Finished Step 116 time=46.38743522619116 kyr
+Initial Amplitude: 5.4 (km), Finial Amplitude: 2.10853 (km)
+Finished Step 117 time=46.97508216695362 kyr
+Initial Amplitude: 5.4 (km), Finial Amplitude: 2.09863 (km)
+Finished Step 118 time=47.569050908650404 kyr
+Initial Amplitude: 5.4 (km), Finial Amplitude: 2.08728 (km)
+Finished Step 119 time=48.16979257559628 kyr
+Initial Amplitude: 5.4 (km), Finial Amplitude: 2.07425 (km)
+Finished Step 120 time=48.778291611477 kyr
+Initial Amplitude: 5.4 (km), Finial Amplitude: 2.06403 (km)
+Finished Step 121 time=49.39562780156958 kyr
+Initial Amplitude: 5.4 (km), Finial Amplitude: 2.05487 (km)
+Finished Step 122 time=50.02187450437771 kyr
+Initial Amplitude: 5.4 (km), Finial Amplitude: 2.044 (km)
+Finished Step 123 time=50.6556286549165 kyr
+Initial Amplitude: 5.4 (km), Finial Amplitude: 2.03103 (km)
+Finished Step 124 time=51.296859170495495 kyr
+Initial Amplitude: 5.4 (km), Finial Amplitude: 2.01887 (km)
+Finished Step 125 time=51.94577766473449 kyr
+Initial Amplitude: 5.4 (km), Finial Amplitude: 2.00755 (km)
+Finished Step 126 time=52.602318064130294 kyr
+Initial Amplitude: 5.4 (km), Finial Amplitude: 1.99628 (km)
+Finished Step 127 time=53.26592379638551 kyr
+Initial Amplitude: 5.4 (km), Finial Amplitude: 1.98528 (km)
+Finished Step 128 time=53.93720553545206 kyr
