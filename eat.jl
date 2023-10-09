@@ -166,7 +166,7 @@ end
 function run(options::Dict)
     W = options["wavelength"]
     H = options["ice thickness"] + options["surface depth"] + options["amplitude"] + options["ice thickness"]/2
-    ny = 101
+    ny = 51
     nx = Int64(ceil(W/H*ny))
     gx = 0.0
     gy = 0.113
@@ -202,7 +202,7 @@ function run(options::Dict)
     Ai = options["amplitude"] 
 
     ### Setting up agruments for termination criteria ###
-    max_step::Int64=-1
+    max_step::Int64=2
     max_time::Float64=-1.0
     max_time = max_time == -1.0 ? typemax(Float64) : max_time
     max_step = max_step == -1 ? typemax(Int64) : max_step
@@ -519,7 +519,7 @@ function thickening_run()
                 irun += 1
             end
         end
-        thickening_data_to_hdf5_file(lambda,hice,t_tic,sub_dir)
+        # thickening_data_to_hdf5_file(lambda,hice,t_tic,sub_dir)
         if namp != 1
             irun = 1
         end
