@@ -60,7 +60,7 @@ function modelrun()
                             time_thickening = rand(Float64,10)
                             amplitude = copy(amplitude)
                             time_thickening = copy(time_thickening)
-                            data_thickening_time(amplitude,time_thickening,sub_dir_by_run)
+                            # data_thickening_time(amplitude,time_thickening,sub_dir_by_run)
                         end
                     end
                     println("Model ran successfully for model run $irun. Outputs saved to output.txt")
