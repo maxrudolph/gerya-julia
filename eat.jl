@@ -346,6 +346,9 @@ function run(options::Dict)
         max_ice_shell_thickness = maximum(ocean_ice_interface)-maximum(air_ice_interface)
         avg_ice_shell_thickness = mean(ocean_ice_interface)-mean(air_ice_interface)
         Af = max_ice_shell_thickness-avg_ice_shell_thickness
+        i_A = @sprintf("%.6g",Ai/1e3)
+        f_A = @sprintf("%.6g",Af/1e3)
+        println("Initial Amplitude: $i_A (km), Final amplitude: $f_A (km)")
 
         # if mod(itime,20) == 0
         #     rate = get_thickening_rate(avg_ice_shell_thickness)
@@ -361,9 +364,6 @@ function run(options::Dict)
 
         # Checking Termination Criteria, time is in Myr, amplitude is in meters
         if time >= max_time || itime >= max_step || Af/Ai <= 1/exp(1)
-            i_A = @sprintf("%.6g",Ai/1e3)
-            f_A = @sprintf("%.6g",Af/1e3)
-            println("Initial Amplitude: $i_A (km), Finial Amplitude: $f_A (km)")
             terminate = true
         end
 
