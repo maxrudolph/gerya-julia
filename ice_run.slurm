@@ -9,4 +9,4 @@
 #SBATCH --partition=high2
 #SBATCH --time=6-00:00:00
 source /home/caguirre/miniconda3/bin/activate
-julia --threads 64 -- eat.jl 10.0 50.0 2 10.0 600.0 2
+julia --threads 64 -- eat.jl 10.0 10.0 1 100.0 100.0 10.0 10.0 1
