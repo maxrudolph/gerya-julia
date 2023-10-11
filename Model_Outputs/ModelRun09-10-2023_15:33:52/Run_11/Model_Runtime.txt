@@ -1,4 +1,0 @@
-Date: 09/10/2023
-Model Runtime:
-Start - 16:26:05
-Finished - 16:43:37

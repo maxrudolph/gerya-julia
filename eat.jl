@@ -166,7 +166,7 @@ end
 function run(options::Dict)
     W = options["wavelength"]
     H = options["ice thickness"] + options["surface depth"] + options["amplitude"] + options["ice thickness"]/2
-    ny = 101
+    ny = 151
     nx = Int64(ceil(W/H*ny))
     gx = 0.0
     gy = 0.113
@@ -177,7 +177,6 @@ function run(options::Dict)
     Tbcval = [0.0,0.0,100.0,273.0] #left, right, top, bottom
     bc = BoundaryConditions(0,0,0,0) # currently does nothing but is required argument to stokes solver.
     materials = Materials()
-
     markx = 6
     marky = 6
     seconds_in_year = 3.15e7
@@ -189,16 +188,10 @@ function run(options::Dict)
     @time markers = Markers(grid,["alpha","T","rho","eta","Cp","Hr","kThermal"],["material"] ; nmx=markx,nmy=marky,random=true)
     println("Initial condition...")
     @time initial_conditions!(markers, materials,options)
-    
-    # local amplitude = []
-    # local time_plot = []
-    # local topography = []
-    
+       
     ### Setting up agruments for interface function ###
     # initial 
     i_mat, = marker_to_stag(markers,grid,markers.integers[[markers.integerFields["material"]],:],"center")
-    # i_air_ice_interface = get_interface(grid,i_mat,2.5)
-    # i_ocean_ice_interface = get_interface(grid,i_mat,1.5)
     Ai = options["amplitude"] 
 
     ### Setting up agruments for termination criteria ###
@@ -235,13 +228,13 @@ function run(options::Dict)
     itime = 1
     output_dir = options["visualization file path"]*"/Data"
     
-    touch(options["text file path"]*"/Time_Data.txt")
-    # Writing to a file using write() method
-    start_data = open(options["text file path"]*"/Time_Data.txt","w")
-    write(start_data,"Table:\n")
-    write(start_data,"Amplitude\t| Thickening Time(Myr)\n")
-    # Closing the file in order to write the content from the disk to file
-    close(start_data)
+    # touch(options["text file path"]*"/Time_Data.txt")
+    # # Writing to a file using write() method
+    # start_data = open(options["text file path"]*"/Time_Data.txt","w")
+    # write(start_data,"Table:\n")
+    # write(start_data,"Amplitude\t| Thickening Time(Myr)\n")
+    # # Closing the file in order to write the content from the disk to file
+    # close(start_data)
     
     terminate = false
     while !terminate
@@ -331,7 +324,6 @@ function run(options::Dict)
             Tnew = reshape(Tnew,grid.ny,grid.nx);
             Tnew = ghost_temperature_center(grid,Tnew,Tbctype,Tbcval)
             T = copy(Tnew)
-
             dTemp = Tnew-Tlast
             # compute the maximum temperature change
             dTmax = maximum(abs.(dTemp[2:end-1,2:end-1]))
@@ -344,21 +336,15 @@ function run(options::Dict)
         
         dT_subgrid_node = subgrid_temperature_relaxation_center!(markers,grid,Tlast,dt)
         dT_remaining = dTemp - dT_subgrid_node
-
-        
         cell_center_change_to_markers!(markers,grid,dT_remaining,"T")
-        
 
+        ### Setting up agruments for Termination Criteria ###
         mat, = marker_to_stag(markers,grid,markers.integers[[markers.integerFields["material"]],:],"center")
         ocean_ice_interface = get_interface(grid,mat,1.5)
         air_ice_interface = get_interface(grid,mat,2.5)
         max_ice_shell_thickness = maximum(ocean_ice_interface)-maximum(air_ice_interface)
         avg_ice_shell_thickness = mean(ocean_ice_interface)-mean(air_ice_interface)
         Af = max_ice_shell_thickness-avg_ice_shell_thickness
-        time_amp = Af
-        i_A = @sprintf("%.6g",Ai/1e3)
-        f_A = @sprintf("%.6g",Af/1e3)
-        println("Initial Amplitude: $i_A (km), Finial Amplitude: $f_A (km)")
         
         # if mod(itime,20) == 0 
         #     rate = get_thickening_rate(avg_ice_shell_thickness)
@@ -372,8 +358,11 @@ function run(options::Dict)
         #     close(start_data)
         # end
         
-        # Checking Termination Criteria, time is in Myr
+        # Checking Termination Criteria, time is in Myr, amplitude is in meters
         if time >= max_time || itime >= max_step || Af/Ai <= 1/exp(1)
+            i_A = @sprintf("%.6g",Ai/1e3)
+            f_A = @sprintf("%.6g",Af/1e3)
+            println("Initial Amplitude: $i_A (km), Finial Amplitude: $f_A (km)")
             terminate = true
         end
         
@@ -443,17 +432,15 @@ function model_run()
                     sub_dir_by_run,sub_dir_plots,sub_dir_data = mk_output_dir(sub_dir,irun)
                     options["visualization file path"] = sub_dir_by_run
                     options["text file path"] = sub_dir_by_run
-                    data_info(ice_start,ice_stop,nhice,wavelength_start,wavelength_stop,nlambda,sub_dir,amplitude_percentage)
+                    #data_info(ice_start,ice_stop,nhice,wavelength_start,wavelength_stop,nlambda,sub_dir,amplitude_percentage)
                     println("Using Wavelength: ",options["wavelength"]/1e3,"(km)"," , ","Using Ice Shell Thickness: ",options["ice thickness"]/1e3,"(km)"," , ","Using Amplitde Percentage: $amplitude_percentage%")
                     open(sub_dir_by_run*"/output.txt", "w") do out
                         redirect_stdout(out) do 
                             model_runtime(sub_dir_by_run,"Start")
                             grid,i_mat,mat,time,itime = run(options)
                             model_runtime(sub_dir_by_run,"End")
-                            air_ice_interface = get_interface(grid,mat,2.5)
                             ocean_ice_interface = get_interface(grid,mat,1.5)
-                            # i_air_ice_interface = get_interface(grid,i_mat,2.5)
-                            # i_ocean_ice_interface = get_interface(grid,i_mat,1.5)
+                            air_ice_interface = get_interface(grid,mat,2.5)
                             max_ice_shell_thickness = maximum(ocean_ice_interface)-maximum(air_ice_interface)
                             avg_ice_shell_thickness = mean(ocean_ice_interface)-mean(air_ice_interface)
                             Af = max_ice_shell_thickness-avg_ice_shell_thickness
