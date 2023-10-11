@@ -34,6 +34,9 @@ function modelrun()
     local per_amp = range(percent_amplitude_start,percent_amplitude_stop,namp)
     irun = 1
     for k in 1:namp
+        t_halfspace = zeros(nlambda,nhice)
+        t_rel = zeros(nlambda,nhice)
+        t_tic = zeros(nlambda,nhice)
         amplitude_percentage = per_amp[k]
         amp_decimal = amplitude_percentage/100
         sub_dir = mk_sub_dir(top_dir,amplitude_percentage)
@@ -43,10 +46,10 @@ function modelrun()
                 options["ice thickness"] = hice[j]*1e3
                 options["amplitude"] = amp_decimal*options["ice thickness"]
                 options["surface depth"] = options["amplitude"] 
-                if options["wavelength"] >= options["ice thickness"]
+                # if options["wavelength"] >= options["ice thickness"]
                     println("Starting model execution for model run $irun...")
                     sub_dir_by_run,sub_dir_plots,sub_dir_data = mk_output_dir(sub_dir,irun)
-                    data_info(ice_start,ice_stop,nhice,wavelength_start,wavelength_stop,nlambda,sub_dir,amplitude_percentage)
+                    test_data_info(ice_start,ice_stop,nhice,wavelength_start,wavelength_stop,nlambda,amplitude_percentage)
                     # println("Using Wavelength: ",options["wavelength"]/1e3,"(km)"," , ","Using Ice Shell Thickness: ",options["ice thickness"]/1e3,"(km)"," , ","Using Amplitde Percentage: $amplitude_percentage%")
                     open(sub_dir_by_run*"/output.txt", "w") do out
                         redirect_stdout(out) do
@@ -57,12 +60,12 @@ function modelrun()
                             time_thickening = rand(Float64,10)
                             amplitude = copy(amplitude)
                             time_thickening = copy(time_thickening)
-                            data_thickening_time(amplitude,time_thickening,sub_dir_by_run)
+                            # data_thickening_time(amplitude,time_thickening,sub_dir_by_run)
                         end
                     end
                     println("Model ran successfully for model run $irun. Outputs saved to output.txt")
                     irun += 1
-                end
+                # end
             end
         end
         lambda = vcat(map(x->x',lambda)...)
