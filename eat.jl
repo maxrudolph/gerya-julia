@@ -166,11 +166,8 @@ end
 function run(options::Dict)
     W = options["wavelength"]
     H = options["ice thickness"] + options["surface depth"] + options["amplitude"] + options["ice thickness"]/2
-<<<<<<< HEAD
     ny = 151
-=======
     ny = 51
->>>>>>> 9acb96928470dfe5d75c1b8d04930699d65d1949
     nx = Int64(ceil(W/H*ny))
     gx = 0.0
     gy = 0.113
