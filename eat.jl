@@ -6,7 +6,7 @@ else
     ice_length = parse(Int64,ARGS[3])
     wavelength_start = parse(Float64,ARGS[4])
     wavelength_stop = parse(Float64,ARGS[5])
-    wavelength_length = parse(Int64,ARGS[6])   
+    wavelength_length = parse(Int64,ARGS[6])
     percent_amplitude_start = parse(Float64,ARGS[7])
     percent_amplitude_stop = parse(Float64,ARGS[8])
     percent_amplitude_length = parse(Int64,ARGS[9])
@@ -21,7 +21,7 @@ using LinearAlgebra
 using IterativeSolvers
 using WriteVTK
 using Printf
-using Statistics 
+using Statistics
 using Dates
 # using EasyFit
 using Printf
@@ -51,9 +51,9 @@ function ice_viscosity(T::Float64)
         ice_vis = lowerlimit
     elseif ice_vis > upperlimit
         ice_vis = upperlimit
-    else 
+    else
         ice_vis = ice_vis
-    end 
+    end
     return ice_vis
 end
 
@@ -69,7 +69,7 @@ struct Materials
     eta::Vector{Float64} # Viscosity (Pa*s)
     function Materials()
         new([0.0,0.0,0.0],[1000.0,920.0,1.0],[0.0,0.0,0.0],[4180.0,2100.0,1.0e6],[0.5610,2.1,0.024],[1e12,1e15,1e17])
-    end    
+    end
 end
 
 function update_marker_prop!(markers::Markers,materials::Materials)
@@ -89,13 +89,13 @@ function update_marker_temp!(markers::Markers,materials::Materials)
     T = markers.scalarFields["T"]
     mmat = markers.integers[markers.integerFields["material"],:]
     for i in 1:markers.nmark
-        if mmat[i] == 1 
+        if mmat[i] == 1
             markers.scalars[T,i] = 273.0
-        elseif mmat[i] == 3 
+        elseif mmat[i] == 3
             markers.scalars[T,i] = 100.0
-        end 
-    end 
-end 
+        end
+    end
+end
 
 function initial_conditions!(markers::Markers,materials::Materials,options::Dict)
     material = markers.integerFields["material"]
@@ -115,9 +115,9 @@ function initial_conditions!(markers::Markers,materials::Materials,options::Dict
             markers.integers[material,i] = 1
             markers.scalars[T,i] = 273.0
             markers.scalars[eta,i] = materials.eta[1]
-            markers.scalars[alpha,i] = materials.alpha[1]        
+            markers.scalars[alpha,i] = materials.alpha[1]
             markers.scalars[Cp,i] = materials.Cp[1]
-            markers.scalars[Hr,i] = materials.Hr[1] 
+            markers.scalars[Hr,i] = materials.Hr[1]
             markers.scalars[kThermal,i] = materials.kThermal[1]
         elseif my > hsurf
             # icy shell
@@ -131,20 +131,20 @@ function initial_conditions!(markers::Markers,materials::Materials,options::Dict
         else
             # sticky air
             markers.integers[material,i] = 3
-            markers.scalars[T,i] = 100.0            
+            markers.scalars[T,i] = 100.0
             markers.scalars[eta,i] = materials.eta[3]
-            markers.scalars[alpha,i] = materials.alpha[3]  
+            markers.scalars[alpha,i] = materials.alpha[3]
             markers.scalars[Cp,i] = materials.Cp[3]
             markers.scalars[Hr,i] = materials.Hr[3]
             markers.scalars[kThermal,i] = materials.kThermal[3]
         end
-    end 
+    end
     # end loop over markers
     update_marker_prop!(markers,materials)
 end
 
 function get_interface(grid::CartesianGrid,mat::Matrix{Float64},contour_value::Float64)
-    # Finding interfaces 
+    # Finding interfaces
     interface_position = zeros(Float64,grid.nx+1);
     for j in 1:grid.nx+1
         i = 1
@@ -171,7 +171,7 @@ function run(options::Dict)
     nx = Int64(ceil(W/H*ny))
     gx = 0.0
     gy = 0.113
-    
+
     println("nx: $nx, ny: $ny")
 
     Tbctype = [-1,-1,1,1] #left, right, top, bottom
@@ -189,38 +189,38 @@ function run(options::Dict)
     @time markers = Markers(grid,["alpha","T","rho","eta","Cp","Hr","kThermal"],["material"] ; nmx=markx,nmy=marky,random=true)
     println("Initial condition...")
     @time initial_conditions!(markers, materials,options)
-       
+
     ### Setting up agruments for interface function ###
-    # initial 
+    # initial
     i_mat, = marker_to_stag(markers,grid,markers.integers[[markers.integerFields["material"]],:],"center")
-    Ai = options["amplitude"] 
+    Ai = options["amplitude"]
 
     ### Setting up agruments for termination criteria ###
     max_step::Int64=2
     max_time::Float64=-1.0
     max_time = max_time == -1.0 ? typemax(Float64) : max_time
     max_step = max_step == -1 ? typemax(Int64) : max_step
-    
+
     time = 0.0
     iout= 0
     last_plot = 0.0
     dt = 1e10
 
     rho_c = nothing
-    rho_vx = nothing 
-    rho_vy = nothing 
-    alpha = nothing 
-    Hr = nothing 
-    Cp_c = nothing 
-    eta_s = nothing 
-    eta_n = nothing 
-    vxc = nothing 
-    vyc = nothing 
-    T = nothing 
-    dTmax = nothing 
-    dTemp = nothing 
-    Tnew = nothing 
-    Tlast = nothing 
+    rho_vx = nothing
+    rho_vy = nothing
+    alpha = nothing
+    Hr = nothing
+    Cp_c = nothing
+    eta_s = nothing
+    eta_n = nothing
+    vxc = nothing
+    vyc = nothing
+    T = nothing
+    dTmax = nothing
+    dTemp = nothing
+    Tnew = nothing
+    Tlast = nothing
     kThermal = nothing
     # ocean_ice_interface = nothing
     mat = nothing
@@ -228,7 +228,7 @@ function run(options::Dict)
 
     itime = 1
     output_dir = options["visualization file path"]*"/Data"
-    
+
     # touch(options["text file path"]*"/Time_Data.txt")
     # # Writing to a file using write() method
     # start_data = open(options["text file path"]*"/Time_Data.txt","w")
@@ -236,10 +236,10 @@ function run(options::Dict)
     # write(start_data,"Amplitude\t| Thickening Time(Myr)\n")
     # # Closing the file in order to write the content from the disk to file
     # close(start_data)
-    
+
     terminate = false
     while !terminate
-        # 0. update the markers properties  
+        # 0. update the markers properties
         update_marker_prop!(markers,materials)
         update_marker_temp!(markers,materials)
         # 1. Transfer properties markers -> nodes
@@ -253,7 +253,7 @@ function run(options::Dict)
         Tlast_new, = marker_to_stag(markers,grid,["T"],"center",extra_weight = rhocp)
         # 1c. Vx and Vy nodes:
         rho_vx_new, = marker_to_stag(markers,grid,["rho",],"vx")
-        rho_vy_new, = marker_to_stag(markers,grid,["rho",],"vy") 
+        rho_vy_new, = marker_to_stag(markers,grid,["rho",],"vy")
 
         # deal with any NaN values from interpolation:
         if itime > 1
@@ -271,7 +271,7 @@ function run(options::Dict)
             replace_nan!(rho_vy,rho_vy_new)
             replace_nan!(kThermal,kThermal_new)
         end
-        # Copy field data 
+        # Copy field data
         kThermal = copy(kThermal_new)
         rho_vx = copy(rho_vx_new)
         rho_vy = copy(rho_vy_new)
@@ -283,7 +283,7 @@ function run(options::Dict)
         eta_n = copy(eta_n_new)
         Tlast = copy(Tlast_new)
 
-        if itime == 1 
+        if itime == 1
             ghost_temperature_center(grid,Tlast,Tbctype,Tbcval)
             #cell_center_to_markers!(markers,grid,Tlast,markers.scalars[[markers.scalarFields["T"],],:])
         else
@@ -334,7 +334,7 @@ function run(options::Dict)
                 break
             end
         end
-        
+
         dT_subgrid_node = subgrid_temperature_relaxation_center!(markers,grid,Tlast,dt)
         dT_remaining = dTemp - dT_subgrid_node
         cell_center_change_to_markers!(markers,grid,dT_remaining,"T")
@@ -346,8 +346,8 @@ function run(options::Dict)
         max_ice_shell_thickness = maximum(ocean_ice_interface)-maximum(air_ice_interface)
         avg_ice_shell_thickness = mean(ocean_ice_interface)-mean(air_ice_interface)
         Af = max_ice_shell_thickness-avg_ice_shell_thickness
-        
-        # if mod(itime,20) == 0 
+
+        # if mod(itime,20) == 0
         #     rate = get_thickening_rate(avg_ice_shell_thickness)
         #     t_tic = get_thickening_time(avg_ice_shell_thickness,rate)
         #     i_time = @sprintf("%4.6g",t_tic/1e6)
@@ -358,7 +358,7 @@ function run(options::Dict)
         #     # Closing the file in order to write the content from the disk to file
         #     close(start_data)
         # end
-        
+
         # Checking Termination Criteria, time is in Myr, amplitude is in meters
         if time >= max_time || itime >= max_step || Af/Ai <= 1/exp(1)
             i_A = @sprintf("%.6g",Ai/1e3)
@@ -366,7 +366,7 @@ function run(options::Dict)
             println("Initial Amplitude: $i_A (km), Finial Amplitude: $f_A (km)")
             terminate = true
         end
-        
+
         if time == 0.0 || mod(itime,100) == 0 || terminate
             last_plot = time 
             # Gird output
@@ -386,7 +386,7 @@ function run(options::Dict)
             iout += 1
         end
 
-        println("Min/Max velocity: ",minimum(vyc)," ",maximum(vyc))            
+        println("Min/Max velocity: ",minimum(vyc)," ",maximum(vyc))
         # Moving the markers and advancing to the next timestep
         move_markers_rk4!(markers,grid,vx,vy,dt,continuity_weight=1/3)
         time += dt
@@ -406,7 +406,7 @@ include("Topo.jl")
 include("Outputs.jl")
 
 function model_run()
-    options = Dict()   
+    options = Dict()
     top_dir = mk_modelrun_dir()
     nlambda = wavelength_length
     nhice = ice_length
@@ -427,7 +427,7 @@ function model_run()
                 options["wavelength"] = lambda[i]*1e3
                 options["ice thickness"] = hice[j]*1e3
                 options["amplitude"] = amp_decimal*options["ice thickness"]
-                options["surface depth"] = options["amplitude"] 
+                options["surface depth"] = options["amplitude"]
                 # if options["wavelength"] >= options["ice thickness"]
                     println("Starting model execution for model run $irun...")
                     sub_dir_by_run,sub_dir_plots,sub_dir_data = mk_output_dir(sub_dir,irun)
@@ -436,7 +436,7 @@ function model_run()
                     #data_info(ice_start,ice_stop,nhice,wavelength_start,wavelength_stop,nlambda,sub_dir,amplitude_percentage)
                     println("Using Wavelength: ",options["wavelength"]/1e3,"(km)"," , ","Using Ice Shell Thickness: ",options["ice thickness"]/1e3,"(km)"," , ","Using Amplitde Percentage: $amplitude_percentage%")
                     open(sub_dir_by_run*"/output.txt", "w") do out
-                        redirect_stdout(out) do 
+                        redirect_stdout(out) do
                             model_runtime(sub_dir_by_run,"Start")
                             grid,i_mat,mat,time,itime = run(options)
                             model_runtime(sub_dir_by_run,"End")
@@ -449,9 +449,9 @@ function model_run()
                             t_rel[i,j] = get_numerical_time_viscous(options["amplitude"],Af,time)
                             rate = get_thickening_rate(options["ice thickness"])
                             t_tic[i,j] = get_thickening_time(options["amplitude"],rate)
-                            println("Analytic relaxation time :",t_halfspace[i,j]/1e3,"(kyr) or ",t_halfspace[i,j]/1e6,"(Myr)")
-                            println("Numerical relaxation time :",t_rel[i,j]/1e3,"(kyr) or ",t_rel[i,j]/1e6,"(Myr)")
-                            println("Thickening time :",t_tic[i,j]/1e3,"(kyr) or ",t_tic[i,j]/1e6,"(Myr)")
+                            println("Analytic relaxation time: ",t_halfspace[i,j]/1e3,"(kyr) or ",t_halfspace[i,j]/1e6,"(Myr)")
+                            println("Numerical relaxation time: ",t_rel[i,j]/1e3,"(kyr) or ",t_rel[i,j]/1e6,"(Myr)")
+                            println("Thickening time: ",t_tic[i,j]/1e3,"(kyr) or ",t_tic[i,j]/1e6,"(Myr)")
                         end
                     end
                     println("Model ran successfully for model run $irun. Outputs saved to output.txt")
@@ -468,7 +468,7 @@ function model_run()
 end
 
 function thickening_run()
-    options = Dict()   
+    options = Dict()
     top_dir = mk_modelrun_dir()
     nlambda = wavelength_length
     nhice = ice_length
