@@ -379,7 +379,23 @@ function run(options::Dict)
 
         cell_center_change_to_markers!(markers,grid,dT_remaining,"T")
         
-        if time == 0.0 || mod(itime,10) == 0
+
+
+        mat, = marker_to_stag(markers,grid,markers.integers[[markers.integerFields["material"]],:],"center")
+        ocean_ice_interface = get_interface(grid,mat,1.5)
+        air_ice_interface = get_interface(grid,mat,2.5)
+        max_ice_shell_thickness = maximum(ocean_ice_interface)-maximum(air_ice_interface)
+        avg_ice_shell_thickness = mean(ocean_ice_interface)-mean(air_ice_interface)
+        Af = max_ice_shell_thickness-avg_ice_shell_thickness
+        i_A = @sprintf("%.6g",Ai/1e3)
+        f_A = @sprintf("%.6g",Af/1e3)
+        println("Initial Amplitude: $i_A (km), Current Amplitude: $f_A (km)")
+        # Checking Termination Criteria, time is in Myr
+        if time >= max_time || itime >= max_step || Af/Ai <= 1/exp(1)
+            terminate = true
+        end     
+
+        if time == 0.0 || mod(itime,10) == 0 || terminate
             last_plot = time 
             # Gird output
             name1 = @sprintf("%s/viz.%04d.vtr",output_dir,iout)
@@ -397,21 +413,7 @@ function run(options::Dict)
             #visualization(grid,output_fields,time/seconds_in_year;filename=name3)
             iout += 1
         end
-
-        mat, = marker_to_stag(markers,grid,markers.integers[[markers.integerFields["material"]],:],"center")
-        ocean_ice_interface = get_interface(grid,mat,1.5)
-        air_ice_interface = get_interface(grid,mat,2.5)
-        max_ice_shell_thickness = maximum(ocean_ice_interface)-maximum(air_ice_interface)
-        avg_ice_shell_thickness = mean(ocean_ice_interface)-mean(air_ice_interface)
-        Af = max_ice_shell_thickness-avg_ice_shell_thickness
-        i_A = @sprintf("%.6g",Ai/1e3)
-        f_A = @sprintf("%.6g",Af/1e3)
-        println("Initial Amplitude: $i_A (km), Current Amplitude: $f_A (km)")
-        # Checking Termination Criteria, time is in Myr
-        if time >= max_time || itime >= max_step || Af/Ai <= 1/exp(1)
-            terminate = true
-        end     
-
+        
         # println("Min/Max velocity: ",minimum(vyc)," ",maximum(vyc))            
         # Moving the markers and advancing to the next timestep
         move_markers_rk4!(markers,grid,vx,vy,dt,continuity_weight=1/3)
