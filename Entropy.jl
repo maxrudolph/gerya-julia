@@ -49,7 +49,7 @@ function analytic_hydrostatic_pressure(grid::CartesianGrid,density::Array,gy::Fl
     
     pressure = zeros(Float64,grid.ny+1)
     hice = 1.5e4
-#     hice = initial_ice_depth(1.0)
+    hice = initial_ice_depth(1.0)
     hsurf = initial_surface_depth(1.0)
 
     for i in 1:grid.ny+1
