@@ -133,7 +133,7 @@ function compute_S_new(grid::CartesianGrid,Tlast::Matrix{Float64},rho::Matrix{Fl
 end
 
 function update_temp_from_entropy(grid::CartesianGrid,Xlast::Matrix{Float64},S_old::Matrix{Float64},options::Dict)
-    T = zeros(grid.ny,grid.nx)
+    T = zeros(grid.ny+1,grid.nx+1)
     for j in 1:grid.nx
         for i in 1:grid.ny
             T[i,j] = temp_of_P_S(Xlast[i,j],S_old[i,j],options)
