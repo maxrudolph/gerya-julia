@@ -1,4 +1,4 @@
-function temp_of_P_S(X::Any,S::Any,options::Dict)
+function temp_of_P_S(X::Float64,S::Float64,options::Dict)
     """
     Arguments:
         X - melt fraction
@@ -10,7 +10,7 @@ function temp_of_P_S(X::Any,S::Any,options::Dict)
     Cv = options["specific heat"] 
     Tm = options["Tm"]
     Tref = options["Tref"]
-    T = exp(S/Cv + log(Tref) - Hfus*X/Cv*Tm)
+    T = exp(S/Cv + log(Tref) - Hfus*X/(Cv*Tm))
     return T
 end
 
@@ -29,6 +29,15 @@ function entropy_of_P_T(X::Float64,T::Float64,options::Dict)
     S = Cv*(log(T) - log(Tref)) + Hfus*X/Tm
     return S
 end
+
+function compute_melt_fraction(T::Float64,S::Float64,options::Dict)
+    Hfus = options["latent heat of fusion"] # J/kg
+    Cv = options["specific heat"] # J/kg*K
+    Tm = options["Tm"] # K 
+    Tref = options["Tref"] # K 
+    X = -Cv*(log(T) - log(Tref))*Tm/Hfus + S*Tm/Hfus
+    return X
+end 
 
 function get_lambda1(options::Dict)
     """
@@ -107,7 +116,7 @@ function compute_q_cond(grid::CartesianGrid,T::Matrix{Float64},kThermal::Matrix{
         end
     elseif stringtype == "vy"
         q_cond = zeros(grid.ny,grid.nx+1)
-        for j in 1:grid.nx+1
+        for j in 1:grid.nx
             for i in 1:grid.ny
                 q_cond[i,j] = kThermal[i,j] * (T[i+1,j]-T[i,j])/(grid.yc[i+1]-grid.yc[i])
                 # if i == 1
