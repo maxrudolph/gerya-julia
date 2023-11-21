@@ -10,7 +10,7 @@ function temp_of_P_S(X::Any,S::Any,options::Dict)
     Cv = options["specific heat"] 
     Tm = options["Tm"]
     Tref = options["Tref"]
-    T = exp(S./Cv .+ log(Tref) .- Hfus.*X./Cv.*Tm)
+    T = exp(S/Cv + log(Tref) - Hfus*X/Cv*Tm)
     return T
 end
 
@@ -107,7 +107,7 @@ function compute_q_cond(grid::CartesianGrid,T::Matrix{Float64},kThermal::Matrix{
         end
     elseif stringtype == "vy"
         q_cond = zeros(grid.ny,grid.nx+1)
-        for j in 1:grid.nx
+        for j in 1:grid.nx+1
             for i in 1:grid.ny
                 q_cond[i,j] = kThermal[i,j] * (T[i+1,j]-T[i,j])/(grid.yc[i+1]-grid.yc[i])
                 # if i == 1
@@ -122,7 +122,7 @@ function compute_q_cond(grid::CartesianGrid,T::Matrix{Float64},kThermal::Matrix{
 end
 
 function compute_S_new(grid::CartesianGrid,Tlast::Matrix{Float64},rho::Matrix{Float64},H::Matrix{Float64},qx::Matrix{Float64},qy::Matrix{Float64},S_old::Matrix{Float64},dt::Float64)
-    S = zeros(grid.ny+1,grid.nx+1)
+    S = zeros(grid.ny,grid.nx)
     for j in 1:grid.nx
         for i in 1:grid.ny
             S[i,j] = begin (dt/(rho[i,j]*Tlast[i,j])) * (-((qx[i+1,j]-qx[i,j])/(grid.xc[j+1]-grid.xc[j]) 
@@ -132,17 +132,12 @@ function compute_S_new(grid::CartesianGrid,Tlast::Matrix{Float64},rho::Matrix{Fl
     return S
 end
 
-function update_melt_fraction(grid::CartesianGrid,T::Matrix{Float64})
-    X = zeros(grid.ny+1,grid.nx+1)
-    Tm = 273.0
+function update_temp_from_entropy(grid::CartesianGrid,Xlast::Matrix{Float64},S_old::Matrix{Float64},options::Dict)
+    T = zeros(grid.ny,grid.nx)
     for j in 1:grid.nx
         for i in 1:grid.ny
-            if T[i,j] < Tm 
-                X[i,j] = 0.0
-            else
-                X[i,j] = 1.0
-            end       
+            T[i,j] = temp_of_P_S(Xlast[i,j],S_old[i,j],options)
         end
     end
-    return X
+    return T
 end
