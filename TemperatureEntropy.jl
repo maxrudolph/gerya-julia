@@ -52,10 +52,10 @@ function get_lambda1(options::Dict)
     return lambda1_solution
 end
 
-# function get_y(lambda::Float64,t::Float64,options::Dict)
-#     y = 2*lambda1*sqrt(kappa*t)
-#     return y
-# end 
+function get_y(lambda::Float64,t::Float64,options::Dict)
+    y = 2*lambda1*sqrt(kappa*t)
+    return y
+end 
 
 function get_t(lambda1::Float64,options::Dict)
     """
