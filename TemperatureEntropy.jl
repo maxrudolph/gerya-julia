@@ -4,13 +4,12 @@ function temp_of_P_S(X::Float64,S::Float64,options::Dict)
         X - melt fraction
         S - entropy 
         options - allow the simulation of optional keyword arguments from a dictonary
-    """
-    
+    """  
     Hfus = options["latent heat of fusion"] 
     Cv = options["specific heat"] 
     Tm = options["Tm"]
     Tref = options["Tref"]
-    T = exp(S/Cv + log(Tref) - Hfus*X/(Cv*Tm))
+    T = exp((S/Cv) + log(Tref) - (Hfus*X)/(Cv*Tm))
     return T
 end
 
@@ -25,7 +24,7 @@ function entropy_of_P_T(X::Float64,T::Float64,options::Dict)
     Cv = options["specific heat"] # J/kg*K
     Tm = options["Tm"] # K 
     Tref = options["Tref"] # K 
-    S = Cv*(log(T) - log(Tref)) + Hfus*X/Tm
+    S = Cv*(log(T) - log(Tref)) + (Hfus*X)/Tm
     return S
 end
 
@@ -34,7 +33,7 @@ function compute_melt_fraction(T::Float64,S::Float64,options::Dict)
     Cv = options["specific heat"] # J/kg*K
     Tm = options["Tm"] # K 
     Tref = options["Tref"] # K 
-    X = -Cv*(log(T) - log(Tref))*Tm/Hfus + S*Tm/Hfus
+    X = -Cv*(log(T) - log(Tref))*(Tm/Hfus) + (S*Tm)/Hfus
     return X
 end 
 
@@ -52,11 +51,6 @@ function get_lambda1(options::Dict)
     return lambda1_solution
 end
 
-function get_y(lambda::Float64,t::Float64,options::Dict)
-    y = 2*lambda1*sqrt(kappa*t)
-    return y
-end 
-
 function get_t(lambda1::Float64,options::Dict)
     """
     Arguments:
@@ -69,6 +63,12 @@ function get_t(lambda1::Float64,options::Dict)
     t = (ym)/(4*lambda*kappa) # seconds
     return t
 end
+
+function get_y(lambda::Float64,t::Float64,options::Dict)
+    kappa = options["thermal diffusivity"] # m^2/s
+    y = 2*lambda1*sqrt(kappa*t)
+    return y
+end 
 
 function get_theta(y::Float64,t::Float64,lambda1::Float64)
     """
@@ -105,22 +105,30 @@ function compute_q_cond(grid::CartesianGrid,T::Matrix{Float64},k_vx::Matrix{Floa
             q_vx[i,j] = -k_vx[i,j] * (T[i,j+1]-T[i,j])/(grid.xc[j+1]-grid.xc[j])
         end
     end
-
     for j in 1:grid.nx
         for i in 1:grid.ny
             q_vy[i,j] = -k_vy[i,j] * (T[i+1,j]-T[i,j])/(grid.yc[i+1]-grid.yc[i])            
         end
     end
-
     return q_vx,q_vy
 end
 
 function compute_S_new(grid::CartesianGrid,Tlast::Matrix{Float64},rho::Matrix{Float64},H::Matrix{Float64},qx::Matrix{Float64},qy::Matrix{Float64},S_old::Matrix{Float64},dt::Float64)
     S = zeros(grid.ny,grid.nx)
+    # for j in 2:grid.nx
+    #     for i in 2:grid.ny
+    #         S[i,j] = begin (dt/(rho[i,j]*Tlast[i,j])) * (-((qx[i,j]-qx[i,j-1])/(grid.x[j]-grid.x[j-1]) 
+    #                     + (qy[i,j]-qy[i-1,j])/(grid.y[i]-grid.y[i-1])) + H[i,j]) + S_old[i,j] end
+    #     end
+    # end
+    # return S
     for j in 2:grid.nx
         for i in 2:grid.ny
-            S[i,j] = begin (dt/(rho[i,j]*Tlast[i,j])) * (-((qx[i,j]-qx[i,j-1])/(grid.x[j]-grid.x[j-1]) 
-                        + (qy[i,j]-qy[i-1,j])/(grid.y[i]-grid.y[i-1])) + H[i,j]) + S_old[i,j] end
+            S[i,j] = (dt/( rho[i,j] * Tlast[i,j]) ) * 
+                ( -( (qx[i,j]-qx[i,j-1] )/(grid.x[j]-grid.x[j-1]) +
+                (qy[i,j]-qy[i-1,j])/(grid.y[i]-grid.y[i-1]) ) +
+                H[i,j] ) +
+            S_old[i,j]
         end
     end
     return S
