@@ -154,28 +154,24 @@ function update_melt_fraction(grid::CartesianGrid,T::Matrix{Float64},S::Matrix{F
     return X
 end
 
-function update_TX_from_S(grid::CartesianGrid,S::Matrix{Float64})
+function update_TX_from_S(S::Float64,options::Dict)
     Hfus = options["latent heat of fusion"] # J/kg
     Cv = options["specific heat"] # J/kg*K
-    Tref = options["Tref"] # K
+    # Tref = options["Tref"] # K
     Tm = options["Tm"] # K 
-    X = zeros(grid.ny,grid.nx)
-    T = zeros(grid.ny,grid.nx)
-    for j in 2:grid.nx
-        for i in 2:grid.ny
-            if S[i,j] < 0 
-                T[i,j] = exp(S[i,j]/Cv)*Tref
-                X[i,j] = 0.0
-            elseif S[i,j] > (Hfus/Tm)
-                T[i,j] = exp((S[i,j]/Cv)-(Hfus/(Cv*Tm)))*Tref
-                X[i,j] = 1.0
-            end
-            # Check if T is equal to Tm
-            if T[i,j] == Tm
-                T[i,j] = 273.0
-                X[i,j] = (S[i,j]*Tm)/Hfus
-            end
-        end
+    # X = zeros(51,50)
+    # T = zeros(51,50)
+    if S < 0 
+        T = exp((S/Cv))*Tm
+        X = 0.0
+    elseif S > (Hfus/Tm)
+        T = exp(((S*Tm)-Hfus)/(Cv*Tm))*Tm
+        X = 1.0
+    else 
+        X = (S*Tm)/Hfus
+        T = Tm
     end
     return T,X
 end
+
+# function update_markers_TX_from_S()
