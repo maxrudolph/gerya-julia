@@ -114,7 +114,7 @@ function compute_q_cond(grid::CartesianGrid,T::Matrix{Float64},k_vx::Matrix{Floa
 end
 
 function compute_S_new(grid::CartesianGrid,Tlast::Matrix{Float64},rho::Matrix{Float64},H::Matrix{Float64},qx::Matrix{Float64},qy::Matrix{Float64},S_old::Matrix{Float64},dt::Float64)
-    S = zeros(grid.ny,grid.nx)
+    S = zeros(grid.ny+1,grid.nx+1)
     # for j in 2:grid.nx
     #     for i in 2:grid.ny
     #         S[i,j] = begin (dt/(rho[i,j]*Tlast[i,j])) * (-((qx[i,j]-qx[i,j-1])/(grid.x[j]-grid.x[j-1]) 
@@ -134,31 +134,48 @@ function compute_S_new(grid::CartesianGrid,Tlast::Matrix{Float64},rho::Matrix{Fl
     return S
 end
 
-function update_temp_from_entropy(grid::CartesianGrid,Xlast::Matrix{Float64},S_old::Matrix{Float64},options::Dict)
-    T = zeros(grid.ny+1,grid.nx+1)
-    for j in 1:grid.nx
-        for i in 1:grid.ny
-            T[i,j] = temp_of_P_S(Xlast[i,j],S_old[i,j],options)
+function update_temp_from_entropy(grid::CartesianGrid,X::Matrix{Float64},S::Matrix{Float64},options::Dict)
+    T = zeros(grid.ny,grid.nx)
+    for j in 2:grid.nx
+        for i in 2:grid.ny
+            T[i,j] = temp_of_P_S(X[i,j],S[i,j],options)
         end
     end
     return T
 end
 
-function update_melt_fraction(grid::CartesianGrid,T_new::Matrix{Float64},S_new::Matrix{Float64},options::Dict)
+function update_melt_fraction(grid::CartesianGrid,T::Matrix{Float64},S::Matrix{Float64},options::Dict)
     X = zeros(grid.ny,grid.nx)
     for j in 2:grid.nx
         for i in 2:grid.ny
-            X[i,j] = compute_melt_fraction(T_new[i,j],S_new[i,j],options)
+            X[i,j] = compute_melt_fraction(T[i,j],S[i,j],options)
         end
     end
     return X
 end
-# function update_temp_from_entropy(grid::CartesianGrid,Xlast::Matrix{Float64},S_old::Matrix{Float64},options::Dict)
-#     T = zeros(grid.ny+1,grid.nx+1)
-#     for j in 2:grid.nx
-#         for i in 2:grid.ny
-#             T[i,j] = temp_of_P_S(Xlast[i,j],S_old[i,j],options)
-#         end
-#     end
-#     return T
-# end
+
+function update_TX_from_S(grid::CartesianGrid,S::Matrix{Float64})
+    Hfus = options["latent heat of fusion"] # J/kg
+    Cv = options["specific heat"] # J/kg*K
+    Tref = options["Tref"] # K
+    Tm = options["Tm"] # K 
+    X = zeros(grid.ny,grid.nx)
+    T = zeros(grid.ny,grid.nx)
+    for j in 2:grid.nx
+        for i in 2:grid.ny
+            if S[i,j] < 0 
+                T[i,j] = exp(S[i,j]/Cv)*Tref
+                X[i,j] = 0.0
+            elseif S[i,j] > (Hfus/Tm)
+                T[i,j] = exp((S[i,j]/Cv)-(Hfus/(Cv*Tm)))*Tref
+                X[i,j] = 1.0
+            end
+            # Check if T is equal to Tm
+            if T[i,j] == Tm
+                T[i,j] = 273.0
+                X[i,j] = (S[i,j]*Tm)/Hfus
+            end
+        end
+    end
+    return T,X
+end
