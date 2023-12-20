@@ -67,7 +67,7 @@ end
 #### end ####
 
 #### begin ####
-#### Equations for T,X = fcn(S) and S = fcn(T,X) #####
+##### Equations for T,X = fcn(S) and S = fcn(T,X) #####
 function compute_T_X_from_S(S::Float64,options::Dict)
     """
     Arguments:
@@ -117,7 +117,7 @@ end
 #### end ####
 
 #### begin #### 
-#### Numerical equations for conductive heat flux, entropy ####
+##### Numerical equations for conductive heat flux, entropy #####
 function compute_q_cond(grid::CartesianGrid,T::Matrix{Float64},k_vx::Matrix{Float64},k_vy::Matrix{Float64}) 
     # Note - this function expects T to include ghost values on all sides of the domain.
     q_vx = zeros(grid.ny,grid.nx)
@@ -173,13 +173,10 @@ end
 
 
 #### begin ####
-#### Function to compute the ghost nodes ####
-function ghost_temperature_center_TXS(grid::CartesianGrid,T::Matrix{Float64},S::Matrix{Float64},X::Matrix{Float64},bctype,bcval,options::Dict)
+##### Function to compute the ghost nodes #####
+function ghost_nodes_center_TXS(grid::CartesianGrid,T::Matrix{Float64},X::Matrix{Float64},S::Matrix{Float64},bctype,bcval,options::Dict)
     # along the left, right, top, and bottom (in that order)
-    # -1 = insulating, 1 = constant temp
-
-    Tbctype = [-1,-1,1,1] #left, right, top, bottom
-    
+    # -1 = insulating, 1 = constant temp    
     # Extracting the boundary condition types for the left, right, top, and bottom
     bcleft  = bctype[1] 
     bcright = bctype[2]
@@ -189,60 +186,77 @@ function ghost_temperature_center_TXS(grid::CartesianGrid,T::Matrix{Float64},S::
     # Creating a matrix then copying the values from the original matrix into the interior of new matrix
     Tpad = Array{Float64,2}(undef,grid.ny+1,grid.nx+1)   
     Tpad[1:grid.ny,1:grid.nx] = T[1:grid.ny,1:grid.nx]
-    Spad = Array{Float64,2}(undef,grid.ny+1,grid.nx+1)   
-    Spad[1:grid.ny,1:grid.nx] = S[1:grid.ny,1:grid.nx]
     Xpad = Array{Float64,2}(undef,grid.ny+1,grid.nx+1)   
     Xpad[1:grid.ny,1:grid.nx] = X[1:grid.ny,1:grid.nx]
+    Spad = Array{Float64,2}(undef,grid.ny+1,grid.nx+1)   
+    Spad[1:grid.ny,1:grid.nx] = S[1:grid.ny,1:grid.nx]
+
+    # println("Before Tpad Matrix")
+    # display(Tpad)
+    # println("Before Spad Matrix")
+    # display(Spad)
+    # println("Before Xpad Matrix")
+    # display(Xpad)
 
     # Applying the boundary condition along top of the domain
     # -1 = insulating, 1 = constant temp
     if bctop == 1
         Tpad[1,2:grid.nx] = 2.0*bcval[3] .- Tpad[2,2:grid.nx]
-        Spad[1,2:grid.nx] = compute_S_from_T_X.(Xpad[2,2:grid.nx],Tpad[2,2:grid.nx],Ref(options))
-        Xpad[1,2:grid.nx] = Xpad[2,2:grid.nx]
+        Xpad[1,2:grid.nx] = 0.0 .- Xpad[2,2:grid.nx]
+        Sb = compute_S_from_T_X.(0.0,bcval[3],Ref(options))
+        Spad[1,2:grid.nx] = 2.0*Sb .- Spad[2,2:grid.nx]
     elseif bctop == -1
 	    Tpad[1,2:grid.nx] = Tpad[2,2:grid.nx] .- ((grid.yc[2]-grid.yc[1]) * bcval[3])
-        Spad[1,2:grid.nx] = compute_S_from_T_X.(Xpad[2,2:grid.nx],Tpad[2,2:grid.nx],Ref(options))
-        Xpad[1,2:grid.nx] = Xpad[2,2:grid.nx]
+        Xpad[1,2:grid.nx] .= 0.0
+        Sb = compute_S_from_T_X.(Xpad[1,2:grid.nx],Tpad[1,2:grid.nx],Ref(options))
+        Spad[1,2:grid.nx] = 2.0*Sb .- Spad[2,2:grid.nx]
     end
 
     # Applying the boundary condition along bottom of the domain
     # -1 = insulating, 1 = constant temp
     if bcbottom == 1
         Tpad[grid.ny+1,2:grid.nx] = 2.0*bcval[4] .- Tpad[grid.ny,2:grid.nx]
-        Spad[grid.ny+1,2:grid.nx] = compute_S_from_T_X.(Xpad[grid.ny,2:grid.nx],Tpad[grid.ny,2:grid.nx],Ref(options))
-        Xpad[grid.ny+1,2:grid.nx] = Xpad[grid.ny,2:grid.nx] 
+        Xpad[grid.ny+1,2:grid.nx] = 2.0*1.0 .- Xpad[grid.ny,2:grid.nx]
+        Sb = compute_S_from_T_X.(1.0,bcval[4],Ref(options)) 
+        Spad[grid.ny+1,2:grid.nx] = 2.0*Sb .- Spad[grid.ny,2:grid.nx]
     elseif bcbottom == -1
-        Xpad[grid.ny+1,2:grid.nx] = Xpad[grid.ny,2:grid.nx]
         Tpad[grid.ny+1,2:grid.nx] = Tpad[grid.ny,2:grid.nx] .+ ((grid.yc[grid.ny+1]-grid.yc[grid.ny]) * bcval[4])
-        Spad[grid.ny+1,2:grid.nx] = compute_S_from_T_X.(Xpad[grid.ny,2:grid.nx],Tpad[grid.ny,2:grid.nx],Ref(options))
+        # Xpad[grid.ny+1,2:grid.nx] = 2.0*1.0 .- Xpad[grid
+        # Spad[grid.ny+1,2:grid.nx] = compute_S_from_T_X.(Xpad[grid.ny+1,2:grid.nx],bcval[4],Ref(options))   
     end
 
     # Applying the boundary condition along left of the domain
     # -1 = insulating, 1 = constant temp
     if bcleft == -1
         Tpad[:,1] = Tpad[:,2] # insulating
-        Spad[:,1] = compute_S_from_T_X.(Xpad[:,2],Tpad[:,2],Ref(options))
         Xpad[:,1] = Xpad[:,2]
+        Spad[:,1] = Spad[:,2]
     elseif bcleft == 1
         println("assigning left boundary temperature ",bcval[1])
         Tpad[:,1] = 2.0*bcval[1] .- Tpad[:,2]
-        Spad[:,1] = compute_S_from_T_X.(Xpad[:,2],Tpad[:,2],Ref(options))
         Xpad[:,1] = Xpad[:,2]
+        Spad[:,1] = Spad[:,2]
     end
 
     # Applying the boundary condition along right of the domain
     # -1 = insulating, 1 = constant temp
     if bcright == -1
         Tpad[:,grid.nx+1] = Tpad[:,grid.nx] # insulating
-        Spad[:,grid.nx+1] = compute_S_from_T_X.(Xpad[:,grid.nx],Tpad[:,grid.nx],Ref(options))
         Xpad[:,grid.nx+1] = Xpad[:,grid.nx]
+        Spad[:,grid.nx+1] = Spad[:,grid.nx]
     elseif bcright == 1
         Tpad[:,grid.nx+1] = 2.0*bcval[2] .- Tpad[:,grid.nx]
-        Spad[:,grid.nx+1] = compute_S_from_T_X.(Xpad[:,grid.nx],Tpad[:,grid.nx],Ref(options))
         Xpad[:,grid.nx+1] = Xpad[:,grid.nx]
+        Spad[:,grid.nx+1] = Spad[:,grid.nx]
     end    
 
-    return Tpad,Spad,Xpad
+    # println("After Tpad Matrix")
+    # display(Tpad)
+    # println("After Spad Matrix")
+    # display(Spad)
+    # println("After Xpad Matrix")
+    # display(Xpad)
+    
+    return Tpad,Xpad,Spad
 end
 #### end ####
