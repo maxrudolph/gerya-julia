@@ -78,12 +78,13 @@ function compute_T_X_from_S(S::Float64,options::Dict)
         T - temperature in units of (Kelvin)
     """
     Hfus = options["latent heat of fusion"] # J/kg
-    Cv = options["specific heat"] # J/kg*K
     Tm = options["Tm"] # K 
     if S < 0 
+        Cv = 2.1e3 # J/kg*K
         T = exp((S/Cv))*Tm
         X = 0.0
     elseif S > (Hfus/Tm)
+        Cv = 4.18e3 # J/kg*K
         T = exp(((S*Tm)-Hfus)/(Cv*Tm))*Tm
         X = 1.0
     else 
@@ -94,6 +95,7 @@ function compute_T_X_from_S(S::Float64,options::Dict)
 end
 
 function compute_S_from_T_X(X::Float64,T::Float64,options::Dict)
+# function compute_S_from_T_X(X::Float64,T::Float64,Cp::Float64,options::Dict)
     """
     Arguments:
         X - melt fraction (unitless)
@@ -103,11 +105,12 @@ function compute_S_from_T_X(X::Float64,T::Float64,options::Dict)
         S - entropy in untis of (J/kg*K)
     """
     Hfus = options["latent heat of fusion"] # J/kg
-    Cv = options["specific heat"] # J/kg*K
     Tm = options["Tm"] # K 
     if T < Tm 
+        Cv = 2.1e3
         S = Cv*(log(T)-log(Tm))
     elseif T > Tm 
+        Cv = 4.18e3
         S = Cv*(log(T)-log(Tm)) + (Hfus/Tm)
     else 
         S = (Hfus/Tm)*X
