@@ -79,6 +79,7 @@ function compute_T_X_from_S(S::Float64,options::Dict)
     """
     Hfus = options["latent heat of fusion"] # J/kg
     Tm = options["Tm"] # K 
+    # Cv = options["specific heat"] # J/kg*K
     if S < 0 
         Cv = 2.1e3 # J/kg*K
         T = exp((S/Cv))*Tm
@@ -106,6 +107,7 @@ function compute_S_from_T_X(X::Float64,T::Float64,options::Dict)
     """
     Hfus = options["latent heat of fusion"] # J/kg
     Tm = options["Tm"] # K 
+    # Cv = options["specific heat"] # J/kg*K
     if T < Tm 
         Cv = 2.1e3
         S = Cv*(log(T)-log(Tm))
