@@ -7,8 +7,8 @@ function get_lambda1(options::Dict)
     """
     L = options["latent heat of fusion"] # J/kg
     c = options["specific heat"] # J/kg*K
-    dT = options["Tm"] - options["To"] # K 
-    f(lambda1) = L * sqrt(pi) / (c * dT) - exp(-lambda1^2) / (lambda1 * erf(lambda1))
+    dT = options["Tm"]-options["To"] # K 
+    f(lambda1) = L*sqrt(pi)/(c*dT)-exp(-lambda1^2)/(lambda1*erf(lambda1))
     initial_guess = 0.1
     lambda1_solution = fzero(f,initial_guess)
     return lambda1_solution
@@ -26,7 +26,7 @@ function get_t(lambda1::Float64,options::Dict)
     kappa = options["thermal diffusivity"] # m^2/s
     ym = options["ym"]^2 # m 
     lambda = lambda1^2
-    t = (ym)/(4*lambda*kappa) # seconds
+    t = ym/(4*lambda*kappa) # seconds
     return t
 end
 
@@ -61,7 +61,7 @@ function stefan_initial_condition(theta::Float64,options::Dict)
     Tm = options["Tm"] # K
     To = options["To"] # K
     dT = Tm-To
-    T = (theta*dT) + To
+    T = (theta*dT)+To
     return T
 end
 #### end ####
@@ -79,13 +79,11 @@ function compute_T_X_from_S(S::Float64,options::Dict)
     """
     Hfus = options["latent heat of fusion"] # J/kg
     Tm = options["Tm"] # K 
-    # Cv = options["specific heat"] # J/kg*K
+    Cv = options["specific heat"] # J/kg*K
     if S < 0 
-        Cv = 2.1e3 # J/kg*K
         T = exp((S/Cv))*Tm
         X = 0.0
     elseif S > (Hfus/Tm)
-        Cv = 4.18e3 # J/kg*K
         T = exp(((S*Tm)-Hfus)/(Cv*Tm))*Tm
         X = 1.0
     else 
@@ -107,13 +105,11 @@ function compute_S_from_T_X(X::Float64,T::Float64,options::Dict)
     """
     Hfus = options["latent heat of fusion"] # J/kg
     Tm = options["Tm"] # K 
-    # Cv = options["specific heat"] # J/kg*K
+    Cv = options["specific heat"] # J/kg*K
     if T < Tm 
-        Cv = 2.1e3
         S = Cv*(log(T)-log(Tm))
     elseif T > Tm 
-        Cv = 4.18e3
-        S = Cv*(log(T)-log(Tm)) + (Hfus/Tm)
+        S = Cv*(log(T)-log(Tm))+(Hfus/Tm)
     else 
         S = (Hfus/Tm)*X
     end
