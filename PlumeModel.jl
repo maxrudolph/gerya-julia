@@ -230,10 +230,11 @@ function initial_carbon!(markers::Markers,mask::BitVector)
             else
                 if markers.integers[material,i] == 2
                     # eclogite-enriched component
-                    markers.scalars[carbon,i] = 900.0*0.15 + 137.0*0.85 # assume 900 ppm for eclogite, 137 ppm for peridotite                    
+                    #markers.scalars[carbon,i] = 900.0*0.15 + 137.0*0.85 # assume 900 ppm for eclogite, 137 ppm for peridotite
+                    markers.scalars[carbon,i] = 1.0                    
                 else
                     # background mantle
-                    markers.scalars[carbon,i] = 1.0*137.0
+                    #markers.scalars[carbon,i] = 1.0*137.0
                 end
                 markers.scalars[dcarbon,i] = 0.0
             end
