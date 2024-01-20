@@ -6,7 +6,7 @@ function get_lambda1(options::Dict)
         options - allow the simulation of optional keyword arguments from a dictonary
     """
     L = options["latent heat of fusion"] # J/kg
-    c = options["specific heat"] # J/kg*K
+    c = options["specific heat of ice"] # J/kg*K
     dT = options["Tm"]-options["To"] # K 
     f(lambda1) = L*sqrt(pi)/(c*dT)-exp(-lambda1^2)/(lambda1*erf(lambda1))
     initial_guess = 0.1
@@ -23,7 +23,7 @@ function get_t(lambda1::Float64,options::Dict)
     Returns: 
         t - time in units of (seconds)
     """
-    kappa = options["thermal diffusivity"] # m^2/s
+    kappa = options["thermal conductivity of ice"]/(options["density of ice"]*options["specific heat of ice"]) # m^2/s
     ym = options["ym"]^2 # m 
     lambda = lambda1^2
     t = ym/(4*lambda*kappa) # seconds
@@ -31,7 +31,7 @@ function get_t(lambda1::Float64,options::Dict)
 end
 
 function get_y(lambda1::Float64,t::Float64,options::Dict)
-    kappa = options["thermal diffusivity"] # m^2/s
+    kappa = options["thermal conductivity of ice"]/(options["density of ice"]*options["specific heat of ice"]) # m^2/s
     y = 2*lambda1*sqrt(kappa*t)
     return y
 end 
@@ -43,7 +43,7 @@ function get_theta(y::Float64,t::Float64,lambda1::Float64)
         t - time in units of (seconds)
         lambda1 - constant
     """
-    kappa = options["thermal diffusivity"] # m^2/s
+    kappa = options["thermal conductivity of ice"]/(options["density of ice"]*options["specific heat of ice"]) # m^2/s
     eta = y/(2*sqrt(kappa*t))
     theta = erf(eta)/erf(lambda1)
     return theta
@@ -79,7 +79,7 @@ function compute_T_X_from_S(S::Float64,options::Dict)
     """
     Hfus = options["latent heat of fusion"] # J/kg
     Tm = options["Tm"] # K 
-    Cv = options["specific heat"] # J/kg*K
+    Cv = options["specific heat of ice"] # J/kg*K
     if S < 0 
         T = exp((S/Cv))*Tm
         X = 0.0
@@ -105,7 +105,7 @@ function compute_S_from_T_X(X::Float64,T::Float64,options::Dict)
     """
     Hfus = options["latent heat of fusion"] # J/kg
     Tm = options["Tm"] # K 
-    Cv = options["specific heat"] # J/kg*K
+    Cv = options["specific heat of ice"] # J/kg*K
     if T < Tm 
         S = Cv*(log(T)-log(Tm))
     elseif T > Tm 
