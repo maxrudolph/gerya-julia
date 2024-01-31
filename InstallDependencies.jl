@@ -1,7 +1,7 @@
 # Install dependencies
 using Pkg
 Pkg.add("PyCall")
-#Pkg.build("PyCall")
+Pkg.build("PyCall")
 Pkg.add("SparseArrays")
 Pkg.add("LinearAlgebra")
 Pkg.add("Pardiso")
@@ -21,3 +21,6 @@ Pkg.add("SpecialFunctions")
 Pkg.add("AlgebraicMultigrid")
 Pkg.add("ProfileSVG")
 Pkg.add("HDF5")
+Pkg.add("Dates")
+Pkg.add("Roots")
+Pkg.add("NLsolve")

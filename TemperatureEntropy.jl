@@ -23,7 +23,7 @@ function get_t(lambda1::Float64,options::Dict)
     Returns: 
         t - time in units of (seconds)
     """
-    kappa = options["thermal conductivity of ice"]/(options["density of ice"]*options["specific heat of ice"]) # m^2/s
+    kappa = options["thermal diffusivity"] # m^2/s
     ym = options["ym"]^2 # m 
     lambda = lambda1^2
     t = ym/(4*lambda*kappa) # seconds
@@ -31,7 +31,7 @@ function get_t(lambda1::Float64,options::Dict)
 end
 
 function get_y(lambda1::Float64,t::Float64,options::Dict)
-    kappa = options["thermal conductivity of ice"]/(options["density of ice"]*options["specific heat of ice"]) # m^2/s
+    kappa = options["thermal diffusivity"] # m^2/s
     y = 2*lambda1*sqrt(kappa*t)
     return y
 end 
@@ -43,7 +43,7 @@ function get_theta(y::Float64,t::Float64,lambda1::Float64)
         t - time in units of (seconds)
         lambda1 - constant
     """
-    kappa = options["thermal conductivity of ice"]/(options["density of ice"]*options["specific heat of ice"]) # m^2/s
+    kappa = options["thermal diffusivity"] # m^2/s
     eta = y/(2*sqrt(kappa*t))
     theta = erf(eta)/erf(lambda1)
     return theta
@@ -94,7 +94,6 @@ function compute_T_X_from_S(S::Float64,options::Dict)
 end
 
 function compute_S_from_T_X(X::Float64,T::Float64,options::Dict)
-# function compute_S_from_T_X(X::Float64,T::Float64,Cp::Float64,options::Dict)
     """
     Arguments:
         X - melt fraction (unitless)
@@ -124,11 +123,11 @@ function compute_q_cond(grid::CartesianGrid,T::Matrix{Float64},k_vx::Matrix{Floa
     q_vx = zeros(grid.ny,grid.nx)
     q_vy = zeros(grid.ny,grid.nx)
     for j in 1:grid.nx
-        for i in 1:grid.ny
+        for i in 2:grid.ny
             q_vx[i,j] = -k_vx[i,j] * (T[i,j+1]-T[i,j])/(grid.xc[j+1]-grid.xc[j])
         end
     end
-    for j in 1:grid.nx
+    for j in 2:grid.nx
         for i in 1:grid.ny
             q_vy[i,j] = -k_vy[i,j] * (T[i+1,j]-T[i,j])/(grid.yc[i+1]-grid.yc[i])            
         end
@@ -203,25 +202,29 @@ function ghost_nodes_center_TXS(grid::CartesianGrid,T::Matrix{Float64},X::Matrix
     # -1 = insulating, 1 = constant temp
     if bctop == 1
         Tpad[1,2:grid.nx] = 2.0*bcval[3] .- Tpad[2,2:grid.nx]
-        Xpad[1,2:grid.nx] = 0.0 .- Xpad[2,2:grid.nx]
-        Sb = compute_S_from_T_X.(0.0,bcval[3],Ref(options))
-        Spad[1,2:grid.nx] = 2.0*Sb .- Spad[2,2:grid.nx]
+        # Xpad[1,2:grid.nx] = 2.0*0.0 .- Xpad[2,2:grid.nx]
+        Xpad[1,2:grid.nx] = 2.0.*Xpad[2,2:grid.nx] .- Xpad[2,2:grid.nx]
+        # Sb = compute_S_from_T_X.(0.0,bcval[3],Ref(options))
+        Sb = compute_S_from_T_X.(Xpad[1,2:grid.nx],bcval[3],Ref(options))
+        Spad[1,2:grid.nx] = (2.0*Sb) .- Spad[2,2:grid.nx]
     elseif bctop == -1
-	    Tpad[1,2:grid.nx] = Tpad[2,2:grid.nx] .- ((grid.yc[2]-grid.yc[1]) * bcval[3])
-        Xpad[1,2:grid.nx] .= 0.0
-        Sb = compute_S_from_T_X.(Xpad[1,2:grid.nx],Tpad[1,2:grid.nx],Ref(options))
-        Spad[1,2:grid.nx] = 2.0*Sb .- Spad[2,2:grid.nx]
+	    # Tpad[1,2:grid.nx] = Tpad[2,2:grid.nx] .- ((grid.yc[2]-grid.yc[1]) * bcval[3])
+        # Xpad[1,2:grid.nx] .= 0.0
+        # Sb = compute_S_from_T_X.(Xpad[1,2:grid.nx],Tpad[1,2:grid.nx],Ref(options))
+        # Spad[1,2:grid.nx] = 2.0*Sb .- Spad[2,2:grid.nx]
     end
 
     # Applying the boundary condition along bottom of the domain
     # -1 = insulating, 1 = constant temp
     if bcbottom == 1
         Tpad[grid.ny+1,2:grid.nx] = 2.0*bcval[4] .- Tpad[grid.ny,2:grid.nx]
-        Xpad[grid.ny+1,2:grid.nx] = 2.0*1.0 .- Xpad[grid.ny,2:grid.nx]
-        Sb = compute_S_from_T_X.(1.0,bcval[4],Ref(options)) 
-        Spad[grid.ny+1,2:grid.nx] = 2.0*Sb .- Spad[grid.ny,2:grid.nx]
+        # Xpad[grid.ny+1,2:grid.nx] = (2.0*1.0) .- Xpad[grid.ny,2:grid.nx]
+        Xpad[grid.ny+1,2:grid.nx] = (2.0.*Xpad[grid.ny,2:grid.nx]) .- Xpad[grid.ny,2:grid.nx]
+        # Sb = compute_S_from_T_X.(1.0,bcval[4],Ref(options)) 
+        Sb = compute_S_from_T_X.(Xpad[grid.ny+1,2:grid.nx],bcval[4],Ref(options)) 
+        Spad[grid.ny+1,2:grid.nx] = (2.0*Sb) .- Spad[grid.ny,2:grid.nx]
     elseif bcbottom == -1
-        Tpad[grid.ny+1,2:grid.nx] = Tpad[grid.ny,2:grid.nx] .+ ((grid.yc[grid.ny+1]-grid.yc[grid.ny]) * bcval[4])
+        # Tpad[grid.ny+1,2:grid.nx] = Tpad[grid.ny,2:grid.nx] .+ ((grid.yc[grid.ny+1]-grid.yc[grid.ny]) * bcval[4])
         # Xpad[grid.ny+1,2:grid.nx] = 2.0*1.0 .- Xpad[grid
         # Spad[grid.ny+1,2:grid.nx] = compute_S_from_T_X.(Xpad[grid.ny+1,2:grid.nx],bcval[4],Ref(options))   
     end
