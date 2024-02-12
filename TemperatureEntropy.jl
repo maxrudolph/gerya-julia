@@ -8,9 +8,9 @@ function get_lambda1(options::Dict)
     L = options["latent heat of fusion"] # J/kg
     c = options["specific heat of ice"] # J/kg*K
     dT = options["Tm"]-options["To"] # K 
-    f(lambda1) = L*sqrt(pi)/(c*dT)-exp(-lambda1^2)/(lambda1*erf(lambda1))
+    f!(lambda1) = L*sqrt(pi)/(c*dT)-exp(-lambda1^2)/(lambda1*erf(lambda1))
     initial_guess = 0.1
-    lambda1_solution = fzero(f,initial_guess)
+    lambda1_solution = fzero(f!,initial_guess)
     return lambda1_solution
 end
 
@@ -81,10 +81,10 @@ function compute_T_X_from_S(S::Float64,options::Dict)
     Tm = options["Tm"] # K 
     Cv = options["specific heat of ice"] # J/kg*K
     if S < 0 
-        T = exp((S/Cv))*Tm
+        T = exp(S/Cv) * Tm
         X = 0.0
     elseif S > (Hfus/Tm)
-        T = exp(((S*Tm)-Hfus)/(Cv*Tm))*Tm
+        T = exp(((S*Tm)-Hfus)/(Cv*Tm)) * Tm
         X = 1.0
     else 
         X = (S*Tm)/Hfus
@@ -120,16 +120,16 @@ end
 ##### Numerical equations for conductive heat flux, entropy #####
 function compute_q_cond(grid::CartesianGrid,T::Matrix{Float64},k_vx::Matrix{Float64},k_vy::Matrix{Float64}) 
     # Note - this function expects T to include ghost values on all sides of the domain.
-    q_vx = zeros(grid.ny,grid.nx)
-    q_vy = zeros(grid.ny,grid.nx)
+    q_vx = zeros(grid.ny+1,grid.nx)
+    q_vy = zeros(grid.ny,grid.nx+1)
     for j in 1:grid.nx
         for i in 2:grid.ny
-            q_vx[i,j] = -k_vx[i,j] * (T[i,j+1]-T[i,j])/(grid.xc[j+1]-grid.xc[j])
+            q_vx[i,j] = -k_vx[i,j] * ((T[i,j+1]-T[i,j])/(grid.xc[j+1]-grid.xc[j]))
         end
     end
     for j in 2:grid.nx
         for i in 1:grid.ny
-            q_vy[i,j] = -k_vy[i,j] * (T[i+1,j]-T[i,j])/(grid.yc[i+1]-grid.yc[i])            
+            q_vy[i,j] = -k_vy[i,j] * ((T[i+1,j]-T[i,j])/(grid.yc[i+1]-grid.yc[i]))            
         end
     end
     return q_vx,q_vy
@@ -137,6 +137,13 @@ end
 
 function compute_S_new(grid::CartesianGrid,Tlast::Matrix{Float64},rho::Matrix{Float64},H::Matrix{Float64},qx::Matrix{Float64},qy::Matrix{Float64},S_old::Matrix{Float64},dt::Float64)
     S = zeros(grid.ny+1,grid.nx+1)
+    # for j in 2:grid.nx
+    #     for i in 2:grid.ny
+    #         S[i,j] = begin (dt/(rho[i,j]*Tlast[i,j])) * (-((qx[i,j]-qx[i,j-1])/(grid.x[j]-grid.x[j-1]) 
+    #                     + (qy[i,j]-qy[i-1,j])/(grid.y[i]-grid.y[i-1])) + H[i,j]) + S_old[i,j] end
+    #     end
+    # end
+    # return S
     for j in 2:grid.nx
         for i in 2:grid.ny
             S[i,j] = (dt/( rho[i,j] * Tlast[i,j]) ) * 
@@ -163,14 +170,13 @@ function update_T_X_from_S(Snew::Matrix{Float64},options::Dict)
         T - a matrix of temperature in units of (Kelvin)
     """
     # Broadcasting the function to each element in S
-    results = compute_T_X_from_S.(Snew, Ref(options))
+    results = compute_T_X_from_S.(Snew,Ref(options))
     # Extracting T and X matrices from the results
     T = [result[1] for result in results]
     X = [result[2] for result in results]
     return T,X
 end
 #### end ####
-
 
 #### begin ####
 ##### Function to compute the ghost nodes #####
@@ -201,10 +207,10 @@ function ghost_nodes_center_TXS(grid::CartesianGrid,T::Matrix{Float64},X::Matrix
     # Applying the boundary condition along top of the domain
     # -1 = insulating, 1 = constant temp
     if bctop == 1
-        Tpad[1,2:grid.nx] = 2.0*bcval[3] .- Tpad[2,2:grid.nx]
-        Xpad[1,2:grid.nx] = 2.0*0.0 .- Xpad[2,2:grid.nx]
-        Sb = compute_S_from_T_X.(0.0,bcval[3],Ref(options))
-        Spad[1,2:grid.nx] = (2.0*Sb) .- Spad[2,2:grid.nx]
+        Tpad[1,2:grid.nx] = (2.0*bcval[3]) .- Tpad[2,2:grid.nx]
+        Xpad[1,2:grid.nx] = (2.0*Xpad[2,2:grid.nx][1]) .- Xpad[2,2:grid.nx]
+        Sbt= compute_S_from_T_X(Xpad[1,2:grid.nx][1],bcval[3],options)
+        Spad[1,2:grid.nx] = (2.0*Sbt) .- Spad[2,2:grid.nx]
     elseif bctop == -1
 	    # Tpad[1,2:grid.nx] = Tpad[2,2:grid.nx] .- ((grid.yc[2]-grid.yc[1]) * bcval[3])
         # Xpad[1,2:grid.nx] .= 0.0
@@ -216,9 +222,9 @@ function ghost_nodes_center_TXS(grid::CartesianGrid,T::Matrix{Float64},X::Matrix
     # -1 = insulating, 1 = constant temp
     if bcbottom == 1
         Tpad[grid.ny+1,2:grid.nx] = 2.0*bcval[4] .- Tpad[grid.ny,2:grid.nx]
-        Xpad[grid.ny+1,2:grid.nx] = (2.0*1.0) .- Xpad[grid.ny,2:grid.nx]
-        Sb = compute_S_from_T_X.(1.0,bcval[4],Ref(options)) 
-        Spad[grid.ny+1,2:grid.nx] = (2.0*Sb) .- Spad[grid.ny,2:grid.nx]
+        Xpad[grid.ny+1,2:grid.nx] = (2.0*Xpad[grid.ny,2:grid.nx][1]) .- Xpad[grid.ny,2:grid.nx]
+        Sbb = compute_S_from_T_X(Xpad[grid.ny+1,2:grid.nx][1],bcval[4],options)
+        Spad[grid.ny+1,2:grid.nx] = (2.0*Sbb) .- Spad[grid.ny,2:grid.nx]
     elseif bcbottom == -1
         # Tpad[grid.ny+1,2:grid.nx] = Tpad[grid.ny,2:grid.nx] .+ ((grid.yc[grid.ny+1]-grid.yc[grid.ny]) * bcval[4])
         # Xpad[grid.ny+1,2:grid.nx] = 2.0*1.0 .- Xpad[grid
