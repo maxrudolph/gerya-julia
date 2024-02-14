@@ -209,7 +209,7 @@ function ghost_nodes_center_TXS(grid::CartesianGrid,T::Matrix{Float64},X::Matrix
     if bctop == 1
         Tpad[1,2:grid.nx] = (2.0*bcval[3]) .- Tpad[2,2:grid.nx]
         Xpad[1,2:grid.nx] = (2.0*Xpad[2,2:grid.nx][1]) .- Xpad[2,2:grid.nx]
-        Sbt= compute_S_from_T_X(Xpad[1,2:grid.nx][1],bcval[3],options)
+        Sbt = compute_S_from_T_X(Xpad[1,2:grid.nx][1],bcval[3],options)
         Spad[1,2:grid.nx] = (2.0*Sbt) .- Spad[2,2:grid.nx]
     elseif bctop == -1
 	    # Tpad[1,2:grid.nx] = Tpad[2,2:grid.nx] .- ((grid.yc[2]-grid.yc[1]) * bcval[3])
