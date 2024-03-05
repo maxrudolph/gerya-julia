@@ -1,4 +1,4 @@
-#### begin #### 
+#### start #### 
 ##### Equations for setting up Stefan conidtion #####
 function get_lambda1(options::Dict)
     """
@@ -66,7 +66,7 @@ function stefan_initial_condition(theta::Float64,options::Dict)
 end
 #### end ####
 
-#### begin ####
+#### start ####
 ##### Equations for T,X = fcn(S) and S = fcn(T,X) #####
 function compute_T_X_from_S(S::Float64,options::Dict)
     """
@@ -116,7 +116,7 @@ function compute_S_from_T_X(X::Float64,T::Float64,options::Dict)
 end
 #### end ####
 
-#### begin #### 
+#### start #### 
 ##### Numerical equations for conductive heat flux, entropy #####
 function compute_q_cond(grid::CartesianGrid,T::Matrix{Float64},k_vx::Matrix{Float64},k_vy::Matrix{Float64}) 
     # Note - this function expects T to include ghost values on all sides of the domain.
@@ -157,7 +157,7 @@ function compute_S_new(grid::CartesianGrid,Tlast::Matrix{Float64},rho::Matrix{Fl
 end
 #### end #### 
 
-#### begin ###
+#### start ###
 #### Update functions ####
 function update_T_X_from_S(Snew::Matrix{Float64},options::Dict)
     """
@@ -178,7 +178,17 @@ function update_T_X_from_S(Snew::Matrix{Float64},options::Dict)
 end
 #### end ####
 
-#### begin ####
+function calculate_diffusion_timestep(grid::CartesianGrid,options::Dict)
+    # dx = grid.W / (grid.nx-1)  # Cell size in the x-direction
+    # dy = grid.H / (grid.ny-1)  # Cell size in the y-direction
+    dx = grid.x[2]-grid.x[1]
+    dy = grid.y[2]-grid.y[1]
+    diffusion_timestep_x = dx^2 / options["thermal diffusivity"]
+    diffusion_timestep_y = dy^2 / options["thermal diffusivity"]
+    return min(diffusion_timestep_x, diffusion_timestep_y) / 2
+end
+
+#### start ####
 ##### Function to compute the ghost nodes #####
 function ghost_nodes_center_TXS(grid::CartesianGrid,T::Matrix{Float64},X::Matrix{Float64},S::Matrix{Float64},bctype,bcval,options::Dict)
     # along the left, right, top, and bottom (in that order)
