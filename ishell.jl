@@ -80,9 +80,9 @@ function update_marker_prop!(markers::Markers,materials::Materials)
     for i in 1:markers.nmark
         markers.scalars[rho,i] = materials.rho0[mmat[i]]
         if markers.scalars[S,i] > 0.0
-            markers.scalars[eta,i] = ice_viscosity(markers.scalars[T,i])
+            markers.scalars[eta,i] = 1e12
         else
-            markers.scalars[eta,i] = 1e15
+            markers.scalars[eta,i] = ice_viscosity(markers.scalars[T,i])
         end
     end
 end
