@@ -28,6 +28,8 @@ using Roots
 using NLsolve
 using Printf
 using HDF5
+using Profile
+using ProfileSVG
 # using EasyFit
 include("Grid.jl")
 include("Markers.jl")
@@ -169,7 +171,7 @@ end
 function run(options::Dict)
     W = options["wavelength"]
     H = options["ice thickness"] + options["amplitude"] + options["ice thickness"]/2
-    ny = 200
+    ny = 50
     nx = Int64(ceil(W/H*ny))
     gx = 0.0
     gy = 0.113
@@ -181,7 +183,7 @@ function run(options::Dict)
     markx = 6
     marky = 6
     seconds_in_year = 3.15e7
-    plot_interval = 1e1*seconds_in_year # plot interval in seconds
+    plot_interval = 1e2*seconds_in_year # plot interval in seconds
     end_time = 3e7*seconds_in_year
     dtmax = plot_interval
     grid = CartesianGrid(W,H,nx,ny)
@@ -488,9 +490,11 @@ function model_run()
                     println("Using Wavelength: ",options["wavelength"]/1e3,"(km)"," , ","Using Ice Shell Thickness: ",options["ice thickness"]/1e3,"(km)"," , ","Using Amplitde Percentage: $amplitude_percentage%")
                     open(sub_dir_by_run*"/output.txt", "w") do out
                         redirect_stdout(out) do
-                            model_runtime(sub_dir_by_run,"Start")
-                            grid,time,itime,Af = run(options)
-                            model_runtime(sub_dir_by_run,"End")
+                            Profile.clear()
+                            # model_runtime(sub_dir_by_run,"Start")
+                            @profile grid,time,itime,Af = run(options);
+                            ProfileSVG.save(joinpath(sub_dir_by_run,"prof.svg"))
+                            # model_runtime(sub_dir_by_run,"End")
                             t_halfspace[i,j] = get_halfspace_time_viscous(options["wavelength"])
                             t_rel[i,j] = get_numerical_time_viscous(options["amplitude"],Af,time)
                             rate = get_thickening_rate(options["ice thickness"])
@@ -514,7 +518,9 @@ function model_run()
 end
 
 try
-    model_run()
+    Profile.clear()
+    @profile model_run();
+    ProfileSVG.save("prof.svg")
 catch e
     println("Model encountered an error. Error details saved to error_log.txt")
     open("error_log.txt","w")do out
