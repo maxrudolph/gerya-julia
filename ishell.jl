@@ -183,7 +183,7 @@ function run(options::Dict,io)
     markx = 6
     marky = 6
     seconds_in_year = 3.15e7
-    plot_interval = 1e1*seconds_in_year # plot interval in seconds
+    plot_interval = 1e3*seconds_in_year # plot interval in seconds
     end_time = 3e7*seconds_in_year
     dtmax = plot_interval
     grid = CartesianGrid(W,H,nx,ny)
@@ -201,7 +201,7 @@ function run(options::Dict,io)
     Ai = options["amplitude"]
     
     ### Setting up agruments for termination criteria ###
-    max_step::Int64=10
+    max_step::Int64=-1
     max_time::Float64=-1.0
     max_time = max_time == -1.0 ? typemax(Float64) : max_time
     max_step = max_step == -1 ? typemax(Int64) : max_step
@@ -339,11 +339,11 @@ function run(options::Dict,io)
         dTmax = Inf
         dS = nothing
         dSmax = Inf
-        tolerance = 1e-8
+        tolerance = 1e-6
         dTnorm = []
         ititer = []
         titer = 1 
-        max_titer = 100
+        max_titer = 300
         for titer=1:max_titer
 
             # println("Starting iteration $titer, with timestep = ",dt/seconds_in_year," yr, ",dt/seconds_in_year/1e3," Kyr, ",dt/seconds_in_year/1e6," Myr")            
@@ -511,9 +511,10 @@ function model_run()
 end
 
 try
-    Profile.clear()
-    @profile model_run();
-    ProfileSVG.save("prof.svg")
+    # Profile.clear()
+    # @profile model_run();
+    # ProfileSVG.save("prof.svg")
+    model_run();
 catch e
     println("Model encountered an error. Error details saved to error_log.txt")
     open("error_log.txt","w")do out

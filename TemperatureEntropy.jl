@@ -185,7 +185,7 @@ function calculate_diffusion_timestep(grid::CartesianGrid,options::Dict)
     dy = grid.y[2]-grid.y[1]
     diffusion_timestep_x = dx^2 / options["thermal diffusivity"]
     diffusion_timestep_y = dy^2 / options["thermal diffusivity"]
-    return min(diffusion_timestep_x, diffusion_timestep_y) / 2
+    return min(diffusion_timestep_x, diffusion_timestep_y) / 8
 end
 
 #### start ####
