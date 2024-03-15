@@ -168,10 +168,10 @@ function get_interface(grid::CartesianGrid,mat::Matrix{Float64},contour_value::F
     return interface_position
 end
 
-function run(options::Dict)
+function run(options::Dict,io)
     W = options["wavelength"]
     H = options["ice thickness"] + options["amplitude"] + options["ice thickness"]/2
-    ny = 50
+    ny = 150
     nx = Int64(ceil(W/H*ny))
     gx = 0.0
     gy = 0.113
@@ -183,25 +183,25 @@ function run(options::Dict)
     markx = 6
     marky = 6
     seconds_in_year = 3.15e7
-    plot_interval = 1e2*seconds_in_year # plot interval in seconds
+    plot_interval = 1e1*seconds_in_year # plot interval in seconds
     end_time = 3e7*seconds_in_year
     dtmax = plot_interval
     grid = CartesianGrid(W,H,nx,ny)
-    println("Grid resolution(ny x nx) : $ny x $nx")
-    println("Cell size in the x-direction is $(grid.W/(grid.nx-1))")
-    println("Cell size in the y-direction is $(grid.H/(grid.ny-1))")
+    println(io,"Grid resolution(ny x nx) : $ny x $nx")
+    println(io,"Cell size in the x-direction is $(grid.W/(grid.nx-1))")
+    println(io,"Cell size in the y-direction is $(grid.H/(grid.ny-1))")
 
     materials = Materials()
-    println("Creating Markers...")
-    @time markers = Markers(grid,["alpha","T","rho","eta","Cp","Hr","kThermal","S","X"],["material"] ; nmx=markx,nmy=marky,random=false)
-    println("Initial condition...")
-    @time initial_conditions!(markers,materials,options)
+    println(io,"Creating Markers...")
+    markers = Markers(grid,["alpha","T","rho","eta","Cp","Hr","kThermal","S","X"],["material"] ; nmx=markx,nmy=marky,random=false)
+    println(io,"Initial condition...")
+    initial_conditions!(markers,materials,options)
 
     ### Setting up agruments for interface function ###
     Ai = options["amplitude"]
     
     ### Setting up agruments for termination criteria ###
-    max_step::Int64=-1
+    max_step::Int64=10
     max_time::Float64=-1.0
     max_time = max_time == -1.0 ? typemax(Float64) : max_time
     max_step = max_step == -1 ? typemax(Int64) : max_step
@@ -261,7 +261,7 @@ function run(options::Dict)
         # deal with any NaN values from interpolation:
         if itime > 1
             if any(isnan.(eta_s_new))
-                println("found nan values")
+                println(io,"found nan values")
             end
             replace_nan!(eta_s,eta_s_new)
             replace_nan!(rho_c,rho_c_new)
@@ -329,9 +329,9 @@ function run(options::Dict)
         end
 
         if itime == 1   
-            println("Diffusion timestep is ",diffusion_timestep/seconds_in_year," yr, ",diffusion_timestep/seconds_in_year/1e3," Kyr, ",diffusion_timestep/seconds_in_year/1e6," Myr")
+            println(io,"Diffusion timestep is ",diffusion_timestep/seconds_in_year," yr, ",diffusion_timestep/seconds_in_year/1e3," Kyr, ",diffusion_timestep/seconds_in_year/1e6," Myr")
         end
-        println("Starting step $itime, with dt = ",dt/seconds_in_year," yr, ",dt/seconds_in_year/1e3," Kyr, ",dt/seconds_in_year/1e6," Myr")
+        println(io,"Starting step $itime, with dt = ",dt/seconds_in_year," yr, ",dt/seconds_in_year/1e3," Kyr, ",dt/seconds_in_year/1e6," Myr")
       
         last_T_norm = NaN
         T_norm = NaN
@@ -389,16 +389,16 @@ function run(options::Dict)
 
             # Checking for convergence:
             if titer > 1 && abs(T_norm-last_T_norm) < tolerance
-                println("Converged after $titer iterations.")
+                println(io,"Converged after $titer iterations.")
                 break
             elseif titer == max_titer
                 terminate = true
                 # error("Did not converged")
-                @error("Did not converged")
+                @error(io,"Did not converged")
             elseif any(isnan.(dT))
                 terminate = true
                 # error("NaN or Inf apperred")
-                @error("NaN or Inf apperred")
+                @error(io,"NaN or Inf apperred")
             end       
         end
 
@@ -413,7 +413,7 @@ function run(options::Dict)
         Af = max_ice_shell_thickness-avg_ice_shell_thickness
         i_A = @sprintf("%.6g",Ai/1e3)
         f_A = @sprintf("%.6g",Af/1e3)
-        println("Initial Amplitude: $i_A (km), Final amplitude: $f_A (km)")
+        println(io,"Initial Amplitude: $i_A (km), Final amplitude: $f_A (km)")
 
         # Checking Termination Criteria, time is in Myr, amplitude is in meters
         if time >= max_time || itime >= max_step || Af/Ai <= 1/exp(1)
@@ -424,12 +424,12 @@ function run(options::Dict)
             last_plot = time 
             # Gird output
             name1 = @sprintf("%s/viz.%04d.vtr",output_dir,iout)
-            println("Writing visualization file = ",name1)
+            println(io,"Writing visualization file = ",name1)
             vn = velocity_to_basic_nodes(grid,vxc,vyc)
             visualization(grid,rho_c,eta_s,vn,P,Tnew[2:end-1,2:end-1],time/seconds_in_year;filename=name1)
             # Markers output
             name2 = @sprintf("%s/markers.%04d.vtp",output_dir,iout)
-            println("Writing visualization file = ",name2)
+            println(io,"Writing visualization file = ",name2)
             visualization(markers,time/seconds_in_year;filename=name2)
             # # Hydrostatic Pressure output
             # name3 = @sprintf("%s/hp.%04d.vtr",output_dir,iout)
@@ -443,8 +443,8 @@ function run(options::Dict)
         # Moving the markers and advancing to the next timestep
         move_markers_rk4!(markers,grid,vx,vy,dt,continuity_weight=1/3)
         time += dt
-        println("Finished step $itime")
-        println("time = ",time/seconds_in_year," yr, ",time/seconds_in_year/1e3," Kyr, ",time/seconds_in_year/1e6," Myr") 
+        println(io,"Finished step $itime")
+        println(io,"time = ",time/seconds_in_year," yr, ",time/seconds_in_year/1e3," Kyr, ",time/seconds_in_year/1e6," Myr") 
         itime += 1
     end
     return grid,time,itime,Af
@@ -481,32 +481,25 @@ function model_run()
                 options["wavelength"] = lambda[i]*1e3
                 options["ice thickness"] = hice[j]*1e3
                 options["amplitude"] = amp_decimal*options["ice thickness"]
-                # if options["wavelength"] >= options["ice thickness"]
-                    println("Starting model execution for model run $irun...")
-                    sub_dir_by_run,sub_dir_plots,sub_dir_data = mk_output_dir(sub_dir,irun)
-                    options["visualization file path"] = sub_dir_by_run
-                    options["text file path"] = sub_dir_by_run
-                    data_info(ice_start,ice_stop,nhice,wavelength_start,wavelength_stop,nlambda,sub_dir,amplitude_percentage)
-                    println("Using Wavelength: ",options["wavelength"]/1e3,"(km)"," , ","Using Ice Shell Thickness: ",options["ice thickness"]/1e3,"(km)"," , ","Using Amplitde Percentage: $amplitude_percentage%")
-                    open(sub_dir_by_run*"/output.txt", "w") do out
-                        redirect_stdout(out) do
-                            Profile.clear()
-                            # model_runtime(sub_dir_by_run,"Start")
-                            @profile grid,time,itime,Af = run(options);
-                            ProfileSVG.save(joinpath(sub_dir_by_run,"prof.svg"))
-                            # model_runtime(sub_dir_by_run,"End")
-                            t_halfspace[i,j] = get_halfspace_time_viscous(options["wavelength"])
-                            t_rel[i,j] = get_numerical_time_viscous(options["amplitude"],Af,time)
-                            rate = get_thickening_rate(options["ice thickness"])
-                            t_tic[i,j] = get_thickening_time(options["amplitude"],rate)
-                            println("Analytic relaxation time: ",t_halfspace[i,j]/1e3,"(kyr) or ",t_halfspace[i,j]/1e6,"(Myr)")
-                            println("Numerical relaxation time: ",t_rel[i,j]/1e3,"(kyr) or ",t_rel[i,j]/1e6,"(Myr)")
-                            println("Thickening time: ",t_tic[i,j]/1e3,"(kyr) or ",t_tic[i,j]/1e6,"(Myr)")
-                        end
-                    end
-                    println("Model ran successfully for model run $irun. Outputs saved to output.txt")
-                    irun += 1
-                # end
+                println("Starting model execution for model run $irun...")
+                sub_dir_by_run,sub_dir_plots,sub_dir_data = mk_output_dir(sub_dir,irun)
+                options["visualization file path"] = sub_dir_by_run
+                options["text file path"] = sub_dir_by_run
+                data_info(ice_start,ice_stop,nhice,wavelength_start,wavelength_stop,nlambda,sub_dir,amplitude_percentage)
+                println("Using Wavelength: ",options["wavelength"]/1e3,"(km)"," , ","Using Ice Shell Thickness: ",options["ice thickness"]/1e3,"(km)"," , ","Using Amplitde Percentage: $amplitude_percentage%")
+                # Profile.clear()
+                io = open(sub_dir_by_run*"/output.txt","w")
+                grid,time,itime,Af = run(options,io);
+                t_rel[i,j] = get_numerical_time_viscous(options["amplitude"],Af,time)
+                t_halfspace[i,j] = get_halfspace_time_viscous(options["wavelength"])
+                rate = get_thickening_rate(options["ice thickness"])
+                t_tic[i,j] = get_thickening_time(options["amplitude"],rate)
+                println(io,"Analytic relaxation time: ",t_halfspace[i,j]/1e3,"(kyr) or ",t_halfspace[i,j]/1e6,"(Myr)")
+                println(io,"Numerical relaxation time: ",t_rel[i,j]/1e3,"(kyr) or ",t_rel[i,j]/1e6,"(Myr)")
+                close(io)
+                # ProfileSVG.save(joinpath(sub_dir_by_run,"prof.svg"))
+                println("Model ran successfully for model run $irun. Outputs saved to output.txt")
+                irun += 1
             end
         end
         # return lambda,hice,per_amp,t_halfspace,t_rel,t_tic,sub_dir
