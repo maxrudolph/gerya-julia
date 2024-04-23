@@ -54,7 +54,6 @@ function stefan_initial_condition(theta::Float64,options::Dict)
     Arguments:
         theta - constant
         options - allow the simulation of optional keyword arguments from a dictonary
-    
     Returns:
         T - temperature in units of (Kelvin)
     """
@@ -73,7 +72,6 @@ function compute_T_X_from_S(S::Float64,options::Dict)
     Arguments:
         S - entropy in untis of (J/kg*K)
         options - allow the simulation of optional keyword arguments from a dictonary
-    
     Returns:
         T - temperature in units of (Kelvin)
     """

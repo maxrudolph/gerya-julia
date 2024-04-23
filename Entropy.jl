@@ -89,4 +89,3 @@ function numerical_hydrostatic_pressure(grid::CartesianGrid,rho_vy::Matrix{Float
     end 
     return hydro_press
 end
-
