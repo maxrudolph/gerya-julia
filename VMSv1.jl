@@ -173,8 +173,8 @@ end
 function run(options::Dict,io)
     W = options["wavelength"]
     H = options["ice thickness"] + options["surface depth"] + options["amplitude"] + options["ice thickness"]/2
-    ny = 50
-    nx = Int64(ceil(W/H*ny))
+    ny = 100 #50
+    nx = 111 #Int64(ceil(W/H*ny))
     gx = 0.0
     gy = 0.113
 
@@ -457,7 +457,7 @@ function model_run()
                 println("Using Wavelength: ",options["wavelength"]/1e3,"(km)"," , ","Using Ice Shell Thickness: ",options["ice thickness"]/1e3,"(km)"," , ","Using Amplitde Percentage: $amplitude_percentage%")
                 io = open(sub_dir_by_run*"/output.txt","w")
                 # model_runtime(sub_dir_by_run,"Start")
-                grid,i_mat,mat,time,itime = run(options,io);
+                grid,time,itime,Af = run(options,io);
                 # model_runtime(sub_dir_by_run,"End")
                 t_rel[i,j] = get_numerical_time_viscous(options["amplitude"],Af,time)
                 t_halfspace[i,j] = get_halfspace_time_viscous(options["wavelength"])
