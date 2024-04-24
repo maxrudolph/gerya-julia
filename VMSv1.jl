@@ -308,7 +308,7 @@ function run(options::Dict,io)
         shear_heating = compute_shear_heating(grid,vx,vy,eta_n,eta_s)*0.0
         H = (adiabatic_heating .+ shear_heating .+ Hr).*0.0
 
-        diffusion_timestep = calculate_diffusion_timestep(grid,options)
+        diffusion_timestep = (grid.x[2]-grid.x[1])^2 / 1e-6
         if itime > 1
             this_dtmax = min(1.2*dt,dtmax)
         else
