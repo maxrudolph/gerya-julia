@@ -274,3 +274,51 @@ function ghost_nodes_center_TXS(grid::CartesianGrid,T::Matrix{Float64},X::Matrix
     return Tpad,Xpad,Spad
 end
 #### end ####
+
+#### start ####
+##### Function to compute a subgird diffusion operation with entropy #####
+function subgirdSdiff!(markers::Markers,materials::Materials,grid::CartesianGrid,Slast::Matrix{Float64},dS::Matrix{Float64},dT::Matrix{Float64},dt::Float64,options::Dict)
+
+    """
+    
+    1. 
+    2.
+    3.
+    4.
+    5.
+    
+    """
+    
+    # Defining d a dimensionless numerical diffusion coefficient
+    d = 1.0
+
+    # Creating a matrix for the subgrid entropy changes on the markers
+    dS_subgrid_Sm = Array{Float64,2}(undef,1,markers.nmark)
+    dSm = Array{Float64,2}(undef,1,markers.nmark)
+    dTm = Array{Float64,2}(undef,1,markers.nmark)
+    Cpm = Array{Float64,2}(undef,1,markers.nmark)
+
+    cell_center_to_markers!(markers,grid,dS,dSm)
+    cell_center_to_markers!(markers,grid,dT,dTm)
+    # cell centers -> markers for Slast -> S(nodal)
+    cell_center_to_markers!(markers,grid,Slast,dS_subgrid_Sm)
+    
+    # Obtainig rho, Cp, k, and S on the markers
+    rho = markers.scalarFields["rho"]
+    T = markers.scalarFields["T"]
+    S = markers.scalarFields["S"]
+    kThermal = markers.scalarFields["kThermal"]
+
+    Threads.@threads for i in 1:markers.nmark
+        dx2 = (grid.x[markers.cell[1,i]+1] - grid.x[markers.cell[1,i]])^2
+        dy2 = (grid.y[markers.cell[2,i]+1] - grid.y[markers.cell[2,i]])^2
+        Cpm[i] = markers.scalars[T,i]*(dSm[i]/dTm[i])
+        tdiff = markers.scalars[rho,i]*Cpm[i]/markers.scalars[kThermal,i]/(2/dx2 + 2/dy2)
+        dS_subgrid_Sm[i] = (dS_subgrid_Sm[i]-markers.scalars[S,i])*( 1.0 - exp(-d*dt/tdiff) )
+    end
+    markers.scalars[S,1:markers.nmark] += dS_subgrid_Sm[1,:]
+    dSm, = marker_to_stag(markers,grid,dS_subgrid_Sm,"center")
+    dSm[isnan.(dSm)] .= 0.0
+    return dSm
+end
+#### end ####
