@@ -1,4 +1,4 @@
-#### start #### 
+#### start ####
 ##### Equations for setting up Stefan conidtion #####
 function get_lambda1(options::Dict)
     """
@@ -7,7 +7,7 @@ function get_lambda1(options::Dict)
     """
     L = options["latent heat of fusion"] # J/kg
     c = options["specific heat of ice"] # J/kg*K
-    dT = options["Tm"]-options["To"] # K 
+    dT = options["Tm"]-options["To"] # K
     f!(lambda1) = L*sqrt(pi)/(c*dT)-exp(-lambda1^2)/(lambda1*erf(lambda1))
     initial_guess = 0.1
     lambda1_solution = fzero(f!,initial_guess)
@@ -20,11 +20,11 @@ function get_t(lambda1::Float64,options::Dict)
         lambda1 - constant
         options - allow the simulation of optional keyword arguments from a dictonary
 
-    Returns: 
+    Returns:
         t - time in units of (seconds)
     """
     kappa = options["thermal diffusivity"] # m^2/s
-    ym = options["ym"]^2 # m 
+    ym = options["ym"]^2 # m
     lambda = lambda1^2
     t = ym/(4*lambda*kappa) # seconds
     return t
@@ -34,7 +34,7 @@ function get_y(lambda1::Float64,t::Float64,options::Dict)
     kappa = options["thermal diffusivity"] # m^2/s
     y = 2*lambda1*sqrt(kappa*t)
     return y
-end 
+end
 
 function get_theta(y::Float64,t::Float64,lambda1::Float64)
     """
@@ -76,15 +76,15 @@ function compute_T_X_from_S(S::Float64,options::Dict)
         T - temperature in units of (Kelvin)
     """
     Hfus = options["latent heat of fusion"] # J/kg
-    Tm = options["Tm"] # K 
+    Tm = options["Tm"] # K
     Cv = options["specific heat of ice"] # J/kg*K
-    if S < 0 
+    if S < 0
         T = exp(S/Cv) * Tm
         X = 0.0
     elseif S > (Hfus/Tm)
         T = exp(((S*Tm)-Hfus)/(Cv*Tm)) * Tm
         X = 1.0
-    else 
+    else
         X = (S*Tm)/Hfus
         T = Tm
     end
@@ -101,22 +101,22 @@ function compute_S_from_T_X(X::Float64,T::Float64,options::Dict)
         S - entropy in untis of (J/kg*K)
     """
     Hfus = options["latent heat of fusion"] # J/kg
-    Tm = options["Tm"] # K 
+    Tm = options["Tm"] # K
     Cv = options["specific heat of ice"] # J/kg*K
-    if T < Tm 
+    if T < Tm
         S = Cv*(log(T)-log(Tm))
-    elseif T > Tm 
+    elseif T > Tm
         S = Cv*(log(T)-log(Tm))+(Hfus/Tm)
-    else 
+    else
         S = (Hfus/Tm)*X
     end
     return S
 end
 #### end ####
 
-#### start #### 
+#### start ####
 ##### Numerical equations for conductive heat flux, entropy #####
-function compute_q_cond(grid::CartesianGrid,T::Matrix{Float64},k_vx::Matrix{Float64},k_vy::Matrix{Float64}) 
+function compute_q_cond(grid::CartesianGrid,T::Matrix{Float64},k_vx::Matrix{Float64},k_vy::Matrix{Float64})
     # Note - this function expects T to include ghost values on all sides of the domain.
     q_vx = zeros(grid.ny+1,grid.nx)
     q_vy = zeros(grid.ny,grid.nx+1)
@@ -127,7 +127,7 @@ function compute_q_cond(grid::CartesianGrid,T::Matrix{Float64},k_vx::Matrix{Floa
     end
     for j in 2:grid.nx
         for i in 1:grid.ny
-            q_vy[i,j] = -k_vy[i,j] * ((T[i+1,j]-T[i,j])/(grid.yc[i+1]-grid.yc[i]))            
+            q_vy[i,j] = -k_vy[i,j] * ((T[i+1,j]-T[i,j])/(grid.yc[i+1]-grid.yc[i]))
         end
     end
     return q_vx,q_vy
@@ -137,14 +137,14 @@ function compute_S_new(grid::CartesianGrid,Tlast::Matrix{Float64},rho::Matrix{Fl
     S = zeros(grid.ny+1,grid.nx+1)
     # for j in 2:grid.nx
     #     for i in 2:grid.ny
-    #         S[i,j] = begin (dt/(rho[i,j]*Tlast[i,j])) * (-((qx[i,j]-qx[i,j-1])/(grid.x[j]-grid.x[j-1]) 
+    #         S[i,j] = begin (dt/(rho[i,j]*Tlast[i,j])) * (-((qx[i,j]-qx[i,j-1])/(grid.x[j]-grid.x[j-1])
     #                     + (qy[i,j]-qy[i-1,j])/(grid.y[i]-grid.y[i-1])) + H[i,j]) + S_old[i,j] end
     #     end
     # end
     # return S
     for j in 2:grid.nx
         for i in 2:grid.ny
-            S[i,j] = (dt/( rho[i,j] * Tlast[i,j]) ) * 
+            S[i,j] = (dt/( rho[i,j] * Tlast[i,j]) ) *
                 ( -( (qx[i,j]-qx[i,j-1] )/(grid.x[j]-grid.x[j-1]) +
                 (qy[i,j]-qy[i-1,j])/(grid.y[i]-grid.y[i-1]) ) +
                 H[i,j] ) +
@@ -153,7 +153,7 @@ function compute_S_new(grid::CartesianGrid,Tlast::Matrix{Float64},rho::Matrix{Fl
     end
     return S
 end
-#### end #### 
+#### end ####
 
 #### start ###
 #### Update functions ####
@@ -162,7 +162,7 @@ function update_T_X_from_S(Snew::Matrix{Float64},options::Dict)
     Arguments:
         S - a matrix of entropy in untis of (J/kg*K)
         options - allow the simulation of optional keyword arguments from a dictonary
-    
+
     Returns:
         X - a martix of melt fraction (unitless)
         T - a matrix of temperature in units of (Kelvin)
@@ -190,19 +190,19 @@ end
 ##### Function to compute the ghost nodes #####
 function ghost_nodes_center_TXS(grid::CartesianGrid,T::Matrix{Float64},X::Matrix{Float64},S::Matrix{Float64},bctype,bcval,options::Dict)
     # along the left, right, top, and bottom (in that order)
-    # -1 = insulating, 1 = constant temp    
+    # -1 = insulating, 1 = constant temp
     # Extracting the boundary condition types for the left, right, top, and bottom
-    bcleft  = bctype[1] 
+    bcleft  = bctype[1]
     bcright = bctype[2]
     bctop   = bctype[3]
     bcbottom  = bctype[4]
 
     # Creating a matrix then copying the values from the original matrix into the interior of new matrix
-    Tpad = Array{Float64,2}(undef,grid.ny+1,grid.nx+1)   
+    Tpad = Array{Float64,2}(undef,grid.ny+1,grid.nx+1)
     Tpad[1:grid.ny,1:grid.nx] = T[1:grid.ny,1:grid.nx]
-    Xpad = Array{Float64,2}(undef,grid.ny+1,grid.nx+1)   
+    Xpad = Array{Float64,2}(undef,grid.ny+1,grid.nx+1)
     Xpad[1:grid.ny,1:grid.nx] = X[1:grid.ny,1:grid.nx]
-    Spad = Array{Float64,2}(undef,grid.ny+1,grid.nx+1)   
+    Spad = Array{Float64,2}(undef,grid.ny+1,grid.nx+1)
     Spad[1:grid.ny,1:grid.nx] = S[1:grid.ny,1:grid.nx]
 
     # println("Before Tpad Matrix")
@@ -220,7 +220,7 @@ function ghost_nodes_center_TXS(grid::CartesianGrid,T::Matrix{Float64},X::Matrix
         Sbt = compute_S_from_T_X(Xpad[1,2:grid.nx][1],bcval[3],options)
         Spad[1,2:grid.nx] = (2.0*Sbt) .- Spad[2,2:grid.nx]
     elseif bctop == -1
-	    # Tpad[1,2:grid.nx] = Tpad[2,2:grid.nx] .- ((grid.yc[2]-grid.yc[1]) * bcval[3])
+      # Tpad[1,2:grid.nx] = Tpad[2,2:grid.nx] .- ((grid.yc[2]-grid.yc[1]) * bcval[3])
         # Xpad[1,2:grid.nx] .= 0.0
         # Sb = compute_S_from_T_X.(Xpad[1,2:grid.nx],Tpad[1,2:grid.nx],Ref(options))
         # Spad[1,2:grid.nx] = 2.0*Sb .- Spad[2,2:grid.nx]
@@ -236,7 +236,7 @@ function ghost_nodes_center_TXS(grid::CartesianGrid,T::Matrix{Float64},X::Matrix
     elseif bcbottom == -1
         # Tpad[grid.ny+1,2:grid.nx] = Tpad[grid.ny,2:grid.nx] .+ ((grid.yc[grid.ny+1]-grid.yc[grid.ny]) * bcval[4])
         # Xpad[grid.ny+1,2:grid.nx] = 2.0*1.0 .- Xpad[grid
-        # Spad[grid.ny+1,2:grid.nx] = compute_S_from_T_X.(Xpad[grid.ny+1,2:grid.nx],bcval[4],Ref(options))   
+        # Spad[grid.ny+1,2:grid.nx] = compute_S_from_T_X.(Xpad[grid.ny+1,2:grid.nx],bcval[4],Ref(options))
     end
 
     # Applying the boundary condition along left of the domain
@@ -262,7 +262,7 @@ function ghost_nodes_center_TXS(grid::CartesianGrid,T::Matrix{Float64},X::Matrix
         Tpad[:,grid.nx+1] = 2.0*bcval[2] .- Tpad[:,grid.nx]
         Xpad[:,grid.nx+1] = Xpad[:,grid.nx]
         Spad[:,grid.nx+1] = Spad[:,grid.nx]
-    end    
+    end
 
     # println("After Tpad Matrix")
     # display(Tpad)
@@ -270,7 +270,7 @@ function ghost_nodes_center_TXS(grid::CartesianGrid,T::Matrix{Float64},X::Matrix
     # display(Spad)
     # println("After Xpad Matrix")
     # display(Xpad)
-    
+
     return Tpad,Xpad,Spad
 end
 #### end ####
@@ -280,18 +280,18 @@ end
 function subgirdSdiff!(grid::CartesianGrid,markers::Markers,Slast::Matrix{Float64},dt::Float64,options::Dict)
     """
     Arguments:
-        Slast - 
-        dt - 
+        Slast -
+        dt -
         options - allow the simulation of optional keyword arguments from a dictonary
-    
+
     Returns:
-        dSm - 
+        dSm -
     """
 
     Hfus = options["latent heat of fusion"] # J/kg
-    Tm = options["Tm"] # K 
+    Tm = options["Tm"] # K
     Cv = options["specific heat of ice"] # J/kg*K
-    
+
     # Defining d a dimensionless numerical diffusion coefficient
     d = 1.0
 
@@ -300,7 +300,7 @@ function subgirdSdiff!(grid::CartesianGrid,markers::Markers,Slast::Matrix{Float6
 
     # cell centers -> markers for Slast -> S(nodal)
     cell_center_to_markers!(markers,grid,Slast,dS_subgrid_Sm)
-    
+
     # Obtainig rho, Cp, k, and S on the markers
     rho = markers.scalarFields["rho"]
     T = markers.scalarFields["T"]
@@ -310,17 +310,16 @@ function subgirdSdiff!(grid::CartesianGrid,markers::Markers,Slast::Matrix{Float6
 
     dS = nothing
     dT = nothing
-    Cpm = nothing
     Threads.@threads for i in 1:markers.nmark
         dx2 = (grid.x[markers.cell[1,i]+1] - grid.x[markers.cell[1,i]])^2
         dy2 = (grid.y[markers.cell[2,i]+1] - grid.y[markers.cell[2,i]])^2
-        if i == 1 
-            if  markers.scalars[T,i] < Tm || markers.scalars[T,i] > Tm 
+        if i == 1
+            if  markers.scalars[T,i] < Tm || markers.scalars[T,i] > Tm
                 Cpm = Cv/markers.scalars[T,i]
-            else 
+            else
                 Cpm = (Hfus/Tm)*markers.scalars[X,i]
             end
-        else 
+        elseif i != 1
             Cpm = markers.scalars[T,i]*(dS/dT)
         end
         tdiff = markers.scalars[rho,i]*Cpm/markers.scalars[kThermal,i]/(2/dx2 + 2/dy2)
