@@ -142,11 +142,13 @@ end
 #
 #
 
-function marker_to_stag(m::Markers,grid::CartesianGrid,markerfields::Array,node_type::String;method="arithmetic")
+function marker_to_stag(m::Markers,grid::CartesianGrid,markerfields::Array,node_type::String;method="arithmetic",extra_weight=nothing)
     # Move the information stored in markerfields (an array) to the staggered grid.
     # markerfields should be [nfields]x[nmark] where nfields is the number of fields to be transferred.
     # node type can be "basic","vx", "vy", or "center"
     # method can be arithmetic, harmonic, or logarithmic
+    # extra_weight is an additional array that contains weights for each marker. This can be used when interpolating temperatures using the heat conservative form
+    #       described in Gerya 2nd edition equation 10.12.
     stagx::Int64 = 0
     stagy::Int64 = 0
     if node_type == "basic"
@@ -165,10 +167,10 @@ function marker_to_stag(m::Markers,grid::CartesianGrid,markerfields::Array,node_
         error("node type unknown")
     end
     
-    return marker_to_stag(m,grid,markerfields,stagx,stagy,method=method)
+    return marker_to_stag(m,grid,markerfields,stagx,stagy,method=method,extra_weight=extra_weight)
 end
 
-function marker_to_stag(m::Markers,grid::CartesianGrid,fieldnames::Vector{String},node_type::String;method="arithmetic")
+function marker_to_stag(m::Markers,grid::CartesianGrid,fieldnames::Vector{String},node_type::String;method="arithmetic",extra_weight=nothing)
     # move a list of fields (given as a list of strings in fieldnames) from markers to staggered grid
     # node type can be "basic","vx", "vy", or "center"
     stagx::Int64 = 0 
@@ -193,10 +195,10 @@ function marker_to_stag(m::Markers,grid::CartesianGrid,fieldnames::Vector{String
     nfields = length(fieldnames)
     # markerfields will be indices into the 'scalars' array
     markerfields = [m.scalarFields[tmp] for tmp in fieldnames]
-    return marker_to_stag(m,grid,m.scalars[markerfields,:],stagx,stagy,method=method)
+    return marker_to_stag(m,grid,m.scalars[markerfields,:],stagx,stagy,method=method,extra_weight=extra_weight)
 end
 
-function marker_to_stag(m::Markers,grid::CartesianGrid,markerfield::Array,stagx::Int64,stagy::Int64;method="arithmetic")
+function marker_to_stag(m::Markers,grid::CartesianGrid,markerfield::Array,stagx::Int64,stagy::Int64;method="arithmetic",extra_weight=nothing)
     # markerfields will be indices into the 'scalars' array
     # If stagx and stagy are zero, this function performs the same task as markers to basic nodes
     # if stagx=-1 and stagy=-1, this function performs interpolation to cell centers.
@@ -227,6 +229,9 @@ function marker_to_stag(m::Markers,grid::CartesianGrid,markerfield::Array,stagx:
     if stagy == -1 # if the grid is staggered in the y direction, pad out by one cell to include ghost nodes outside below
         NY += 1
     end
+    if isnothing(extra_weight)#weight all of the markers equally during interpolation
+        extra_weight = ones(Float64,(1,size(markerfield,2)))
+    end
     
     weights = zeros(Float64,NY,NX)
     field = zeros(Float64,NY,NX,nfield)
@@ -252,13 +257,13 @@ function marker_to_stag(m::Markers,grid::CartesianGrid,markerfield::Array,stagx:
             wy = (m.x[2,i] - grid.y[celly])/(grid.y[celly+1]-grid.y[celly])
          end
          #i,j
-         wt_i_j = (1.0-wx)*(1.0-wy)
+         wt_i_j = (1.0-wx)*(1.0-wy)*extra_weight[i]
          #i+1,j        
-         wt_i1_j = (1.0-wx)*(wy)
+         wt_i1_j = (1.0-wx)*(wy)*extra_weight[i]
          #i,j+1
-         wt_i_j1 = (wx)*(1.0-wy)
+         wt_i_j1 = (wx)*(1.0-wy)*extra_weight[i]
          #i+1,j+1
-         wt_i1_j1 = (wx)*(wy)
+         wt_i1_j1 = (wx)*(wy)*extra_weight[i]
         
          for k in 1:nfield
              field[celly,cellx,k] += wt_i_j*forward(markerfield[k,i])
