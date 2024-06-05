@@ -220,7 +220,7 @@ function ghost_nodes_center_TXS(grid::CartesianGrid,T::Matrix{Float64},X::Matrix
         Sbt = compute_S_from_T_X(Xpad[1,2:grid.nx][1],bcval[3],options)
         Spad[1,2:grid.nx] = (2.0*Sbt) .- Spad[2,2:grid.nx]
     elseif bctop == -1
-      # Tpad[1,2:grid.nx] = Tpad[2,2:grid.nx] .- ((grid.yc[2]-grid.yc[1]) * bcval[3])
+        # Tpad[1,2:grid.nx] = Tpad[2,2:grid.nx] .- ((grid.yc[2]-grid.yc[1]) * bcval[3])
         # Xpad[1,2:grid.nx] .= 0.0
         # Sb = compute_S_from_T_X.(Xpad[1,2:grid.nx],Tpad[1,2:grid.nx],Ref(options))
         # Spad[1,2:grid.nx] = 2.0*Sb .- Spad[2,2:grid.nx]
@@ -293,7 +293,7 @@ function subgirdSdiff!(grid::CartesianGrid,markers::Markers,Slast::Matrix{Float6
     Cv = options["specific heat of ice"] # J/kg*K
 
     # Defining d a dimensionless numerical diffusion coefficient
-    d = 0.0
+    d = 1.0
 
     # Creating a matrix for the subgrid entropy changes on the markers
     dS_subgrid_Sm = Array{Float64,2}(undef,1,markers.nmark)
