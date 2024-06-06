@@ -65,6 +65,8 @@ function stefan_initial_condition(theta::Float64,options::Dict)
 end
 #### end ####
 
+
+
 #### start ####
 ##### Equations for T,X = fcn(S) and S = fcn(T,X) #####
 function compute_T_X_from_S(S::Float64,options::Dict)
@@ -153,6 +155,10 @@ function compute_S_new(grid::CartesianGrid,Tlast::Matrix{Float64},rho::Matrix{Fl
     end
     return S
 end
+
+function compute_entropy_residual(grid::CartesianGrid,T::Matrix{Float64},rho::Matrix{Float64},H::Matrix{Float64},qx::Matrix{Float64},qy::Matrix{Float64},S_old::Matrix{Float64},S_new::Matrix{Float64},dt::Float64)
+    return S_new .- compute_S_new(grid,T,rho,H,qx,qy,S_old,dt)
+end
 #### end ####
 
 #### start ###
@@ -183,7 +189,7 @@ function calculate_diffusion_timestep(grid::CartesianGrid,options::Dict)
     dy = grid.y[2]-grid.y[1]
     diffusion_timestep_x = dx^2 / options["thermal diffusivity"]
     diffusion_timestep_y = dy^2 / options["thermal diffusivity"]
-    return min(diffusion_timestep_x, diffusion_timestep_y) / 10
+    return min(diffusion_timestep_x, diffusion_timestep_y) / 6
 end
 
 #### start ####
