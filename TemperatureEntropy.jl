@@ -133,7 +133,7 @@ function compute_q_cond(grid::CartesianGrid,T::Matrix{Float64},k_vx::Matrix{Floa
     return q_vx,q_vy
 end
 
-function compute_S_new(grid::CartesianGrid,Tlast::Matrix{Float64},rho::Matrix{Float64},H::Matrix{Float64},qx::Matrix{Float64},qy::Matrix{Float64},S_old::Matrix{Float64},dt::Float64)
+function compute_S_new(grid::CartesianGrid,T::Matrix{Float64},rho::Matrix{Float64},H::Matrix{Float64},qx::Matrix{Float64},qy::Matrix{Float64},S_old::Matrix{Float64},dt::Float64)
     S = zeros(grid.ny+1,grid.nx+1)
     # for j in 2:grid.nx
     #     for i in 2:grid.ny
@@ -144,7 +144,7 @@ function compute_S_new(grid::CartesianGrid,Tlast::Matrix{Float64},rho::Matrix{Fl
     # return S
     for j in 2:grid.nx
         for i in 2:grid.ny
-            S[i,j] = (dt/( rho[i,j] * Tlast[i,j]) ) *
+            S[i,j] = (dt/( rho[i,j] * T[i,j]) ) *
                 ( -( (qx[i,j]-qx[i,j-1] )/(grid.x[j]-grid.x[j-1]) +
                 (qy[i,j]-qy[i-1,j])/(grid.y[i]-grid.y[i-1]) ) +
                 H[i,j] ) +
@@ -153,6 +153,12 @@ function compute_S_new(grid::CartesianGrid,Tlast::Matrix{Float64},rho::Matrix{Fl
     end
     return S
 end
+
+function compute_entropy_residual(grid::CartesianGrid,T::Matrix{Float64},rho::Matrix{Float64},H::Matrix{Float64},qx::Matrix{Float64},qy::Matrix{Float64},S_old::Matrix{Float64},S_new::Matrix{Float64},dt::Float64)
+    return S_new .- compute_S_new(grid,T,rho,H,qx,qy,S_old,dt)
+end
+
+
 #### end ####
 
 #### start ###
