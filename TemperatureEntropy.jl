@@ -63,9 +63,43 @@ function stefan_initial_condition(theta::Float64,options::Dict)
     T = (theta*dT)+To
     return T
 end
+
+function compute_stefan_temp_solution(grid::CartesianGrid,Numerical_T::Matrix{Float64},X_contour::Vector{Any},time::Vector{Any},itime::Int64)
+    # Setting up Stefan conidtion
+    lambda1 = get_lambda1(options)
+    t = get_t(lambda1,options)
+    y = get_y.(lambda1,time_plot.+t,Ref(options))
+
+    stefan_T = zeros(grid.ny,grid.nx)
+    for k in 1:itime-1
+        for j in 1:grid.nx
+            for i in 1:grid.ny
+                theta = get_theta(grid.yc[i],time[k]+t,lambda1)
+                stefan_T[i,j] = stefan_initial_condition(theta,options)
+            end
+        end
+    end
+    
+    figure()
+    title("Comparison of Temperature")
+    plot(grid.yc[1:end-1]/1e3,stefan_T[:,1],"b-",label="Stefan Temperature")
+    plot(grid.yc[1:end-1]/1e3,Numerical_T[1:end-1,1],"r--",label="Numerical Temperature")
+    gca().set_xlabel("Depth(km)")
+    gca().set_ylabel("Temperature(K)")
+    legend()
+    show()
+
+    figure()
+    title("Comparison of Thickness Over Time")
+    plot(time_plot/3.15e7/1e6,y/1e3,"b-",label="Stefan Solution")
+    plot(time_plot/3.15e7/1e6,X_contour/1e3,"r--",label="Numerical Solution")
+    gca().set_ylabel(L"Ice\,Thickness\,(km)")
+    gca().set_xlabel(L"Time\,(Myr)")
+    legend()
+    # legend(loc="upper center",bbox_to_anchor=(0.5,-0.15),ncol=5)
+    show()
+end
 #### end ####
-
-
 
 #### start ####
 ##### Equations for T,X = fcn(S) and S = fcn(T,X) #####
@@ -283,7 +317,7 @@ end
 
 #### start ####
 ##### Function to compute a subgird diffusion operation with entropy #####
-function subgirdSdiff!(grid::CartesianGrid,markers::Markers,Slast::Matrix{Float64},dt::Float64,options::Dict)
+function subgirdSdiff!(grid::CartesianGrid,markers::Markers,Slast::Matrix{Float64},dt::Float64,diff_coeff::Float64,options::Dict)
     """
     Arguments:
         Slast -
@@ -299,7 +333,7 @@ function subgirdSdiff!(grid::CartesianGrid,markers::Markers,Slast::Matrix{Float6
     Cv = options["specific heat of ice"] # J/kg*K
 
     # Defining d a dimensionless numerical diffusion coefficient
-    d = 1.0
+    d = diff_coeff
 
     # Creating a matrix for the subgrid entropy changes on the markers
     dS_subgrid_Sm = Array{Float64,2}(undef,1,markers.nmark)
