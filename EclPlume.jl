@@ -19,7 +19,7 @@ options["W"] = 2.850e6
 options["H"] = 2.850e6
 options["g"] = 10.0
 
-options["Tcmb"] = 2305.445 + 1200.
+options["Tcmb"] = 2590.33 + 1200.
 options["lithosphere thickness"] = h
 options["plume radius"] = r
 
@@ -445,6 +445,7 @@ function plume_model(options::Dict;max_step::Int64=-1,max_time::Float64=-1.0)
     depth = LinRange(0,H,ny)
     T_adiabat=zeros(Float64,ny,nx)
     rho_ecl = zeros(Float64,ny,nx)
+    rho_ref = zeros(Float64,ny,nx)
     #print(type(depth[1]))
     for i in 1:ny
         d::Float64 = depth[i]
@@ -452,6 +453,8 @@ function plume_model(options::Dict;max_step::Int64=-1,max_time::Float64=-1.0)
         T_adiabat[i,:] .= a
         b = ecl_diff(d)
         rho_ecl[i,:] .= b
+        c = prem_profile(d)
+        rho_ref[i,:] .= c
     end
     
     local terminate = false
@@ -607,8 +610,8 @@ function plume_model(options::Dict;max_step::Int64=-1,max_time::Float64=-1.0)
             delta_T = Tn .- T_adiabat
             frac_n, = marker_to_stag(markers,grid,["frac",],"basic",method=visc_method);
             alpha_n, = marker_to_stag(markers,grid,["alpha",],"basic",method=visc_method);
-            delta_rho = frac_n .* rho_ecl .- alpha_n .* delta_T 
-            output_fields = Dict("rho"=>rho_c,"eta"=>eta_s,"velocity"=>vn,"pressure"=>P[2:end-1,2:end-1],"T"=>Tn,"dT"=>delta_T,"frac"=>frac_n,"drho"=>delta_rho,"dXdt"=>dXdt[2:end-1,2:end-1])
+            delta_rho = frac_n .* rho_ecl .- alpha_n .* delta_T .* rho_ref
+            output_fields = Dict("rho"=>rho_c[2:end-1,2:end-1],"eta"=>eta_s,"velocity"=>vn,"pressure"=>P[2:end-1,2:end-1],"T"=>Tn,"dT"=>delta_T,"frac"=>frac_n,"drho"=>delta_rho,"dXdt"=>dXdt[2:end-1,2:end-1])
             @time visualization(grid,output_fields,time/seconds_in_year;filename=name)
             # Markers output:
             name1 = @sprintf("%s/markers.%04d.vtp",output_dir,iout)
