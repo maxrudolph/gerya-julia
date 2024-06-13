@@ -370,7 +370,7 @@ function subgirdSdiff!(grid::CartesianGrid,markers::Markers,Slast::Matrix{Float6
                 end
             end
             tdiff = markers.scalars[rho,i]*Cpm/markers.scalars[kThermal,i]/(2/dx2 + 2/dy2)
-            dS_subgrid_Sm[i] = (dS_subgrid_Sm[i]-markers.scalars[S,i])*( 1.0 - exp(-d*dt/tdiff) )
+            dS_subgrid_Sm[i] = (dS_subgrid_Sm[i]-markers.scalars[S,i])*(1.0-exp(-d*dt/tdiff))
             Si = markers.scalars[S,i] + dS_subgrid_Sm[i] # new guess of marker entropy
             Ti,Xi = compute_T_X_from_S(Si,options) # temperature consistent with new marker entropy
             dS[i] = Si - markers.scalars[S,i] # change in marker entropy
