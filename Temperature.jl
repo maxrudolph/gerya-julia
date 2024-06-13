@@ -1,5 +1,5 @@
 # Define a function to form the energy equation left hand side and right hand side
-function assemble_energy_equation_center(grid::CartesianGrid,rho_c::Matrix{Float64},Cp_c::Matrix{Float64},kThermal::Matrix{Float64},H::Matrix{Float64},Tlast::Matrix{Float64},dt::Float64,bcval)
+function assemble_energy_equation_center(grid::CartesianGrid,rho_c::Matrix{Float64},Cp_c::Matrix{Float64},kThermal::Matrix{Float64},H::Matrix{Float64},Tlast::Matrix{Float64},dt::Float64,bctype,bcval)
     # Assemble the left hand side for the energy equation
     # Inputs:
     # grid - this is the CartesianGrid
@@ -9,14 +9,15 @@ function assemble_energy_equation_center(grid::CartesianGrid,rho_c::Matrix{Float
     # H - volumetric rate of internal heating at the cell centers
     # Tlast - the previous-timestep temperature.
     # dt - the time step
-    # bcval - a vector containing the temperature or dT/dn values at the [left, right, top, bottom]
+    # bctype - a vector containing a flag (-1=prescribed gradient, +1=prescribed value) for [left,right,top,bottom]
+    # bcval - a vector containing the temperature or normal gradient values at the [left, right, top, bottom]
     # Returns:
     # L,R, the left hand side and right hand side of the energy equation
     
-    bcleft  = -1   # -1 = insulating, 1 = constant temp
-    bcright = -1   #
-    bctop   =  1
-    bcbottom  = 1
+    bcleft  = bctype[1]   # -1 = insulating, 1 = constant temp
+    bcright = bctype[2]   #
+    bctop   = bctype[3]
+    bcbottom  = bctype[4]
     # bcval should contain temperature or dT/dx values for left,right,top,bottom
     
     N = grid.nx*grid.ny
@@ -151,6 +152,7 @@ function ghost_temperature_center(grid::CartesianGrid,T::Matrix{Float64},bctype,
     if bcleft == -1
        Tpad[:,1] = Tpad[:,2] # insulating
     elseif bcleft == 1
+        println("assigning left boundary temperature ",bcval[1])
        Tpad[:,1] = 2.0*bcval[1] .- Tpad[:,2]
     end
 
@@ -179,7 +181,7 @@ function temperature_to_basic_nodes(grid::CartesianGrid,Tc::Matrix{Float64})
     return Tn
 end
 
-function subgrid_temperature_relaxation_center!(markers::Markers,grid::CartesianGrid,Tlast::Matrix,Cp,kThermal,dt::Float64)
+function subgrid_temperature_relaxation_center!(markers::Markers,grid::CartesianGrid,Tlast::Matrix,dt::Float64;diffusivity::Float64=1.0)
     # Perform the sub-grid scale temperature diffusion operation
     # Inputs:
     # markers - the markers
@@ -191,25 +193,30 @@ function subgrid_temperature_relaxation_center!(markers::Markers,grid::Cartesian
     # Returns:
     # a matrix whose values are the change in temperature at the cell centers
 
-    dsubgrid = 1.0; # subgrid temperature diffusivity
+    dsubgrid = diffusivity; # subgrid temperature diffusivity
     dT_subgrid_m = Array{Float64,2}(undef,1,markers.nmark)
     # compuate the nodal temperature on the markers.    
     cell_center_to_markers!(markers,grid,Tlast,dT_subgrid_m)
 
     # compute the subgrid temperature changes on the markers
     rho = markers.scalarFields["rho"]
+    Cp = markers.scalarFields["Cp"]
     T = markers.scalarFields["T"]
+    kThermal = markers.scalarFields["kThermal"]
     Threads.@threads for i in 1:markers.nmark
         dx2 = (grid.x[markers.cell[1,i]+1] - grid.x[markers.cell[1,i]])^2
         dy2 = (grid.y[markers.cell[2,i]+1] - grid.y[markers.cell[2,i]])^2
-        tdiff = markers.scalars[rho,i]*Cp/kThermal / (2/dx2 + 2/dy2)
+        tdiff = markers.scalars[rho,i]*markers.scalars[Cp,i]/markers.scalars[kThermal,i] / (2/dx2 + 2/dy2)
         dT_subgrid_m[i] = (dT_subgrid_m[i]-markers.scalars[T,i])*( 1.0 - exp(-dsubgrid*dt/tdiff) )
     end
     # interpolate subgrid temperature changes back onto basic nodes.
     markers.scalars[T,1:markers.nmark] += dT_subgrid_m[1,:]
     # zero out nodal values for any cells without markers (nan values)
     # dTm, = marker_to_cell_center(markers,grid,dT_subgrid_m)
-    dTm, = marker_to_stag(markers,grid,dT_subgrid_m,"center")
+    # use a special weighted version of marker to stag:
+    
+    rhocp = markers.scalars[rho,:] .* markers.scalars[Cp,:]    
+    dTm, = marker_to_stag(markers,grid,dT_subgrid_m,"center",extra_weight=rhocp)
     dTm[isnan.(dTm)] .= 0.0
     return dTm
 end
