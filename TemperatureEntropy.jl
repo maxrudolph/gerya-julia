@@ -283,7 +283,7 @@ end
 
 #### start ####
 ##### Function to compute a subgird diffusion operation with entropy #####
-function subgirdSdiff!(grid::CartesianGrid,markers::Markers,Slast::Matrix{Float64},dt::Float64,options::Dict)
+function subgirdSdiff!(grid::CartesianGrid,markers::Markers,Slast::Matrix{Float64},dt::Float64,options::Dict;diffusivity::Float64=1.0)
     """
     Arguments:
         Slast -
@@ -299,7 +299,7 @@ function subgirdSdiff!(grid::CartesianGrid,markers::Markers,Slast::Matrix{Float6
     Cv = options["specific heat of ice"] # J/kg*K
 
     # Defining d a dimensionless numerical diffusion coefficient
-    d = 1.0
+    d = diffusivity
 
     # Creating a matrix for the subgrid entropy changes on the markers
     dS_subgrid_Sm = Array{Float64,2}(undef,1,markers.nmark)
