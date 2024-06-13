@@ -633,5 +633,5 @@ function plume_model(options::Dict;max_step::Int64=-1,max_time::Float64=-1.0)
      return grid,markers,vx,vy,vxc,vyc,rho_c,dTemp,Tnew,Tlast,time
  end
 
-@time grid,markers,vx,vy,vxc,vyc,rho_c,dTemp,Tnew,Tlast,time = plume_model(options,max_step=options["max step"]);
+@time grid,markers,vx,vy,vxc,vyc,rho_c,dTemp,Tnew,Tlast,time = plume_model(options,max_time=options["max time"]);
 #@time grid,markers,vx,vy,vxc,vyc,rho_c,dTemp,Tnew,Tlast,time = plume_model(options,max_step=1)
