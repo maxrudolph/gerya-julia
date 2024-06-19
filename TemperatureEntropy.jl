@@ -316,30 +316,20 @@ end
 #### end ####
 
 #### start ####
-##### Function to compute a subgird diffusion operation with entropy #####
-function subgirdSdiff!(grid::CartesianGrid,markers::Markers,Slast::Matrix{Float64},dt::Float64,diff_coeff::Float64,options::Dict)
-    """
-    Arguments:
-        Slast -
-        dt -
-        options - allow the simulation of optional keyword arguments from a dictonary
-
-    Returns:
-        dSm -
-    """
-
+##### Function to compute a subgird diffusion operation with entropy #####  
+function subgirdSdiff!(grid::CartesianGrid,markers::Markers,Slast::Matrix{Float64},dt::Float64,options::Dict;diff_coeff::Float64=1.0)
     Hfus = options["latent heat of fusion"] # J/kg
     Tm = options["Tm"] # K
     Cv = options["specific heat of ice"] # J/kg*K
 
-    # Defining d a dimensionless numerical diffusion coefficient
+     # Defining d a dimensionless numerical diffusion coefficient
     d = diff_coeff
 
     # Creating a matrix for the subgrid entropy changes on the markers
     dS_subgrid_Sm = Array{Float64,2}(undef,1,markers.nmark)
-
+    Sm_nodal = Array{Float64,2}(undef,1,markers.nmark)
     # cell centers -> markers for Slast -> S(nodal)
-    cell_center_to_markers!(markers,grid,Slast,dS_subgrid_Sm)
+    cell_center_to_markers!(markers,grid,Slast,Sm_nodal)
 
     # Obtainig rho, Cp, k, and S on the markers
     rho = markers.scalarFields["rho"]
@@ -347,38 +337,38 @@ function subgirdSdiff!(grid::CartesianGrid,markers::Markers,Slast::Matrix{Float6
     S = markers.scalarFields["S"]
     kThermal = markers.scalarFields["kThermal"]
     X = markers.scalarFields["X"]
-
-    dS = zeros(1,markers.nmark)
-    dT = zeros(1,markers.nmark)
-    for iter in 1:5
-        Threads.@threads for i in 1:markers.nmark
-            dx2 = (grid.x[markers.cell[1,i]+1] - grid.x[markers.cell[1,i]])^2
-            dy2 = (grid.y[markers.cell[2,i]+1] - grid.y[markers.cell[2,i]])^2
-            if iter == 1
-                # inital iteration
-                if  markers.scalars[T,i] < Tm || markers.scalars[T,i] > Tm
-                    Cpm = Cv
-                else
-                    Cpm = Cv
-                end
-            else
-                # after first iteration
-                if dT[i] == 0 
-                    Cpm = Cv
-                else
-                    Cpm = markers.scalars[T,i]*(dS[i]/dT[i])
-                end
-            end
-            tdiff = markers.scalars[rho,i]*Cpm/markers.scalars[kThermal,i]/(2/dx2 + 2/dy2)
-            dS_subgrid_Sm[i] = (dS_subgrid_Sm[i]-markers.scalars[S,i])*(1.0-exp(-d*dt/tdiff))
+   
+    Threads.@threads for i in 1:markers.nmark
+        dx2 = (grid.x[markers.cell[1,i]+1] - grid.x[markers.cell[1,i]])^2
+        dy2 = (grid.y[markers.cell[2,i]+1] - grid.y[markers.cell[2,i]])^2
+        dS::Float64=0.0
+        dT::Float64=0.0
+        dX::Float64=0.0        
+        for iter in 1:3
+             if iter == 1
+                 # initial iteration
+                 Cpm = Cv
+             else
+                 # after first iteration
+                 if dT == 0 || dX == 0# if there is no change in melt fraction, use Cv
+                     Cpm = Cv
+                 else
+                     Cpm = markers.scalars[T,i]*(dS/dT)
+                 end
+             end
+            tdiff = markers.scalars[rho,i]*Cpm/markers.scalars[kThermal,i]/(2/dx2 + 2/dy2)                        
+            dS_subgrid_Sm[i] = (Sm_nodal[i] - markers.scalars[S,i])*( 1.0 - exp(-d*dt/tdiff) )
             Si = markers.scalars[S,i] + dS_subgrid_Sm[i] # new guess of marker entropy
             Ti,Xi = compute_T_X_from_S(Si,options) # temperature consistent with new marker entropy
-            dS[i] = Si - markers.scalars[S,i] # change in marker entropy
-            dT[i] = Ti - markers.scalars[T,i] # change in marker temperature
+            dS = Si - markers.scalars[S,i] # change in marker entropy
+            dT = Ti - markers.scalars[T,i] # change in marker temperature
+            dX = Xi - markers.scalars[X,i]           
         end
     end
+    # update the marker entropy
     markers.scalars[S,1:markers.nmark] += dS_subgrid_Sm[1,:]
-    dSm, = marker_to_stag(markers,grid,dS_subgrid_Sm,"center")
+    rhoT = markers.scalars[markers.scalarFields["rho"],:] .* markers.scalars[markers.scalarFields["T"],:]
+    dSm, = marker_to_stag(markers,grid,dS_subgrid_Sm,"center",extra_weight=rhoT)
     dSm[isnan.(dSm)] .= 0.0
     return dSm
 end
