@@ -92,8 +92,6 @@ function data_table_info(ice_start::Float64,ice_stop::Float64,ice_length::Int64,
                         print(amplitude_percentage)
                         print("\n")
                         irun_mat[i,j] = irun
-                        # Add the data to the DataFrame
-                        push!(df, (irun, hice[j], lambda[i], amplitude_percentage))
                         irun += 1
                     # end
                 end
