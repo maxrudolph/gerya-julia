@@ -124,7 +124,7 @@ end
 
 ### Model Setup ###
 ## starts here ##
-function model_setup(options::Dict,io)
+function model_setup(options::Dict,plot_dir::String,io)
     W = options["wavelength"]
     H = options["ice thickness"] + options["amplitude"] + options["ice thickness"]/2
     nx = options["nx"]
@@ -206,6 +206,10 @@ function model_setup(options::Dict,io)
     cell_center_to_markers!(markers,grid,Slast,"S")
     # Updating Temperature and Melt fraction on the markers
     update_marker_T_X!(markers,options)
+    
+    ### Initial Plots ###
+    get_plots(grid,Slast,Tlast,Xlast,"initial",plot_dir)
+    get_plots_new(grid,Slast,Tlast,Xlast,"initial",plot_dir)
 
     itime = 1
     output_dir = options["visualization file path"]*"/Data"
@@ -371,6 +375,9 @@ function model_setup(options::Dict,io)
         # Checking Termination Criteria, time is in Myr, amplitude is in meters
         if time >= max_time || itime >= max_step || Af/Ai <= 1/exp(1)
             terminate = true
+	    ### Final Plots ### 
+            get_plots(grid,Snew,Tnew,Xnew,"final",plot_dir)
+            get_plots_new(grid,Snew,Tnew,Xnew,"final",plot_dir)
         end
 
         if time == 0.0 || mod(itime,100) == 0 || terminate
