@@ -51,6 +51,7 @@ include("Visualization.jl")
 include("Topo.jl")
 include("Outputs.jl")
 include("TemperatureEntropy.jl")
+include("ModelPlots.jl")
 
 ### Setting Up the Initial Conditions ###
 include("InitialConditions.jl")
