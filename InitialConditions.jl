@@ -6,8 +6,9 @@ struct Materials
     Hr::Vector{Float64} # Radiogenic heat production (W/m^3)
     Cp::Vector{Float64} # Heat capacity (J/kg*K)
     kThermal::Vector{Float64} # Thermal conductivity (W/m*K)
+    eta0::Vector{Float64} # Viscosity (Pa*s)
     function Materials()
-        new([0.0],[1e3],[0.0],[2.1e3],[2.2])
+        new([0.0],[1e3],[0.0],[2.1e3],[2.2],[1e15])
     end    
 end
 

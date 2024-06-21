@@ -23,8 +23,8 @@ options["density of ice"] = 1e3 # kg/m^3
 options["thermal conductivity of ice"] = 2.2 # W/m*K
 options["thermal diffusivity"] = options["thermal conductivity of ice"] / (options["density of ice"]*options["specific heat of ice"]) # m^2/s
 options["Tm"] = 273.0 # K
-options["nx"] = 101 
-options["ny"] = 300
+options["nx"] = 51 
+options["ny"] = 60
 options["markx"] = 6
 options["marky"] = 6
 
