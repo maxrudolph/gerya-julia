@@ -70,8 +70,6 @@ function data_table_info(ice_start::Float64,ice_stop::Float64,ice_length::Int64,
     hice =  range(ice_start,ice_stop,ice_length)  
     irun_mat = zeros(wavelength_length,ice_length)
     irun = 1
-    # Create a DataFrame to store the model run data
-    df = DataFrame(ModelRun=Int[], IceThickness=Float64[], Wavelength=Float64[], AmplitudePercentage=Float64[])
     open(sub_dir*"/DataInfo.txt","w") do out
         redirect_stdout(out) do
             println("------------------Paramaters Used For Each Model Run------------------")
