@@ -100,15 +100,22 @@ function update_marker_prop!(markers::Markers,materials::Materials)
     eta = markers.scalarFields["eta"]
     T = markers.scalarFields["T"]
     S = markers.scalarFields["S"]
+    X = markers.scalarFields["X"]
     mmat = markers.integers[markers.integerFields["material"],:]
     for i in 1:markers.nmark
-        markers.scalars[rho,i] = materials.rho0[mmat[i]]
         markers.scalars[eta,i] = materials.eta0[mmat[i]]
+        if markers.scalars[X,i] <= 0.0
+            markers.scalars[rho,i] = 920.0
+        elseif markers.scalars[X,i] >= 1.0
+            markers.scalars[rho,i] = 1000.0 # kg/m^3
+        else
+            markers.scalars[rho,i] = 920.0 + (1000.0-920.0)*markers.scalars[X,i] # kg/m^3    
+        end
         # if markers.scalars[S,i] < 0.0
         #     markers.scalars[eta,i] = ice_viscosity(markers.scalars[T,i])
         # else
         #     markers.scalars[eta,i] = 1e12
-        # end
+        # end 
     end
 end
 
