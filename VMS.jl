@@ -6,7 +6,7 @@ else
     ice_length = parse(Int64,ARGS[3])
     wavelength_start = parse(Float64,ARGS[4])
     wavelength_stop = parse(Float64,ARGS[5])
-    wavelength_length = parse(Int64,ARGS[6])   
+    wavelength_length = parse(Int64,ARGS[6])
     percent_amplitude_start = parse(Float64,ARGS[7])
     percent_amplitude_stop = parse(Float64,ARGS[8])
     percent_amplitude_length = parse(Int64,ARGS[9])
@@ -23,7 +23,7 @@ options["density of ice"] = 1e3 # kg/m^3
 options["thermal conductivity of ice"] = 2.2 # W/m*K
 options["thermal diffusivity"] = options["thermal conductivity of ice"] / (options["density of ice"]*options["specific heat of ice"]) # m^2/s
 options["Tm"] = 273.0 # K
-options["nx"] = 51 
+options["nx"] = 51
 options["ny"] = 60
 options["markx"] = 6
 options["marky"] = 6
@@ -109,13 +109,13 @@ function update_marker_prop!(markers::Markers,materials::Materials)
         elseif markers.scalars[X,i] >= 1.0
             markers.scalars[rho,i] = 1000.0 # kg/m^3
         else
-            markers.scalars[rho,i] = 920.0 + (1000.0-920.0)*markers.scalars[X,i] # kg/m^3    
+            markers.scalars[rho,i] = 920.0 + (1000.0-920.0)*markers.scalars[X,i] # kg/m^3
         end
         # if markers.scalars[S,i] < 0.0
         #     markers.scalars[eta,i] = ice_viscosity(markers.scalars[T,i])
         # else
         #     markers.scalars[eta,i] = 1e12
-        # end 
+        # end
     end
 end
 
@@ -197,10 +197,10 @@ function model_setup(options::Dict,plot_dir::String,io)
     Xlast = nothing
     q_vx = nothing
     q_vy = nothing
-    Af = nothing 
+    Af = nothing
     melt_fraction_contour = nothing
     Tnew = nothing
-    Snew = nothing 
+    Snew = nothing
     Xnew = nothing
 
     # Initial
@@ -209,12 +209,12 @@ function model_setup(options::Dict,plot_dir::String,io)
     Xlast,Tlast = marker_to_stag(markers,grid,["X","T"],"center")
     # Interpolating entropy using rhoT as weight
     rhoT = markers.scalars[markers.scalarFields["rho"],:] .* markers.scalars[markers.scalarFields["T"],:]
-    Slast, = marker_to_stag(markers,grid,["S"],"center",extra_weight=rhoT)  
+    Slast, = marker_to_stag(markers,grid,["S"],"center",extra_weight=rhoT)
     # Projecting Slast from the cell centers to the markers
     cell_center_to_markers!(markers,grid,Slast,"S")
     # Updating Temperature and Melt fraction on the markers
     update_marker_T_X!(markers,options)
-    
+
     ### Initial Plots ###
     get_plots_new(grid,Slast,Tlast,Xlast,"initial",plot_dir)
 
@@ -258,7 +258,7 @@ function model_setup(options::Dict,plot_dir::String,io)
             replace_nan!(Slast,Slast_new)
             replace_nan!(Xlast,Xlast_new)
         end
-        
+
         # Copy field data
         kThermal_vx = copy(kThermal_vx_new)
         kThermal_vy = copy(kThermal_vy_new)
@@ -269,7 +269,7 @@ function model_setup(options::Dict,plot_dir::String,io)
         alpha = copy(alpha_new)
         eta_s = copy(eta_s_new)
         eta_n = copy(eta_n_new)
-        Tlast = copy(Tlast_new)    
+        Tlast = copy(Tlast_new)
         Slast = copy(Slast_new)
         Xlast = copy(Xlast_new)
 
@@ -326,7 +326,7 @@ function model_setup(options::Dict,plot_dir::String,io)
             # Computing residual for entropy
             residual_S = compute_entropy_residual(grid,Tlast,rho_c,Hr,q_vx,q_vy,Slast,Snew,dt)
             Snorm = norm(residual_S[2:ny,2:nx])
-            
+
             if titer > 1
                 last_T_norm = T_norm;
                 T_norm = norm(Tnew)
@@ -356,7 +356,7 @@ function model_setup(options::Dict,plot_dir::String,io)
             elseif any(isnan.(dT))
                 terminate = true
                 @error(io,"NaN or Inf apperred")
-            end 
+            end
         end
 
         # Updating entropy on the markers by projecting dS from the cell centers to the markers
@@ -373,7 +373,7 @@ function model_setup(options::Dict,plot_dir::String,io)
         avg_ice_shell_thickness = mean(melt_fraction_contour)
         append!(ice_shell_thickness,avg_ice_shell_thickness)
         append!(ice_shell_thickness_array,[melt_fraction_contour])
-        append!(time_plot,time) 
+        append!(time_plot,time)
 
         Af = max_ice_shell_thickness-avg_ice_shell_thickness
         i_A = @sprintf("%.6g",Ai/1e3)
@@ -382,17 +382,17 @@ function model_setup(options::Dict,plot_dir::String,io)
         # Checking Termination Criteria, time is in Myr, amplitude is in meters
         if time >= max_time || itime >= max_step || Af/Ai <= 1/exp(1)
             terminate = true
-    	    ### Final Plots ### 
+          ### Final Plots ###
             get_plots_new(grid,Snew,Tnew,Xnew,"final",plot_dir)
         end
 
-        if time == 0.0 || mod(itime,100) == 0 || terminate
+        if time == 0.0 || mod(itime,10) == 0 || terminate
             last_plot = time
             # Gird output
             name1 = @sprintf("%s/viz.%04d.vtr",output_dir,iout)
             println(io,"Writing visualization file = ",name1)
             vn = velocity_to_basic_nodes(grid,vxc,vyc)
-            visualization(grid,rho_c,eta_s,vn,P,Tnew[2:end-1,2:end-1],time/seconds_in_year/1e3;filename=name1)
+            visualization(grid,rho_c[2:end-1,2:end-1],eta_s,vn,P,Tnew[2:end-1,2:end-1],time/seconds_in_year/1e3;filename=name1)
             # Markers output
             name2 = @sprintf("%s/markers.%04d.vtp",output_dir,iout)
             println(io,"Writing visualization file = ",name2)
@@ -403,7 +403,7 @@ function model_setup(options::Dict,plot_dir::String,io)
         # Moving the markers and advancing to the next timestep
         move_markers_rk4!(markers,grid,vx,vy,dt,continuity_weight=1/3)
         time += dt
-        if mod(itime,200) == 0
+        if mod(itime,10) == 0
             ice_shell = (ice_shell_thickness[itime] - ice_shell_thickness[1])
             ice_shell = @sprintf("%.8g",ice_shell/1e3)
             println(io,"Ice shell as thicken by $ice_shell (km)")
@@ -415,9 +415,9 @@ function model_setup(options::Dict,plot_dir::String,io)
     return grid,time,time_plot,ice_shell_thickness_array,ice_shell_thickness,itime,Af
 end
 
-function modelrun()  
+function modelrun()
     top_dir = mk_modelrun_dir()
-    prompt_and_get_model_description(top_dir)   
+    prompt_and_get_model_description(top_dir)
     nlambda = wavelength_length
     nhice = ice_length
     namp = percent_amplitude_length
@@ -425,7 +425,7 @@ function modelrun()
     local hice =  range(ice_start,ice_stop,nhice)
     local per_amp = range(percent_amplitude_start,percent_amplitude_stop,namp)
 
-    # Defining cases 
+    # Defining cases
     max_ice_shell_thickness = maximum(hice)
     min_ice_shell_thickness = minimum(hice)
     max_wavelength = maximum(lambda)
@@ -436,7 +436,7 @@ function modelrun()
         (min_ice_shell_thickness,max_wavelength), # Case 3 ice shell thickness < wavelength
         (max_ice_shell_thickness,min_wavelength), # Case 4 ice shell thickness > wavelength
     ]
-    
+
     irun = 1
     for k in 1:namp
         t_halfspace = zeros(nlambda,nhice)
@@ -445,11 +445,11 @@ function modelrun()
         amplitude_percentage = per_amp[k]
         amp_decimal = amplitude_percentage/100
         sub_dir = mk_sub_dir(top_dir,amplitude_percentage)
-        for (ice_shell_thickness,wavelength) in cases 
+        for (ice_shell_thickness,wavelength) in cases
             options["wavelength"] = wavelength*1e3
             options["ice thickness"] = ice_shell_thickness*1e3
             options["amplitude"] = amp_decimal*options["ice thickness"]
-            options["surface depth"] = options["amplitude"] 
+            options["surface depth"] = options["amplitude"]
             println("Starting model execution for model run $irun...")
             sub_dir_by_run,sub_dir_plots,sub_dir_data = mk_output_dir(sub_dir,irun)
     options["visualization file path"] = sub_dir_by_run
