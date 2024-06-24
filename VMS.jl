@@ -209,7 +209,6 @@ function model_setup(options::Dict,plot_dir::String,io)
     update_marker_T_X!(markers,options)
     
     ### Initial Plots ###
-    get_plots(grid,Slast,Tlast,Xlast,"initial",plot_dir)
     get_plots_new(grid,Slast,Tlast,Xlast,"initial",plot_dir)
 
     itime = 1
@@ -376,8 +375,7 @@ function model_setup(options::Dict,plot_dir::String,io)
         # Checking Termination Criteria, time is in Myr, amplitude is in meters
         if time >= max_time || itime >= max_step || Af/Ai <= 1/exp(1)
             terminate = true
-	    ### Final Plots ### 
-            get_plots(grid,Snew,Tnew,Xnew,"final",plot_dir)
+    	    ### Final Plots ### 
             get_plots_new(grid,Snew,Tnew,Xnew,"final",plot_dir)
         end
 
@@ -410,16 +408,28 @@ function model_setup(options::Dict,plot_dir::String,io)
     return grid,time,time_plot,ice_shell_thickness_array,ice_shell_thickness,itime,Af
 end
 
-    
 function modelrun()  
     top_dir = mk_modelrun_dir()
-    prompt_and_get_model_description(top_dir)
+    prompt_and_get_model_description(top_dir)   
     nlambda = wavelength_length
     nhice = ice_length
     namp = percent_amplitude_length
     local lambda = range(wavelength_start,wavelength_stop,nlambda)
     local hice =  range(ice_start,ice_stop,nhice)
     local per_amp = range(percent_amplitude_start,percent_amplitude_stop,namp)
+
+    # Defining cases 
+    max_ice_shell_thickness = maximum(hice)
+    min_ice_shell_thickness = minimum(hice)
+    max_wavelength = maximum(lambda)
+    min_wavelength = minimum(lambda)
+    cases = [
+        (max_ice_shell_thickness,max_wavelength), # Case 1
+        (min_ice_shell_thickness,min_wavelength), # Case 2
+        (min_ice_shell_thickness,max_wavelength), # Case 3 ice shell thickness < wavelength
+        (max_ice_shell_thickness,min_wavelength), # Case 4 ice shell thickness > wavelength
+    ]
+    
     irun = 1
     for k in 1:namp
         t_halfspace = zeros(nlambda,nhice)
@@ -428,28 +438,27 @@ function modelrun()
         amplitude_percentage = per_amp[k]
         amp_decimal = amplitude_percentage/100
         sub_dir = mk_sub_dir(top_dir,amplitude_percentage)
-        for i in 1:nlambda
-            for j in 1:nhice
-                options["wavelength"] = lambda[i]*1e3
-                options["ice thickness"] = hice[j]*1e3
-                options["amplitude"] = amp_decimal*options["ice thickness"]
-                options["surface depth"] = options["amplitude"] 
-                println("Starting model execution for model run $irun...")
-                sub_dir_by_run,sub_dir_plots,sub_dir_data = mk_output_dir(sub_dir,irun)
-                data_table_info(ice_start,ice_stop,nhice,wavelength_start,wavelength_stop,nlambda,sub_dir,amplitude_percentage)
-                println("Using Wavelength: ",options["wavelength"]/1e3,"(km)"," , ","Using Ice Shell Thickness: ",options["ice thickness"]/1e3,"(km)"," , ","Using Amplitde Percentage: $amplitude_percentage%")
-                io = open(sub_dir_by_run*"/output.txt","w")
-                grid,time,time_plot,ice_shell_thickness_array,ice_shell_thickness,itime,Af = model_setup(options,io);
-                t_rel[i,j] = get_numerical_time_viscous(options["amplitude"],Af,time)
-                t_halfspace[i,j] = get_halfspace_time_viscous(options["wavelength"])
-                rate = get_thickening_rate(options["ice thickness"])
-                t_tic[i,j] = get_thickening_time(options["amplitude"],rate)
-                println(io,"Analytic relaxation time: ",t_halfspace[i,j],"(yr)",t_halfspace[i,j]/1e3,"(kyr) or ",t_halfspace[i,j]/1e6,"(Myr)")
-                println(io,"Numerical relaxation time: ",t_rel[i,j],"(yr)",t_rel[i,j]/1e3,"(kyr) or ",t_rel[i,j]/1e6,"(Myr)")
-                close(io)
-                println("Model ran successfully for model run $irun. Outputs saved to output.txt")
-                irun += 1
-            end
+        for (ice_shell_thickness,wavelength) in cases 
+            options["wavelength"] = wavelength*1e3
+            options["ice thickness"] = ice_shell_thickness*1e3
+            options["amplitude"] = amp_decimal*options["ice thickness"]
+            options["surface depth"] = options["amplitude"] 
+            println("Starting model execution for model run $irun...")
+            sub_dir_by_run,sub_dir_plots,sub_dir_data = mk_output_dir(sub_dir,irun)
+    options["visualization file path"] = sub_dir_by_run
+            data_table_info(ice_start,ice_stop,nhice,wavelength_start,wavelength_stop,nlambda,sub_dir,amplitude_percentage)
+            println("Using Wavelength: ",options["wavelength"]/1e3,"(km)"," , ","Using Ice Shell Thickness: ",options["ice thickness"]/1e3,"(km)"," , ","Using Amplitde Percentage: $amplitude_percentage%")
+            io = open(sub_dir_by_run*"/output.txt","w")
+            grid,time,time_plot,ice_shell_thickness_array,ice_shell_thickness,itime,Af = model_setup(options,sub_dir_plots,io);
+            t_rel[k] = get_numerical_time_viscous(options["amplitude"],Af,time)
+            t_halfspace[k] = get_halfspace_time_viscous(options["wavelength"])
+            rate = get_thickening_rate(options["ice thickness"])
+            t_tic[k] = get_thickening_time(options["amplitude"],rate)
+            println(io,"Analytic relaxation time: ",t_halfspace[k],"(yr)",t_halfspace[k]/1e3,"(kyr) or ",t_halfspace[k]/1e6,"(Myr)")
+            println(io,"Numerical relaxation time: ",t_rel[k],"(yr)",t_rel[k]/1e3,"(kyr) or ",t_rel[k]/1e6,"(Myr)")
+            close(io)
+            println("Model ran successfully for model run $irun. Outputs saved to output.txt")
+            irun += 1
         end
         data_to_hdf5_file(lambda,hice,t_halfspace,t_rel,t_tic,sub_dir)
         if namp != 1
