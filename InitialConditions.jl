@@ -7,7 +7,7 @@ struct Materials
     kThermal::Vector{Float64} # Thermal conductivity (W/m*K)
     eta0::Vector{Float64} # Viscosity (Pa*s)
     function Materials()
-        new([0.0],[0.0],[2.1e3],[2.2],[1e15])
+        new([0.0],[0.0],[2.1e3],[2.2])
     end    
 end
 
