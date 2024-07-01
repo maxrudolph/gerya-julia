@@ -23,8 +23,8 @@ options["density of ice"] = 1e3 # kg/m^3
 options["thermal conductivity of ice"] = 2.2 # W/m*K
 options["thermal diffusivity"] = options["thermal conductivity of ice"] / (options["density of ice"]*options["specific heat of ice"]) # m^2/s
 options["Tm"] = 273.0 # K
-options["nx"] = 100
-options["ny"] = 101
+options["nx"] = 50
+options["ny"] = 51
 options["markx"] = 6
 options["marky"] = 6
 
@@ -103,6 +103,7 @@ function update_marker_prop!(markers::Markers,materials::Materials)
     X = markers.scalarFields["X"]
     mmat = markers.integers[markers.integerFields["material"],:]
     for i in 1:markers.nmark
+        # markers.scalars[eta,i] =  materials.eta0[mmat[i]]
         if markers.scalars[X,i] <= 0.0
             markers.scalars[rho,i] = 920.0
         elseif markers.scalars[X,i] >= 1.0
@@ -110,7 +111,7 @@ function update_marker_prop!(markers::Markers,materials::Materials)
         else
             markers.scalars[rho,i] = 920.0 + (1000.0-920.0)*markers.scalars[X,i] # kg/m^3
         end
-        if markers.scalars[S,i] < 0.0
+        if markers.scalars[S,i] <= 0.0
             markers.scalars[eta,i] = ice_viscosity(markers.scalars[T,i])
         else
             markers.scalars[eta,i] = 1e12
