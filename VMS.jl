@@ -23,8 +23,7 @@ options["density of ice"] = 1e3 # kg/m^3
 options["thermal conductivity of ice"] = 2.2 # W/m*K
 options["thermal diffusivity"] = options["thermal conductivity of ice"] / (options["density of ice"]*options["specific heat of ice"]) # m^2/s
 options["Tm"] = 273.0 # K
-options["nx"] = 50
-options["ny"] = 51
+options["ny"] = 201
 options["markx"] = 6
 options["marky"] = 6
 
@@ -67,8 +66,6 @@ function ice_viscosity(T::Float64)
         ice_vis = lowerlimit
     elseif ice_vis > upperlimit
         ice_vis = upperlimit
-    else
-        ice_vis = ice_vis
     end
     return ice_vis
 end
@@ -111,10 +108,10 @@ function update_marker_prop!(markers::Markers,materials::Materials)
         else
             markers.scalars[rho,i] = 920.0 + (1000.0-920.0)*markers.scalars[X,i] # kg/m^3
         end
-        if markers.scalars[S,i] <= 0.0
+        if markers.scalars[S,i] < 0.0
             markers.scalars[eta,i] = ice_viscosity(markers.scalars[T,i])
         else
-            markers.scalars[eta,i] = 1e12
+            markers.scalars[eta,i] = 1e13
         end
     end
 end
@@ -135,8 +132,8 @@ end
 function model_setup(options::Dict,plot_dir::String,io)
     W = options["wavelength"]
     H = options["ice thickness"] + options["amplitude"] + options["ice thickness"]/2
-    nx = options["nx"]
     ny = options["ny"]
+    nx::Int64 = ceil(ny/H*W)
     gx = 0.0
     gy = 0.113
 
@@ -178,7 +175,7 @@ function model_setup(options::Dict,plot_dir::String,io)
     iout= 0
     last_plot = 0.0
     dt = dtmax
-
+    
     rho_c = nothing
     rho_vx = nothing
     rho_vy = nothing
@@ -274,7 +271,7 @@ function model_setup(options::Dict,plot_dir::String,io)
         Xlast = copy(Xlast_new)
 
         # Assembling and solving the stokes equations
-        L,R = form_stokes(grid,eta_s,eta_n,rho_vx,rho_vy,bc,gx,gy;dt=0.0)
+        L,R = form_stokes(grid,eta_s,eta_n,rho_vx,rho_vy,bc,gx,gy;dt=dt)
         stokes_solution = L\R
         vx,vy,P = unpack(stokes_solution,grid;ghost=true)
 
@@ -295,13 +292,14 @@ function model_setup(options::Dict,plot_dir::String,io)
         else
             dt = this_dtmax
         end
-        dt = compute_timestep(grid,vxc,vyc;dtmax=this_dtmax,cfl=0.25)
+        dt = compute_timestep(grid,vxc,vyc;dtmax=this_dtmax,cfl=0.1)
         if dt > diffusion_timestep
             dt = diffusion_timestep
+            println("limiting diffusion timestep to",dt)
         end
 
         last_T_norm = NaN
-        T_norm = NaN
+        T_norm = NaN 
         dT = nothing
         dTmax = Inf
         dS = nothing
@@ -401,7 +399,7 @@ function model_setup(options::Dict,plot_dir::String,io)
         end
 
         # Moving the markers and advancing to the next timestep
-        move_markers_rk4!(markers,grid,vx,vy,dt,continuity_weight=1/3)
+        move_markers_rk4!(markers,grid,vx,vy,dt,continuity_weight=1.0/3.0)
         time += dt
         if mod(itime,10) == 0
             ice_shell = (ice_shell_thickness[itime] - ice_shell_thickness[1])
