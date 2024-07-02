@@ -23,7 +23,7 @@ options["density of ice"] = 1e3 # kg/m^3
 options["thermal conductivity of ice"] = 2.2 # W/m*K
 options["thermal diffusivity"] = options["thermal conductivity of ice"] / (options["density of ice"]*options["specific heat of ice"]) # m^2/s
 options["Tm"] = 273.0 # K
-options["ny"] = 201
+options["ny"] = 101
 options["markx"] = 6
 options["marky"] = 6
 
@@ -175,7 +175,7 @@ function model_setup(options::Dict,plot_dir::String,io)
     iout= 0
     last_plot = 0.0
     dt = dtmax
-    
+
     rho_c = nothing
     rho_vx = nothing
     rho_vy = nothing
@@ -299,7 +299,7 @@ function model_setup(options::Dict,plot_dir::String,io)
         end
 
         last_T_norm = NaN
-        T_norm = NaN 
+        T_norm = NaN
         dT = nothing
         dTmax = Inf
         dS = nothing
@@ -353,67 +353,6 @@ function model_setup(options::Dict,plot_dir::String,io)
             iout += 1
             elseif any(isnan.(dT))
                 terminate = true
-                @error(io,"NaN or Inf apperred")
-            end
-        end
-        
-        # Updating entropy on the markers by projecting dS from the cell centers to the markers
-        cell_center_change_to_markers!(markers,grid,dS,"S")
-        update_marker_T_X!(markers,options)
-
-        Slast_new = copy(Snew)
-        Xlast_new = copy(Xnew)
-        Tlast_new = copy(Tnew)
-
-        ### Setting up agruments for Termination Criteria ###
-        melt_fraction_contour = get_interface(grid,-Xnew,-0.5)
-        max_ice_shell_thickness = maximum(melt_fraction_contour)
-        avg_ice_shell_thickness = mean(melt_fraction_contour)
-        append!(ice_shell_thickness,avg_ice_shell_thickness)
-        append!(ice_shell_thickness_array,[melt_fraction_contour])
-        append!(time_plot,time)
-
-        Af = max_ice_shell_thickness-avg_ice_shell_thickness
-        i_A = @sprintf("%.6g",Ai/1e3)
-        f_A = @sprintf("%.6g",Af/1e3)
-
-        # Checking Termination Criteria, time is in Myr, amplitude is in meters
-        if time >= max_time || itime >= max_step || Af/Ai <= 1/exp(1)
-            terminate = true
-          ### Final Plots ###
-            get_plots_new(grid,Snew,Tnew,Xnew,"final",plot_dir)
-        end
-
-        if time == 0.0 || mod(itime,10) == 0 || terminate
-            last_plot = time
-            # Gird output
-            name1 = @sprintf("%s/viz.%04d.vtr",output_dir,iout)
-            println(io,"Writing visualization file = ",name1)
-            vn = velocity_to_basic_nodes(grid,vxc,vyc)
-            visualization(grid,rho_c[2:end-1,2:end-1],eta_s,vn,P,Tnew[2:end-1,2:end-1],time/seconds_in_year/1e3;filename=name1)
-            # Markers output
-            name2 = @sprintf("%s/markers.%04d.vtp",output_dir,iout)
-            println(io,"Writing visualization file = ",name2)
-            visualization(markers,time/seconds_in_year;filename=name2)
-            iout += 1
-        end
-
-        # Moving the markers and advancing to the next timestep
-        move_markers_rk4!(markers,grid,vx,vy,dt,continuity_weight=1.0/3.0)
-        time += dt
-        if mod(itime,10) == 0
-            ice_shell = (ice_shell_thickness[itime] - ice_shell_thickness[1])
-            ice_shell = @sprintf("%.8g",ice_shell/1e3)
-            println(io,"Ice shell as thicken by $ice_shell (km)")
-            println(io,"time = ",time/seconds_in_year," yr, ",time/seconds_in_year/1e3," Kyr, ",time/seconds_in_year/1e6," Myr")
-            println(io,"Finished step $itime")
-        end
-        itime += 1
-    end
-    return grid,time,time_plot,ice_shell_thickness_array,ice_shell_thickness,itime,Af
-end
-
-function modelrun()
     top_dir = mk_modelrun_dir()
     prompt_and_get_model_description(top_dir)
     nlambda = wavelength_length
