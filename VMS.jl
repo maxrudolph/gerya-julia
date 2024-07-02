@@ -295,7 +295,7 @@ function model_setup(options::Dict,plot_dir::String,io)
         dt = compute_timestep(grid,vxc,vyc;dtmax=this_dtmax,cfl=0.1)
         if dt > diffusion_timestep
             dt = diffusion_timestep
-            println("limiting diffusion timestep to",dt)
+            println("limiting diffusion timestep to ",dt)
         end
 
         last_T_norm = NaN
