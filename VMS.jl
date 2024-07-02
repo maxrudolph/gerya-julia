@@ -92,43 +92,6 @@ end
 
 ### Updating Schemes ###
 ## starts here ##
-function update_marker_prop!(markers::Markers,materials::Materials)
-    rho = markers.scalarFields["rho"]
-    eta = markers.scalarFields["eta"]
-    T = markers.scalarFields["T"]
-    S = markers.scalarFields["S"]
-    X = markers.scalarFields["X"]
-    mmat = markers.integers[markers.integerFields["material"],:]
-    for i in 1:markers.nmark
-        # markers.scalars[eta,i] =  materials.eta0[mmat[i]]
-        if markers.scalars[X,i] <= 0.0
-            markers.scalars[rho,i] = 920.0
-        elseif markers.scalars[X,i] >= 1.0
-            markers.scalars[rho,i] = 1000.0 # kg/m^3
-        else
-            markers.scalars[rho,i] = 920.0 + (1000.0-920.0)*markers.scalars[X,i] # kg/m^3
-        end
-        if markers.scalars[S,i] < 0.0
-            markers.scalars[eta,i] = ice_viscosity(markers.scalars[T,i])
-        else
-            markers.scalars[eta,i] = 1e13
-        end
-    end
-end
-
-function update_marker_T_X!(markers::Markers,options::Dict)
-    T = markers.scalarFields["T"]
-    X = markers.scalarFields["X"]
-    S = markers.scalarFields["S"]
-    mmat = markers.integers[markers.integerFields["material"],:]
-    for i in 1:markers.nmark
-        markers.scalars[T,i],markers.scalars[X,i] = compute_T_X_from_S((markers.scalars[S,i]),options)
-    end
-end
-## ends here ##
-
-### Model Setup ###
-## starts here ##
 function model_setup(options::Dict,plot_dir::String,io)
     W = options["wavelength"]
     H = options["ice thickness"] + options["amplitude"] + options["ice thickness"]/2
@@ -353,6 +316,67 @@ function model_setup(options::Dict,plot_dir::String,io)
             iout += 1
             elseif any(isnan.(dT))
                 terminate = true
+                @error(io,"NaN or Inf apperred")
+            end
+        end
+
+        # Updating entropy on the markers by projecting dS from the cell centers to the markers
+        cell_center_change_to_markers!(markers,grid,dS,"S")
+        update_marker_T_X!(markers,options)
+
+        Slast_new = copy(Snew)
+        Xlast_new = copy(Xnew)
+        Tlast_new = copy(Tnew)
+
+        ### Setting up agruments for Termination Criteria ###
+        melt_fraction_contour = get_interface(grid,-Xnew,-0.5)
+        max_ice_shell_thickness = maximum(melt_fraction_contour)
+        avg_ice_shell_thickness = mean(melt_fraction_contour)
+        append!(ice_shell_thickness,avg_ice_shell_thickness)
+        append!(ice_shell_thickness_array,[melt_fraction_contour])
+        append!(time_plot,time)
+
+        Af = max_ice_shell_thickness-avg_ice_shell_thickness
+        i_A = @sprintf("%.6g",Ai/1e3)
+        f_A = @sprintf("%.6g",Af/1e3)
+
+        # Checking Termination Criteria, time is in Myr, amplitude is in meters
+        if time >= max_time || itime >= max_step || Af/Ai <= 1/exp(1)
+            terminate = true
+          ### Final Plots ###
+            get_plots_new(grid,Snew,Tnew,Xnew,"final",plot_dir)
+        end
+
+        if time == 0.0 || mod(itime,10) == 0 || terminate
+            last_plot = time
+            # Gird output
+            name1 = @sprintf("%s/viz.%04d.vtr",output_dir,iout)
+            println(io,"Writing visualization file = ",name1)
+            vn = velocity_to_basic_nodes(grid,vxc,vyc)
+            visualization(grid,rho_c[2:end-1,2:end-1],eta_s,vn,P,Tnew[2:end-1,2:end-1],time/seconds_in_year/1e3;filename=name1)
+            # Markers output
+            name2 = @sprintf("%s/markers.%04d.vtp",output_dir,iout)
+            println(io,"Writing visualization file = ",name2)
+            visualization(markers,time/seconds_in_year;filename=name2)
+            iout += 1
+        end
+
+        # Moving the markers and advancing to the next timestep
+        move_markers_rk4!(markers,grid,vx,vy,dt,continuity_weight=1.0/3.0)
+        time += dt
+        if mod(itime,10) == 0
+            ice_shell = (ice_shell_thickness[itime] - ice_shell_thickness[1])
+            ice_shell = @sprintf("%.8g",ice_shell/1e3)
+            println(io,"Ice shell as thicken by $ice_shell (km)")
+            println(io,"time = ",time/seconds_in_year," yr, ",time/seconds_in_year/1e3," Kyr, ",time/seconds_in_year/1e6," Myr")
+            println(io,"Finished step $itime")
+        end
+        itime += 1
+    end
+    return grid,time,time_plot,ice_shell_thickness_array,ice_shell_thickness,itime,Af
+end
+
+function modelrun()
     top_dir = mk_modelrun_dir()
     prompt_and_get_model_description(top_dir)
     nlambda = wavelength_length
