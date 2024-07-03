@@ -379,7 +379,6 @@ function model_setup(options::Dict,plot_dir::String,io)
         i_A = @sprintf("%.6g",Ai/1e3)
         f_A = @sprintf("%.6g",Af/1e3)
 
-        println(Af/Ai)
         if itime == 1
             stopping_ratio = Af/Ai
         end
