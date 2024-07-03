@@ -1,3 +1,4 @@
+using Base: nothing_sentinel
 if length(ARGS) > 9
     error("specify proper input arguments for range function for ice shell thickness and wavelength topogaphy for ocean-ice interface")
 else
@@ -23,7 +24,7 @@ options["density of ice"] = 1e3 # kg/m^3
 options["thermal conductivity of ice"] = 2.2 # W/m*K
 options["thermal diffusivity"] = options["thermal conductivity of ice"] / (options["density of ice"]*options["specific heat of ice"]) # m^2/s
 options["Tm"] = 273.0 # K
-options["ny"] = 101
+options["ny"] = 51
 options["markx"] = 6
 options["marky"] = 6
 
@@ -164,6 +165,7 @@ function model_setup(options::Dict,plot_dir::String,io)
 
     ### Setting up agruments for interface function ###
     Ai = options["amplitude"]
+    local stopping_ratio::Float64
 
     ### Setting up agruments for termination criteria ###
     max_step::Int64=-1
@@ -295,7 +297,7 @@ function model_setup(options::Dict,plot_dir::String,io)
         dt = compute_timestep(grid,vxc,vyc;dtmax=this_dtmax,cfl=0.1)
         if dt > diffusion_timestep
             dt = diffusion_timestep
-            println("limiting diffusion timestep to ",dt)
+            #println("limiting diffusion timestep to ",dt)
         end
 
         last_T_norm = NaN
@@ -377,31 +379,45 @@ function model_setup(options::Dict,plot_dir::String,io)
         i_A = @sprintf("%.6g",Ai/1e3)
         f_A = @sprintf("%.6g",Af/1e3)
 
+        println(Af/Ai)
+        if itime == 1
+            stopping_ratio = Af/Ai
+        end
+        term_crit = 1/exp(1)
+        if isapprox(Af/Ai,(stopping_ratio*0.75)+(term_crit*0.25);atol=1e-3)
+            println("Model progress (~25%)")
+        elseif isapprox(Af/Ai,(stopping_ratio*0.50)+(term_crit*0.50);atol=1e-3)
+            println("Model progress (~50%)")
+        elseif isapprox(Af/Ai,(stopping_ratio*0.25)+(term_crit*0.75);atol=1e-3)
+            println("Model progress (~75%)")
+        end
+
         # Checking Termination Criteria, time is in Myr, amplitude is in meters
-        if time >= max_time || itime >= max_step || Af/Ai <= 1/exp(1)
+        if time >= max_time || itime >= max_step || Af/Ai <= term_crit
             terminate = true
-          ### Final Plots ###
+            ### Final Plots ###
             get_plots_new(grid,Snew,Tnew,Xnew,"final",plot_dir)
+            println("Model has reach the termination criteria")
         end
 
         if time == 0.0 || mod(itime,10) == 0 || terminate
             last_plot = time
             # Gird output
             name1 = @sprintf("%s/viz.%04d.vtr",output_dir,iout)
-            println(io,"Writing visualization file = ",name1)
+            #println(io,"Writing visualization file = ",name1)
             vn = velocity_to_basic_nodes(grid,vxc,vyc)
-            visualization(grid,rho_c[2:end-1,2:end-1],eta_s,vn,P,Tnew[2:end-1,2:end-1],time/seconds_in_year/1e3;filename=name1)
+            visualization(grid,rho_c[2:end-1,2:end-1],eta_s,vn,P,Tnew[2:end-1,2:end-1],time/seconds_in_year/1e3;filename=name1);
             # Markers output
             name2 = @sprintf("%s/markers.%04d.vtp",output_dir,iout)
-            println(io,"Writing visualization file = ",name2)
-            visualization(markers,time/seconds_in_year;filename=name2)
+            #println(io,"Writing visualization file = ",name2)
+            visualization(markers,time/seconds_in_year;filename=name2);
             iout += 1
         end
 
         # Moving the markers and advancing to the next timestep
         move_markers_rk4!(markers,grid,vx,vy,dt,continuity_weight=1.0/3.0)
         time += dt
-        if mod(itime,10) == 0
+        if mod(itime,200) == 0
             ice_shell = (ice_shell_thickness[itime] - ice_shell_thickness[1])
             ice_shell = @sprintf("%.8g",ice_shell/1e3)
             println(io,"Ice shell as thicken by $ice_shell (km)")
@@ -440,7 +456,7 @@ function modelrun()
                 sub_dir_by_run,sub_dir_plots,sub_dir_data = mk_output_dir(sub_dir,irun)
         options["visualization file path"] = sub_dir_by_run
                 data_table_info(ice_start,ice_stop,nhice,wavelength_start,wavelength_stop,nlambda,sub_dir,amplitude_percentage)
-                println("Using Wavelength: ",options["wavelength"]/1e3,"(km)"," , ","Using Ice Shell Thickness: ",options["ice thickness"]/1e3,"(km)"," , ","Using Amplitde Percentage: $amplitude_percentage%")
+                println("Using Wavelength: ",options["wavelength"]/1e3,"(km)"," , ","Using Ice Shell Thickness: ",options["ice thickness"]/1e3,"(km)"," , ","Using Amplitude Percentage: $amplitude_percentage%")
                 io = open(sub_dir_by_run*"/output.txt","w")
                 grid,time,time_plot,ice_shell_thickness_array,ice_shell_thickness,itime,Af = model_setup(options,sub_dir_plots,io);
                 t_rel[i,j] = get_numerical_time_viscous(options["amplitude"],Af,time)
