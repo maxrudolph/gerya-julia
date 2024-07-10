@@ -79,7 +79,7 @@ function compute_stefan_temp_solution(grid::CartesianGrid,Numerical_T::Matrix{Fl
             end
         end
     end
-    
+
     figure()
     title("Comparison of Temperature")
     plot(grid.yc[1:end-1]/1e3,stefan_T[:,1],"b-",label="Stefan Temperature")
@@ -316,7 +316,7 @@ end
 #### end ####
 
 #### start ####
-##### Function to compute a subgird diffusion operation with entropy #####  
+##### Function to compute a subgird diffusion operation with entropy #####
 function subgirdSdiff!(grid::CartesianGrid,markers::Markers,Slast::Matrix{Float64},dt::Float64,options::Dict;diff_coeff::Float64=1.0)
     Hfus = options["latent heat of fusion"] # J/kg
     Tm = options["Tm"] # K
@@ -337,13 +337,13 @@ function subgirdSdiff!(grid::CartesianGrid,markers::Markers,Slast::Matrix{Float6
     S = markers.scalarFields["S"]
     kThermal = markers.scalarFields["kThermal"]
     X = markers.scalarFields["X"]
-   
+
     Threads.@threads for i in 1:markers.nmark
         dx2 = (grid.x[markers.cell[1,i]+1] - grid.x[markers.cell[1,i]])^2
         dy2 = (grid.y[markers.cell[2,i]+1] - grid.y[markers.cell[2,i]])^2
         dS::Float64=0.0
         dT::Float64=0.0
-        dX::Float64=0.0        
+        dX::Float64=0.0
         for iter in 1:3
              if iter == 1
                  # initial iteration
@@ -356,13 +356,13 @@ function subgirdSdiff!(grid::CartesianGrid,markers::Markers,Slast::Matrix{Float6
                      Cpm = markers.scalars[T,i]*(dS/dT)
                  end
              end
-            tdiff = markers.scalars[rho,i]*Cpm/markers.scalars[kThermal,i]/(2/dx2 + 2/dy2)                        
+            tdiff = markers.scalars[rho,i]*Cpm/markers.scalars[kThermal,i]/(2/dx2 + 2/dy2)
             dS_subgrid_Sm[i] = (Sm_nodal[i] - markers.scalars[S,i])*( 1.0 - exp(-d*dt/tdiff) )
             Si = markers.scalars[S,i] + dS_subgrid_Sm[i] # new guess of marker entropy
             Ti,Xi = compute_T_X_from_S(Si,options) # temperature consistent with new marker entropy
             dS = Si - markers.scalars[S,i] # change in marker entropy
             dT = Ti - markers.scalars[T,i] # change in marker temperature
-            dX = Xi - markers.scalars[X,i]           
+            dX = Xi - markers.scalars[X,i]
         end
     end
     # update the marker entropy

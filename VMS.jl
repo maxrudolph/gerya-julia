@@ -93,15 +93,13 @@ end
 
 ### Updating Schemes ###
 ## starts here ##
-function update_marker_prop!(markers::Markers,materials::Materials)
+function update_marker_prop!(markers::Markers)
     rho = markers.scalarFields["rho"]
     eta = markers.scalarFields["eta"]
     T = markers.scalarFields["T"]
     S = markers.scalarFields["S"]
     X = markers.scalarFields["X"]
-    mmat = markers.integers[markers.integerFields["material"],:]
-    for i in 1:markers.nmark
-        # markers.scalars[eta,i] =  materials.eta0[mmat[i]]
+    Threads.@threads for i in 1:markers.nmark
         if markers.scalars[X,i] <= 0.0
             markers.scalars[rho,i] = 920.0
         elseif markers.scalars[X,i] >= 1.0
@@ -121,8 +119,7 @@ function update_marker_T_X!(markers::Markers,options::Dict)
     T = markers.scalarFields["T"]
     X = markers.scalarFields["X"]
     S = markers.scalarFields["S"]
-    mmat = markers.integers[markers.integerFields["material"],:]
-    for i in 1:markers.nmark
+    Threads.@threads for i in 1:markers.nmark
         markers.scalars[T,i],markers.scalars[X,i] = compute_T_X_from_S((markers.scalars[S,i]),options)
     end
 end
@@ -145,7 +142,7 @@ function model_setup(options::Dict,plot_dir::String,io)
     markx = options["markx"]
     marky = options["marky"]
     seconds_in_year = 3.15e7
-    plot_interval = 1e6*seconds_in_year # 1 Myr
+    plot_interval = 1e3*seconds_in_year # 1 kyr
     end_time = 3e7*seconds_in_year
     dtmax = plot_interval
     grid = CartesianGrid(W,H,nx,ny)
@@ -176,7 +173,7 @@ function model_setup(options::Dict,plot_dir::String,io)
     time = 0.0
     iout= 0
     last_plot = 0.0
-    dt = dtmax
+    dt = seconds_in_year
 
     rho_c = nothing
     rho_vx = nothing
@@ -201,6 +198,9 @@ function model_setup(options::Dict,plot_dir::String,io)
     Tnew = nothing
     Snew = nothing
     Xnew = nothing
+    P = nothing
+    vx = nothing
+    vy = nothing
 
     # Initial
     ## Transfer properties markers -> nodes ##
@@ -223,7 +223,7 @@ function model_setup(options::Dict,plot_dir::String,io)
     while !terminate
 
         ## update the markers properties ##
-        update_marker_prop!(markers,materials)
+        update_marker_prop!(markers)
         ## Transfer properties markers -> nodes ##
         # Basic Nodes
         eta_s_new, = marker_to_stag(markers,grid,["eta",],"basic",method="logarithmic")
@@ -272,33 +272,26 @@ function model_setup(options::Dict,plot_dir::String,io)
         Slast = copy(Slast_new)
         Xlast = copy(Xlast_new)
 
-        # Assembling and solving the stokes equations
-        L,R = form_stokes(grid,eta_s,eta_n,rho_vx,rho_vy,bc,gx,gy;dt=dt)
-        stokes_solution = L\R
-        vx,vy,P = unpack(stokes_solution,grid;ghost=true)
+        for itime in 1:(itime==1 ? 2 : 1)
+            # Assembling and solving the stokes equations
+            L,R = form_stokes(grid,eta_s,eta_n,rho_vx,rho_vy,bc,gx,gy;dt=dt)
+            stokes_solution = L\R
+            vx,vy,P = unpack(stokes_solution,grid;ghost=true)
 
-        # Obtaining velocity at the cell centers
-        vxc,vyc = velocity_to_centers(grid,vx,vy)
-        adiabatic_heating = compute_adiabatic_heating(grid,rho_c,Tlast,alpha,gx,gy,vxc,vyc)*0.0
-        shear_heating = compute_shear_heating(grid,vx,vy,eta_n,eta_s)*0.0
-        H = (adiabatic_heating .+ shear_heating .+ Hr).*0.0
+            # Obtaining velocity at the cell centers
+            vxc,vyc = velocity_to_centers(grid,vx,vy)
+            adiabatic_heating = compute_adiabatic_heating(grid,rho_c,Tlast,alpha,gx,gy,vxc,vyc) * 0.0
+            shear_heating = compute_shear_heating(grid,vx,vy,eta_n,eta_s) * 0.0
+            H = (adiabatic_heating .+ shear_heating .+ Hr) .* 0.0
 
-        diffusion_timestep = calculate_diffusion_timestep(grid,options)
-        if itime > 1
+            # Computing the advection timestep
             this_dtmax = min(1.2*dt,dtmax)
-        else
-            this_dtmax = dtmax
-        end
-        if this_dtmax > diffusion_timestep
-            dt = diffusion_timestep
-        else
-            dt = this_dtmax
-        end
-        dt = compute_timestep(grid,vxc,vyc;dtmax=this_dtmax,cfl=0.1)
-        if dt > diffusion_timestep
-            dt = diffusion_timestep
-            #println("limiting diffusion timestep to ",dt)
-        end
+            dt = compute_timestep(grid,vxc,vyc;dtmax=this_dtmax,cfl=0.1)
+            diff_timestep = calculate_diffusion_timestep(grid,options)
+            if dt > diff_timestep
+                dt = diff_timestep
+            end
+       end
 
         last_T_norm = NaN
         T_norm = NaN
@@ -312,7 +305,6 @@ function model_setup(options::Dict,plot_dir::String,io)
         titer = 1
         max_titer = 300
         for titer=1:max_titer
-
             # Computing conductive heat flux (using Tlast yields an explicit scheme)
             q_vx,q_vy = compute_q_cond(grid,Tlast,kThermal_vx,kThermal_vy)
 
@@ -403,13 +395,16 @@ function model_setup(options::Dict,plot_dir::String,io)
             last_plot = time
             # Gird output
             name1 = @sprintf("%s/viz.%04d.vtr",output_dir,iout)
-            #println(io,"Writing visualization file = ",name1)
             vn = velocity_to_basic_nodes(grid,vxc,vyc)
-            visualization(grid,rho_c[2:end-1,2:end-1],eta_s,vn,P,Tnew[2:end-1,2:end-1],time/seconds_in_year/1e3;filename=name1);
+            viz_fields = Dict("rho"=>rho_c[2:end-1,2:end-1],"eta"=>eta_s,"velocity"=>vn,"Pressure"=>P)
+            visualization(grid,viz_fields,time/seconds_in_year;filename=name1);
             # Markers output
             name2 = @sprintf("%s/markers.%04d.vtp",output_dir,iout)
-            #println(io,"Writing visualization file = ",name2)
             visualization(markers,time/seconds_in_year;filename=name2);
+            # Additional output
+            name3 = @sprintf("%s/outfields.%04d.vtr",output_dir,iout)
+            output_fields = Dict("Temperature"=>Tnew[2:end-1,2:end-1],"Entropy"=>Snew[2:end-1,2:end-1],"Melt Fraction"=>Xnew[2:end-1,2:end-1]);
+            visualization(grid,output_fields,time/seconds_in_year;filename=name3);
             iout += 1
         end
 
@@ -425,7 +420,7 @@ function model_setup(options::Dict,plot_dir::String,io)
         end
         itime += 1
     end
-    return grid,time,time_plot,ice_shell_thickness_array,ice_shell_thickness,itime,Af
+    return time,itime,Af
 end
 
 function modelrun()
@@ -457,7 +452,7 @@ function modelrun()
                 data_table_info(ice_start,ice_stop,nhice,wavelength_start,wavelength_stop,nlambda,sub_dir,amplitude_percentage)
                 println("Using Wavelength: ",options["wavelength"]/1e3,"(km)"," , ","Using Ice Shell Thickness: ",options["ice thickness"]/1e3,"(km)"," , ","Using Amplitude Percentage: $amplitude_percentage%")
                 io = open(sub_dir_by_run*"/output.txt","w")
-                grid,time,time_plot,ice_shell_thickness_array,ice_shell_thickness,itime,Af = model_setup(options,sub_dir_plots,io);
+                time,itime,Af = model_setup(options,sub_dir_plots,io);
                 t_rel[i,j] = get_numerical_time_viscous(options["amplitude"],Af,time)
                 t_halfspace[i,j] = get_halfspace_time_viscous(options["wavelength"])
                 rate = get_thickening_rate(options["ice thickness"])

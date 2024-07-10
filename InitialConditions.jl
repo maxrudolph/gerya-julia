@@ -7,7 +7,7 @@ struct Materials
     kThermal::Vector{Float64} # Thermal conductivity (W/m*K)
     function Materials()
         new([0.0],[0.0],[2.1e3],[2.2])
-    end    
+    end
 end
 
 function initial_conditions!(markers::Markers,materials::Materials,options::Dict)
@@ -40,11 +40,11 @@ function initial_conditions!(markers::Markers,materials::Materials,options::Dict
             markers.scalars[kThermal,i] = materials.kThermal[1]
             markers.scalars[T,i] = 100.0+((273.0-100.0)/hice)*(my)
             markers.scalars[X,i] = 0.0
-            markers.scalars[S,i] = compute_S_from_T_X(markers.scalars[X,i],markers.scalars[T,i],options)           
+            markers.scalars[S,i] = compute_S_from_T_X(markers.scalars[X,i],markers.scalars[T,i],options)
         end
     end
     # end loop over markers
-    update_marker_prop!(markers,materials)
+    update_marker_prop!(markers)
 end
 
 function initial_ice_depth(x::Float64,options::Dict)
