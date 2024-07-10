@@ -24,7 +24,7 @@ options["density of ice"] = 1e3 # kg/m^3
 options["thermal conductivity of ice"] = 2.2 # W/m*K
 options["thermal diffusivity"] = options["thermal conductivity of ice"] / (options["density of ice"]*options["specific heat of ice"]) # m^2/s
 options["Tm"] = 273.0 # K
-options["ny"] = 51
+options["ny"] = 101
 options["markx"] = 6
 options["marky"] = 6
 
@@ -59,7 +59,7 @@ include("InitialConditions.jl")
 function ice_viscosity(T::Float64)
     Q = 40000.0 # Activation Enegry (J/mol)
     R_cont = 8.314 # Gas Constant (J/molK)
-    meltingpoint_viscosity = 1e15
+    meltingpoint_viscosity = 1e14
     ice_vis = meltingpoint_viscosity*exp((Q*(273.0-T))/(R_cont*(273.0*T)))
     upperlimit = 1e25
     lowerlimit = meltingpoint_viscosity
@@ -112,7 +112,7 @@ function update_marker_prop!(markers::Markers,materials::Materials)
         if markers.scalars[S,i] < 0.0
             markers.scalars[eta,i] = ice_viscosity(markers.scalars[T,i])
         else
-            markers.scalars[eta,i] = 1e13
+            markers.scalars[eta,i] = 1e12
         end
     end
 end
