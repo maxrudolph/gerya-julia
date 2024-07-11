@@ -3,6 +3,7 @@ using Pkg
 Pkg.add("PyCall")
 #Pkg.build("PyCall")
 Pkg.add("SparseArrays")
+Pkg.add("StaticArrays")
 Pkg.add("LinearAlgebra")
 Pkg.add("Pardiso")
 Pkg.add("IterativeSolvers")
