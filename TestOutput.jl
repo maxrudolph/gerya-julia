@@ -39,7 +39,7 @@ function modelrun()
     options["amplitude"] = amp_decimal*options["ice thickness"]
     options["surface depth"] = options["amplitude"]
     io = open(top_dir*"/output.txt","w")
-    println(options)
+    println(io,options)
     close(io)
 end
 
