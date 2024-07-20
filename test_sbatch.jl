@@ -1,5 +1,5 @@
 ### Importing (using/include) packages/modules and files needed for the code to run ###
-# The Base.Process module is needed for to run commands
+# The Base.Process module is needed to run commands
 import Base.Process
 include("Outputs_sbatch.jl")
 
@@ -12,7 +12,7 @@ function execute_cmd(cmd::Cmd)
     end
 end
 
-function main()
+function main_script()
     # Define ice shell thickness range (adjust as needed)
     ice_shell_thickness_range = range(5.0,10.0,2)
     # Define wavelength range (adjust as needed)
@@ -36,4 +36,4 @@ function main()
 end
 
 # Executing main function
-main()
+main_script()
