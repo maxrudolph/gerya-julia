@@ -3,9 +3,9 @@ if length(ARGS) > 4
 else
     ice_shell_thickness = parse(Float64,ARGS[1])
     wavelength = parse(Float64,ARGS[2])
-    percent_amplitude = parse(Int64,ARGS[3])
-    top_dir = parse(String,ARGS[4])
-    println("Model run for ice shell thickness of $ice_shell_thickness , wavelength of $wavelength , amplitude percentage of $percent_amplitude")
+    percent_amplitude = parse(Float64,ARGS[3])
+    top_dir = ARGS[4]
+    println("Model run for ice shell thickness of $ice_shell_thickness, wavelength of $wavelength, amplitude percentage of $percent_amplitude")
 end
 
 ### Model agruments ###
@@ -16,11 +16,11 @@ options["density of ice"] = 1e3 # kg/m^3
 options["thermal conductivity of ice"] = 2.2 # W/m*K
 options["thermal diffusivity"] = options["thermal conductivity of ice"] / (options["density of ice"]*options["specific heat of ice"]) # m^2/s
 options["Tm"] = 273.0 # K
-options["ny"] = 101
+options["ny"] = 51
 options["markx"] = 6
 options["marky"] = 6
 options["hice"] = ice_shell_thickness*1e3
-options["lambda"] = wavelength*1e3
+options["wavelength"] = wavelength*1e3
 
 # Importing (using/include) packages and files needed for the code to run
 using SparseArrays
@@ -35,6 +35,7 @@ using Roots
 using NLsolve
 using Printf
 using HDF5
+using EasyFit
 include("Grid.jl")
 include("Markers.jl")
 include("Stokes.jl")
@@ -44,8 +45,10 @@ using PyPlot
 include("Visualization.jl")
 include("Topo.jl")
 include("Outputs.jl")
+include("FittingData.jl")
 include("TemperatureEntropy.jl")
 include("ModelPlots.jl")
+include("Outputs_sbatch.jl")
 
 ### Setting Up the Initial Conditions ###
 include("InitialConditions.jl")
@@ -122,7 +125,7 @@ end
 ### Model Setup ###
 ## starts here ##
 function model_setup(options::Dict,plot_dir::String,io)
-    W = options["lambda"]
+    W = options["wavelength"]
     H = options["hice"] + options["amplitude"] + options["hice"]/2
     ny = options["ny"]
     nx::Int64 = ceil(ny/H*W)
@@ -151,7 +154,7 @@ function model_setup(options::Dict,plot_dir::String,io)
     @time initial_conditions!(markers,materials,options)
 
     local ice_shell_thickness = []
-    local ice_shell_thickness_array = []
+    local interface_topography_array = []
     local time_plot = []
 
     ### Setting up agruments for interface function ###
@@ -212,7 +215,7 @@ function model_setup(options::Dict,plot_dir::String,io)
     get_plots_new(grid,Slast,Tlast,Xlast,"initial",plot_dir)
 
     itime = 1
-    output_dir = options["visualization file path"]*"/Data"
+    output_dir = options["visualization file path"]
     terminate = false
     while !terminate
 
@@ -358,7 +361,7 @@ function model_setup(options::Dict,plot_dir::String,io)
         max_ice_shell_thickness = maximum(melt_fraction_contour)
         avg_ice_shell_thickness = mean(melt_fraction_contour)
         append!(ice_shell_thickness,avg_ice_shell_thickness)
-        append!(ice_shell_thickness_array,[melt_fraction_contour])
+        append!(interface_topography_array,[melt_fraction_contour])
         append!(time_plot,time)
 
         Af = max_ice_shell_thickness-avg_ice_shell_thickness
@@ -382,7 +385,6 @@ function model_setup(options::Dict,plot_dir::String,io)
             terminate = true
             ### Final Plots ###
             get_plots_new(grid,Snew,Tnew,Xnew,"final",plot_dir)
-            println("Model has reach the termination criteria")
         end
 
         #if time == 0.0 || mod(itime,10) == 0 || terminate
@@ -415,30 +417,29 @@ function model_setup(options::Dict,plot_dir::String,io)
         end
         itime += 1
     end
-    return time,itime,Af
+    return grid,time,itime,Af,interface_topography_array,time_plot
 end
 
 function modelrun()
     sub_plots,sub_data = mk_sub_dir(top_dir)
-    t_halfspace = []
-    t_rel = []
-    t_tic = []
     amp_decimal = percent_amplitude/100
     options["amplitude"] = amp_decimal*options["hice"]
     options["surface depth"] = options["amplitude"]
     options["visualization file path"] = sub_data
-    println("Using Wavelength: ",options["lambda"]/1e3,"(km)"," , ","Using Ice Shell Thickness: ",options["hice"]/1e3,"(km)"," , ","Using Amplitude Percentage: $amplitude_percentage%")
     io = open(top_dir*"/output.txt","w")
-    time,itime,Af = model_setup(options,sub_plots,io);
+    println(io,"Using Wavelength: ", options["wavelength"] / 1e3, "(km)", ", ", "Using Ice Shell Thickness: ", options["hice"] / 1e3, "(km)", ", ", "Using Amplitude Percentage: $percent_amplitude%")
+    grid,time,itime,Af,interface_topograhy_array,time_plot = model_setup(options,sub_plots,io);
+    thickness_over_time(grid,interface_topograhy_array,time_plot,itime,sub_plots)
     t_rel = get_numerical_time_viscous(options["amplitude"],Af,time)
     t_halfspace = get_halfspace_time_viscous(options["wavelength"])
-    rate = get_thickening_rate(options["ice thickness"])
+    rate = get_thickening_rate(options["hice"])
     t_tic = get_thickening_time(options["amplitude"],rate)
+    t_rel_fitted = fitting_data(interface_topograhy_array,time_plot,itime,sub_plots)
     println(io,"Analytic relaxation time: ",t_halfspace,"(yr)",t_halfspace/1e3,"(kyr) or ",t_halfspace/1e6,"(Myr)")
     println(io,"Numerical relaxation time: ",t_rel,"(yr)",t_rel/1e3,"(kyr) or ",t_rel/1e6,"(Myr)")
     close(io)
-    println("Model ran successfully for model run $irun. Outputs saved to output.txt")
-    data_to_hdf5_file(options["lambda"],options["hice"],t_halfspace,t_rel,t_tic,top_dir)
+    println("Model ran successfully")
+    hdf5_file(options,t_halfspace,t_rel,t_tic,t_rel_fitted,top_dir)
 end
 
 try

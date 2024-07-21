@@ -16,7 +16,7 @@ function main_script()
     # Define ice shell thickness range (adjust as needed)
     ice_shell_thickness_range = range(5.0,10.0,2)
     # Define wavelength range (adjust as needed)
-    wavelength_range = range(10.0,100.0,2)
+    wavelength_range = range(10.0,60.0,2)
     # Define amplitude percentage range (adjust as needed)
     amplitude_range = range(20.0,20.0,1)
     # Lopping over the range of amplitude values
@@ -27,7 +27,7 @@ function main_script()
             for lambda in wavelength_range
                 main_dir = mk_main_dir(h,lambda,amp)
                 # Constructing the command string
-                cmd = `julia TestOutput.jl $h $lambda $amp $main_dir`
+                cmd = `julia VMS_sbatch.jl $h $lambda $amp $main_dir`
                 # Executing the command
                 execute_cmd(cmd)
             end

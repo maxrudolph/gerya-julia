@@ -160,7 +160,7 @@ function get_plots_new(grid::CartesianGrid,S::Matrix{Float64},T::Matrix{Float64}
     end
 end
 
-function thickness_over_time(grid::CartesianGrid,thickness_array::Vector{Any},time_plot::Vector{Any},itime::Int64)
+function thickness_over_time(grid::CartesianGrid,thickness_array::Vector{Any},time_plot::Vector{Any},itime::Int64,plot_dir::String)
     figure()
     for i in 1:ceil(Int,itime/10):itime-1
         plot(grid.xc/1e3,thickness_array[i]/1e3,label=(L"At",@sprintf("%.3g",time_plot[i]/3.15e7/1e6),L"Myr"))
@@ -169,5 +169,6 @@ function thickness_over_time(grid::CartesianGrid,thickness_array::Vector{Any},ti
     gca().invert_yaxis()
     # Legend is at the bottom
     legend(loc="upper center",bbox_to_anchor=(0.5,-0.15),ncol=5)
-    show()
+    savefig(plot_dir*"/topo_plot.png",dpi=300)
+    close()
 end

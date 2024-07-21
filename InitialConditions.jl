@@ -48,6 +48,6 @@ function initial_conditions!(markers::Markers,materials::Materials,options::Dict
 end
 
 function initial_ice_depth(x::Float64,options::Dict)
-    return options["ice thickness"] + options["amplitude"]*cos( (pi*(x-options["wavelength"]))/options["wavelength"] )
+    return options["hice"] + options["amplitude"]*cos( (pi*(x-options["wavelength"]))/options["wavelength"] )
 end
 ## ends here ##
