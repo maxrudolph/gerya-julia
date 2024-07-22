@@ -1,3 +1,4 @@
+using Base: termios_size
 if length(ARGS) > 4
     error("specify proper input arguments for range function for ice shell thickness and wavelength topogaphy for ocean-ice interface")
 else
@@ -388,7 +389,7 @@ function model_setup(options::Dict,plot_dir::String,io)
         end
 
         #if time == 0.0 || mod(itime,10) == 0 || terminate
-        if itime == 0.0 || terminate
+        if itime == 0.0 || Af/Ai <= term_crit ||terminate
             last_plot = time
             # Gird output
             name1 = @sprintf("%s/viz.%04d.vtr",output_dir,iout)
