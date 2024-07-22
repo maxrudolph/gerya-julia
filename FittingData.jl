@@ -1,22 +1,22 @@
-function fitting_data(topography::Vector{Any},times::Vector{Any},itime::Int64,sub_plots::String)
+function fitting_data(amplitude::Vector{Any},times::Vector{Any},itime::Int64,sub_plots::String)
     ampfit = []
     for i in 1:itime-1
-        amp = maximum(topography[i])-minimum(topography[i])
+        amp = amplitude[i]
         append!(ampfit,amp)
     end
     x = convert(Array{Float64},times)
     y = convert(Array{Float64},ampfit)
-    fit = fitexp(x,y)
+    fit = fitexp(x/3.15e7,y,options=Options(fine=100))
     fitted_time = fit.b
 
     figure()
     for i in 1:itime-1
-        plot(times[i]/3.15e7,maximum(topography[i])-minimum(topography[i]),".")
+        plot(times[i]/3.15e7,amplitude[i],".")
     end
     plot(fit.x,fit.y,"r-",label="fitted data")
     gca().set_ylabel(L"Amplitude\,(m)")
     gca().set_xlabel(L"Time\,(yrs)")
-    #legend(fancybox="True",shadow="True")
+    legend()
     savefig(sub_plots*"/fitted_data.png",dpi=300)
     close()
     return fitted_time/3.15e7
