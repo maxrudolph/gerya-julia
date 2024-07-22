@@ -341,7 +341,6 @@ function model_setup(options::Dict,plot_dir::String,io)
             elseif titer == max_titer
                 terminate = true
                 @error(io,"Did not converged")
-            iout += 1
             elseif any(isnan.(dT))
                 terminate = true
                 @error(io,"NaN or Inf apperred")
@@ -368,27 +367,14 @@ function model_setup(options::Dict,plot_dir::String,io)
         i_A = @sprintf("%.6g",Ai/1e3)
         f_A = @sprintf("%.6g",Af/1e3)
 
-        if itime == 1
-            stopping_ratio = Af/Ai
-        end
-        term_crit = 1/exp(1)
-        #if isapprox(Af/Ai,(stopping_ratio*0.75)+(term_crit*0.25);atol=1e-3)
-         #   println("Model progress (~25%)")
-        #elseif isapprox(Af/Ai,(stopping_ratio*0.50)+(term_crit*0.50);atol=1e-3)
-         #   println("Model progress (~50%)")
-        #elseif isapprox(Af/Ai,(stopping_ratio*0.25)+(term_crit*0.75);atol=1e-3)
-         #   println("Model progress (~75%)")
-        #end
-
         # Checking Termination Criteria, time is in Myr, amplitude is in meters
-        if time >= max_time || itime >= max_step || Af/Ai <= term_crit
+        if time >= max_time || itime >= max_step || Af/Ai <= 1/exp(1)
             terminate = true
             ### Final Plots ###
             get_plots_new(grid,Snew,Tnew,Xnew,"final",plot_dir)
         end
 
-        #if time == 0.0 || mod(itime,10) == 0 || terminate
-        if itime == 0.0 || Af/Ai <= term_crit ||terminate
+        if itime == 1.0 || terminate
             last_plot = time
             # Gird output
             name1 = @sprintf("%s/viz.%04d.vtr",output_dir,iout)
