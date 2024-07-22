@@ -1,4 +1,3 @@
-using Base: termios_size
 if length(ARGS) > 4
     error("specify proper input arguments for range function for ice shell thickness and wavelength topogaphy for ocean-ice interface")
 else
