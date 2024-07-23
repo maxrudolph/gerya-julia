@@ -428,7 +428,7 @@ function modelrun()
     println(io,"Numerical relaxation time: ",t_rel,"(yr)",t_rel/1e3,"(kyr) or ",t_rel/1e6,"(Myr)")
     close(io)
     println("Model ran successfully")
-    io = open(top_dir*"AmplitudeData.txt","w")
+    io = open(top_dir*"/AmplitudeData.txt","w")
     for element in amplitude
         println(io,element)
     end
