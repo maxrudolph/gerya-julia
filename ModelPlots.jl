@@ -160,15 +160,28 @@ function get_plots_new(grid::CartesianGrid,S::Matrix{Float64},T::Matrix{Float64}
     end
 end
 
-function thickness_over_time(grid::CartesianGrid,thickness_array::Vector{Any},time_plot::Vector{Any},itime::Int64,plot_dir::String)
+function interface_topography_over_time(grid::CartesianGrid,topgraphy_array::Vector{Any},time_plot::Vector{Any},itime::Int64,plot_dir::String)
     figure()
     for i in 1:ceil(Int,itime/10):itime-1
-        plot(grid.xc/1e3,thickness_array[i]/1e3,label=(L"At",@sprintf("%.3g",time_plot[i]/3.15e7/1e6),L"Myr"))
+        plot(grid.xc/1e3,topography_array[i]/1e3,label=(L"At",@sprintf("%.3g",time_plot[i]/3.15e7/1e6),L"Myr"))
     end
     title(L"Profile\,of\,Ocean-Ice\,Inferface\,Topograpgy\,Over\,Time")
     gca().invert_yaxis()
+    gca().set_ylabel(L"Depth\,(km)")
+    gca().set_xlabel(L"Time\,(kyr)")
     # Legend is at the bottom
-    legend(loc="upper center",bbox_to_anchor=(0.5,-0.15),ncol=5)
+    legend(loc="upper right",fontsize="x-small",ncol=2)
     savefig(plot_dir*"/topo_plot.png",dpi=300)
+    close()
+end
+
+function thickness_over_time(thickness_array::Vector{Any},time_plot::Vector{Any},plot_dir::String)
+    figure()
+    plot(time_plot/3.15e7/1e3,ice_shell_thickness/1e3)
+    title(L"Ice\,\,Shell\,\,Thickness\,\,Over\,\,Time")
+    gca().invert_yaxis()
+    gca().set_ylabel(L"Thickness\,(km)")
+    gca().set_xlabel(L"Time\,(kyr)")
+    savefig(plot_dir*"/hice_plot.png",dpi=300)
     close()
 end
