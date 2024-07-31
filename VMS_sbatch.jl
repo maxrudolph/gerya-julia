@@ -429,8 +429,10 @@ function modelrun()
     close(io)
     println("Model ran successfully")
     io = open(top_dir*"/AmplitudeData.txt","w")
-    for element in amplitude
-        println(io,element)
+    for i in amplitude
+        for j in time_plot
+            println(io,i,",",j)
+        end
     end
     close(io)
     hdf5_file(options,t_halfspace,t_rel,t_tic,t_rel_fitted,top_dir)
