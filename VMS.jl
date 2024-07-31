@@ -24,7 +24,7 @@ options["density of ice"] = 1e3 # kg/m^3
 options["thermal conductivity of ice"] = 2.2 # W/m*K
 options["thermal diffusivity"] = options["thermal conductivity of ice"] / (options["density of ice"]*options["specific heat of ice"]) # m^2/s
 options["Tm"] = 273.0 # K
-options["ny"] = 101
+options["ny"] = 51
 options["markx"] = 6
 options["marky"] = 6
 
@@ -129,7 +129,7 @@ end
 ## starts here ##
 function model_setup(options::Dict,plot_dir::String,io)
     W = options["wavelength"]
-    H = options["ice thickness"] + options["amplitude"] + options["ice thickness"]/2
+    H = options["hice"] + options["amplitude"] + options["hice"]/2
     ny = options["ny"]
     nx::Int64 = ceil(ny/H*W)
     gx = 0.0
@@ -443,19 +443,19 @@ function modelrun()
         for i in 1:nlambda
             for j in 1:nhice
                 options["wavelength"] = lambda[i]*1e3
-                options["ice thickness"] = hice[j]*1e3
-                options["amplitude"] = amp_decimal*options["ice thickness"]
+                options["hice"] = hice[j]*1e3
+                options["amplitude"] = amp_decimal*options["hice"]
                 options["surface depth"] = options["amplitude"]
                 println("Starting model execution for model run $irun...")
                 sub_dir_by_run,sub_dir_plots,sub_dir_data = mk_output_dir(sub_dir,irun)
         options["visualization file path"] = sub_dir_by_run
                 data_table_info(ice_start,ice_stop,nhice,wavelength_start,wavelength_stop,nlambda,sub_dir,amplitude_percentage)
-                println("Using Wavelength: ",options["wavelength"]/1e3,"(km)"," , ","Using Ice Shell Thickness: ",options["ice thickness"]/1e3,"(km)"," , ","Using Amplitude Percentage: $amplitude_percentage%")
+                println("Using Wavelength: ",options["wavelength"]/1e3,"(km)"," , ","Using Ice Shell Thickness: ",options["hice"]/1e3,"(km)"," , ","Using Amplitude Percentage: $amplitude_percentage%")
                 io = open(sub_dir_by_run*"/output.txt","w")
                 time,itime,Af = model_setup(options,sub_dir_plots,io);
                 t_rel[i,j] = get_numerical_time_viscous(options["amplitude"],Af,time)
                 t_halfspace[i,j] = get_halfspace_time_viscous(options["wavelength"])
-                rate = get_thickening_rate(options["ice thickness"])
+                rate = get_thickening_rate(options["hice"])
                 t_tic[i,j] = get_thickening_time(options["amplitude"],rate)
                 println(io,"Analytic relaxation time: ",t_halfspace[i,j],"(yr)",t_halfspace[i,j]/1e3,"(kyr) or ",t_halfspace[i,j]/1e6,"(Myr)")
                 println(io,"Numerical relaxation time: ",t_rel[i,j],"(yr)",t_rel[i,j]/1e3,"(kyr) or ",t_rel[i,j]/1e6,"(Myr)")
