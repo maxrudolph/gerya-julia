@@ -435,7 +435,7 @@ function modelrun()
         end
     end
     close(io)
-    hdf5_file(options,t_halfspace,t_rel,t_tic,t_rel_fitted,top_dir)
+    hdf5_file(options,t_halfspace,t_rel,t_thic,t_rel_fitted,top_dir)
 end
 
 try
