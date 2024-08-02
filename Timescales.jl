@@ -66,7 +66,7 @@ function compute_numerical_thickening_time(h::Vector{Any},t::Vector{Any},hi::Flo
     thickening_rate = diff(h)./diff(t)  # Change in thickness / Change in time
     average_thickening_rate = mean(thickening_rate)
     t_thickening = hi/average_thickening_rate
-    return t_thickening/3.1e7
+    return t_thickening/3.15e7
 end
 
 function get_numerical_time_viscous(initial_amplitude::Float64,final_amplitude::Float64,time::Float64)
