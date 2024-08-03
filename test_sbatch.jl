@@ -13,12 +13,21 @@ function execute_cmd(cmd::Cmd)
 end
 
 function main_script()
-    # Define ice shell thickness range (adjust as needed)
-    ice_shell_thickness_range = range(5.0,10.0,2)
-    # Define wavelength range (adjust as needed)
-    wavelength_range = range(10.0,60.0,2)
+    # Define ice shell thickness range (adjust as needed) in km
+    ice_start = 10.0
+    ice_stop = 60.0
+    nice = 3
+    ice_shell_thickness_range = range(ice_start,ice_stop,nice)
+    # Define wavelength range (adjust as needed) in km
+    wavelength_start = 5.0
+    wavelength_stop = 200.0 
+    nwavelength = 4
+    wavelength_range = range(wavelength_start,wavelength_stop,nwavelength)
     # Define amplitude percentage range (adjust as needed)
-    amplitude_range = range(20.0,20.0,1)
+    amplitude_start = amplitude_stop = 20.0
+    amplitude_range = range(amplitude_start,amplitude_stop,1)
+    # Making data table   	
+    data_table_info(ice_start,ice_stop,nice,wavelength_start,wavelength_stop,nwavelength,"Model_Outputs",amplitude_start)
     # Lopping over the range of amplitude values
     for amp in amplitude_range
         # Looping over the range of ice shell thickness values
@@ -34,6 +43,5 @@ function main_script()
         end
     end
 end
-
 # Executing main function
 main_script()
