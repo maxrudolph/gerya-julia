@@ -16,6 +16,7 @@ options["density of ice"] = 1e3 # kg/m^3
 options["thermal conductivity of ice"] = 2.2 # W/m*K
 options["thermal diffusivity"] = options["thermal conductivity of ice"] / (options["density of ice"]*options["specific heat of ice"]) # m^2/s
 options["Tm"] = 273.0 # K
+options["thermal expansivity"] = 1e-4 # 1/K (Nimmo,2004)
 options["ny"] = 101
 options["markx"] = 6
 options["marky"] = 6
@@ -89,7 +90,7 @@ end
 
 ### Updating Schemes ###
 ## starts here ##
-function update_marker_prop!(markers::Markers)
+function update_marker_prop!(markers::Markers,options::Dict)
     rho = markers.scalarFields["rho"]
     eta = markers.scalarFields["eta"]
     T = markers.scalarFields["T"]
@@ -97,7 +98,7 @@ function update_marker_prop!(markers::Markers)
     X = markers.scalarFields["X"]
     Threads.@threads for i in 1:markers.nmark
         if markers.scalars[X,i] <= 0.0
-            markers.scalars[rho,i] = 920.0
+            markers.scalars[rho,i] = 929.0*(1-options["thermal expansivity"]*(markers.scalars[T,i]-273.0))
         elseif markers.scalars[X,i] >= 1.0
             markers.scalars[rho,i] = 1000.0 # kg/m^3
         else
@@ -369,7 +370,7 @@ function model_setup(options::Dict,plot_dir::String,io)
         f_A = @sprintf("%.6g",Af/1e3)
 
         # Checking Termination Criteria, time is in Myr, amplitude is in meters
-        if time >= max_time || itime >= max_step || Af/Ai <= 1/exp(1)
+        if time >= max_time || itime >= max_step || (ice_shell_thickness[itime] - ice_shell_thickness[1]) > 1e3
             terminate = true
             ### Final Plots ###
             get_plots_new(grid,Snew,Tnew,Xnew,"final",plot_dir)
