@@ -436,6 +436,13 @@ function modelrun()
         end
     end
     close(io)
+    io = open(top_dir*"/ThickeningData.txt","w")
+    for i in ice_shell_thickness
+        for j in time_plot
+            println(io,i,",",j)
+        end
+    end
+    close(io)
     hdf5_file(options,t_halfspace,t_rel,t_thick,t_rel_fitted,top_dir)
 end
 
