@@ -221,7 +221,7 @@ function model_setup(options::Dict,plot_dir::String,io)
     while !terminate
 
         ## update the markers properties ##
-        update_marker_prop!(markers)
+        update_marker_prop!(markers,options)
         ## Transfer properties markers -> nodes ##
         # Basic Nodes
         eta_s_new, = marker_to_stag(markers,grid,["eta",],"basic",method="logarithmic")
