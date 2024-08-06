@@ -37,7 +37,8 @@ function combine_hdf5_files(ice_shell_thickness_range::AbstractRange{Float64},wa
                     append!(combined_data["Viscous Relaxation Time(Half-Space)"],read(g["Viscous Relaxation Time(Half-Space)"]))
                     append!(combined_data["Viscous Relaxation Time(Model)"],read(g["Viscous Relaxation Time(Model)"]))
                     append!(combined_data["Fitted Viscous Relaxation Time"],read(g["Fitted Viscous Relaxation Time"]))
-                    append!(combined_data["Thickening Time"],read(g["Thickening Time"]))  
+                    append!(combined_data["Thickening Time"],read(g["Thickening Time"])) 
+                    append!(combined_data["Fitted Thickening Time"],read(g["Fitted Thickening Time"]))
                     # Add to values to wavelength and ice shell thickness values
                     union!(wavelength_set,read(g["Wavelength"]))
                     union!(ice_shell_thickness_set,read(g["Ice Shell Thickness"]))
@@ -54,8 +55,9 @@ function combine_hdf5_files(ice_shell_thickness_range::AbstractRange{Float64},wa
     
     t_hs_matrix = zeros(n_wavelength,n_hice)
     t_rel_matrix = zeros(n_wavelength,n_hice)
-    t_fit_matrix = zeros(n_wavelength,n_hice)
+    t_rel_fit_matrix = zeros(n_wavelength,n_hice)
     t_thic_matrix = zeros(n_wavelength,n_hice)
+    t_thic_fit_matrix = zeros(n_wavelength,n_hice)
 
     for i in 1:length(combined_data["Viscous Relaxation Time(Half-Space)"])
         wavelength = combined_data["Wavelength"][i]
@@ -66,8 +68,9 @@ function combine_hdf5_files(ice_shell_thickness_range::AbstractRange{Float64},wa
         # Fill the matrices
         t_hs_matrix[i_idx,j_idx] = combined_data["Viscous Relaxation Time(Half-Space)"][i]
         t_rel_matrix[i_idx,j_idx] = combined_data["Viscous Relaxation Time(Model)"][i]
-        t_fit_matrix[i_idx,j_idx] = combined_data["Fitted Viscous Relaxation Time"][i]
+        t_rel_fit_matrix[i_idx,j_idx] = combined_data["Fitted Viscous Relaxation Time"][i]
         t_thic_matrix[i_idx,j_idx] = combined_data["Thickening Time"][i]
+        t_thic_fit_matrix[i_idx,j_idx] = combined_data["Fitted Thickening Time"][i]
     end
 
     h5open(output_path, "w") do file
@@ -76,8 +79,9 @@ function combine_hdf5_files(ice_shell_thickness_range::AbstractRange{Float64},wa
         g["Ice Shell Thickness"] = sorted_hice
         g["Viscous Relaxation Time(Half-Space)"] = t_hs_matrix
         g["Viscous Relaxation Time(Model)"] = t_rel_matrix
-        g["Fitted Viscous Relaxation Time"] = t_fit_matrix
+        g["Fitted Viscous Relaxation Time"] = t_rel_fit_matrix
         g["Thickening Time"] = t_thic_matrix
+        g["Fitted Thickening Time"] = t_thic_fit_matrix
         attrs(g)["Description"] = "This group contains combined and sorted unique datasets"
     end
 end

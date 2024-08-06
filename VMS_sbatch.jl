@@ -418,13 +418,13 @@ function modelrun()
     println(io,"Using Wavelength: ", options["wavelength"] / 1e3, "(km)", ", ", "Using Ice Shell Thickness: ", options["hice"] / 1e3, "(km)", ", ", "Using Amplitude Percentage: $percent_amplitude%")
     grid,time,itime,Af,interface_topograhy_array,time_plot,amplitude,ice_shell_thickness = model_setup(options,sub_plots,io);
     interface_topography_over_time(grid,interface_topograhy_array,time_plot,itime,sub_plots)
-    thickness_over_time(ice_shell_thickness,time_plot,sub_plots)
+    # thickness_over_time(ice_shell_thickness,time_plot,sub_plots)
     t_rel = get_numerical_time_viscous(options["amplitude"],Af,time)
     t_halfspace = get_halfspace_time_viscous(options["wavelength"])
     # rate = get_thickening_rate(options["hice"])
     # t_thick = get_thickening_time(options["amplitude"],rate)
     t_thick = compute_numerical_thickening_time(ice_shell_thickness,time_plot,options["hice"])
-    t_rel_fitted = fitting_data(amplitude,time_plot,itime,sub_plots)
+    t_rel_fitted,t_thick_fitted = fitting_data(amplitude,ice_shell_thickness,time_plot,itime,sub_plots)
     println(io,"Analytic relaxation time: ",t_halfspace,"(yr)",t_halfspace/1e3,"(kyr) or ",t_halfspace/1e6,"(Myr)")
     println(io,"Numerical relaxation time: ",t_rel,"(yr)",t_rel/1e3,"(kyr) or ",t_rel/1e6,"(Myr)")
     close(io)
@@ -443,7 +443,7 @@ function modelrun()
         end
     end
     close(io)
-    hdf5_file(options,t_halfspace,t_rel,t_thick,t_rel_fitted,top_dir)
+    hdf5_file(options,t_halfspace,t_rel,t_thick,t_rel_fitted,t_thick_fitted,top_dir)
 end
 
 try

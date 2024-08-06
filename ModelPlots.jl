@@ -175,13 +175,13 @@ function interface_topography_over_time(grid::CartesianGrid,topography_array::Ve
     close()
 end
 
-function thickness_over_time(thickness_array::Vector{Any},time_plot::Vector{Any},plot_dir::String)
-    figure()
-    plot(time_plot/3.15e7/1e3,thickness_array/1e3)
-    title(L"Ice\,\,Shell\,\,Thickness\,\,Over\,\,Time")
-    gca().invert_yaxis()
-    gca().set_ylabel(L"Thickness\,(km)")
-    gca().set_xlabel(L"Time\,(kyr)")
-    savefig(plot_dir*"/hice_plot.png",dpi=300)
-    close()
-end
+# function thickness_over_time(thickness_array::Vector{Any},time_plot::Vector{Any},plot_dir::String)
+#     figure()
+#     plot(time_plot/3.15e7/1e3,thickness_array/1e3)
+#     title(L"Ice\,\,Shell\,\,Thickness\,\,Over\,\,Time")
+#     gca().invert_yaxis()
+#     gca().set_ylabel(L"Thickness\,(km)")
+#     gca().set_xlabel(L"Time\,(kyr)")
+#     savefig(plot_dir*"/hice_plot.png",dpi=300)
+#     close()
+# end
