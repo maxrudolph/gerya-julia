@@ -44,7 +44,7 @@ function initial_conditions!(markers::Markers,materials::Materials,options::Dict
         end
     end
     # end loop over markers
-    update_marker_prop!(markers)
+    update_marker_prop!(markers,options)
 end
 
 function initial_ice_depth(x::Float64,options::Dict)
