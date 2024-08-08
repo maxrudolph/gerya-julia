@@ -12,7 +12,7 @@ end
 options = Dict()
 options["latent heat of fusion"] = 3.34e5 #J/kg
 options["specific heat of ice"] = 2.1e3 # J/kg*K (ice)
-options["density of ice"] = 1e3 # kg/m^3
+options["density of ice"] = 920.0 # kg/m^3
 options["thermal conductivity of ice"] = 2.2 # W/m*K
 options["thermal diffusivity"] = options["thermal conductivity of ice"] / (options["density of ice"]*options["specific heat of ice"]) # m^2/s
 options["Tm"] = 273.0 # K
@@ -98,11 +98,11 @@ function update_marker_prop!(markers::Markers,options::Dict)
     X = markers.scalarFields["X"]
     Threads.@threads for i in 1:markers.nmark
         if markers.scalars[X,i] <= 0.0
-            markers.scalars[rho,i] = 929.0*(1-options["thermal expansivity"]*(markers.scalars[T,i]-273.0))
+            markers.scalars[rho,i] = options["density of ice"]*(1-options["thermal expansivity"]*(markers.scalars[T,i]-273.0))
         elseif markers.scalars[X,i] >= 1.0
             markers.scalars[rho,i] = 1000.0 # kg/m^3
         else
-            markers.scalars[rho,i] = 920.0 + (1000.0-920.0)*markers.scalars[X,i] # kg/m^3
+            markers.scalars[rho,i] = options["density of ice"] + (1000.0-options["density of ice"])*markers.scalars[X,i] # kg/m^3
         end
         if markers.scalars[S,i] < 0.0
             markers.scalars[eta,i] = ice_viscosity(markers.scalars[T,i])
