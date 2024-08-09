@@ -4,8 +4,8 @@ function fitting_data(amplitude::Vector{Any},thickness_array::Vector{Any},times:
         amp = amplitude[i]
         append!(ampfit,amp)
     end
-    xa = convert(Array{Float64},times)
-    ya = convert(Array{Float64},ampfit)
+    x = convert(Array{Float64},times)
+    y = convert(Array{Float64},ampfit)
     fit = fitexp(xa,ya,options=Options(fine=100))
     fitted_time_amp = fit.b
 
@@ -13,7 +13,7 @@ function fitting_data(amplitude::Vector{Any},thickness_array::Vector{Any},times:
     for i in 1:itime-1
         plot(times[i]/3.15e7,amplitude[i],".")
     end
-    plot(fit.xa/3.15e7,fit.ya,"r-",label="fitted data")
+    plot(fit.x/3.15e7,fit.y,"r-",label="fitted data")
     title(L"Amplitude\,\,Over\,\,Time")
     gca().set_ylabel(L"Amplitude\,(m)")
     gca().set_xlabel(L"Time\,(yrs)")
@@ -26,16 +26,16 @@ function fitting_data(amplitude::Vector{Any},thickness_array::Vector{Any},times:
         hice = thickness_array[i]
         append!(hicefit,hice)
     end
-    xh = convert(Array{Float64},times)
-    yh = convert(Array{Float64},ampfit)
-    fit = fitexp(xh,yh,options=Options(fine=100))
+    x = convert(Array{Float64},times)
+    y = convert(Array{Float64},ampfit)
+    fit = fitexp(x,y,options=Options(fine=100))
     fitted_time_hice = fit.b
 
     figure()
     for i in 1:itime-1
         plot(times[i]/3.15e7/1e3,thickness_array[i],".")
     end
-    plot(fit.xh/3.15e7/1e3,fit.yh,"r-",label="fitted data")
+    plot(fit.x/3.15e7/1e3,fit.y,"r-",label="fitted data")
     title(L"Ice\,\,Shell\,\,Thickness\,\,Over\,\,Time")
     gca().set_ylabel(L"Ice Shell Thickness\,(m)")
     gca().set_xlabel(L"Time\,(kyr)")
