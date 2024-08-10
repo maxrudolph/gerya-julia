@@ -6,7 +6,7 @@ function fitting_data(amplitude::Vector{Any},thickness_array::Vector{Any},times:
     end
     x = convert(Array{Float64},times)
     y = convert(Array{Float64},ampfit)
-    fit = fitexp(xa,ya,options=Options(fine=100))
+    fit = fitexp(x,y,options=Options(fine=100))
     fitted_time_amp = fit.b
 
     figure()
