@@ -1,4 +1,4 @@
-function fitting_data(amplitude::Vector{Any},thickness_array::Vector{Any},times::Vector{Any},itime::Int64,sub_plots::String)
+function fitting_amp_data(amplitude::Vector{Any},times::Vector{Any},itime::Int64,sub_plots::String)
     ampfit = []
     for i in 1:itime-1
         amp = amplitude[i]
@@ -20,10 +20,13 @@ function fitting_data(amplitude::Vector{Any},thickness_array::Vector{Any},times:
     legend()
     savefig(sub_plots*"/ampfitted_data.png",dpi=300)
     close()
+    return fitted_time_amp/3.15e7
+end
 
+function fitting_thickingd_data(thickness::Vector{Any},times::Vector{Any},itime::Int64,sub_plots::String)
     hicefit = []
     for i in 1:itime-1
-        hice = thickness_array[i]
+        hice = thickness[i]
         append!(hicefit,hice)
     end
     x = convert(Array{Float64},times)
@@ -33,7 +36,7 @@ function fitting_data(amplitude::Vector{Any},thickness_array::Vector{Any},times:
 
     figure()
     for i in 1:itime-1
-        plot(times[i]/3.15e7/1e3,thickness_array[i],".")
+        plot(times[i]/3.15e7/1e3,thickness[i],".")
     end
     plot(fit.x/3.15e7/1e3,fit.y,"r-",label="fitted data")
     title(L"Ice\,\,Shell\,\,Thickness\,\,Over\,\,Time")
@@ -42,7 +45,7 @@ function fitting_data(amplitude::Vector{Any},thickness_array::Vector{Any},times:
     legend()
     savefig(sub_plots*"/hicefitted_data.png",dpi=300)
     close()
-    return fitted_time_amp/3.15e7,fitted_time_hice/3.15e7
+    return fitted_time_hice/3.15e7
 end
 
 function hdf5_file(options::Dict,t_hs::Float64,t_rel::Float64,t_thic::Float64,t_rel_fit::Float64,t_thick_fit::Float64,top_dir::String)
