@@ -283,7 +283,7 @@ end
 
 #### start ####
 ##### Function to compute a subgird diffusion operation with entropy #####
-function subgirdSdiff!(grid::CartesianGrid,markers::Markers,Slast::Matrix{Float64},dt::Float64,options::Dict;diffusivity::Float64=1.0)
+function subgridSdiff!(grid::CartesianGrid,markers::Markers,Slast::Matrix{Float64},dt::Float64,options::Dict;diffusivity::Float64=1.0)
     """
     Arguments:
         Slast -
@@ -324,7 +324,7 @@ function subgirdSdiff!(grid::CartesianGrid,markers::Markers,Slast::Matrix{Float6
                
         for iter in 1:3
              if iter == 1
-                 # initial iteration
+                 # initial iteration - guess heat capacity equal to Cv
                  Cpm = Cv
              else
                  # after first iteration
@@ -349,8 +349,8 @@ function subgirdSdiff!(grid::CartesianGrid,markers::Markers,Slast::Matrix{Float6
     # update the marker entropy
     markers.scalars[S,1:markers.nmark] += dS_subgrid_Sm[1,:]
     
-    rhoT = markers.scalars[markers.scalarFields["rho"],:] .* markers.scalars[markers.scalarFields["T"],:]
-    dSm, = marker_to_stag(markers,grid,dS_subgrid_Sm,"center",extra_weight=rhoT)
+    #rhoT = markers.scalars[markers.scalarFields["rho"],:] .* markers.scalars[markers.scalarFields["T"],:]
+    dSm, = marker_to_stag(markers,grid,dS_subgrid_Sm,"center")#,extra_weight=rhoT)
     dSm[isnan.(dSm)] .= 0.0
     return dSm
 end
