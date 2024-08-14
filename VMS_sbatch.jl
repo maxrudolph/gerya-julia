@@ -10,13 +10,14 @@ end
 
 ### Model agruments ###
 options = Dict()
-options["latent heat of fusion"] = 3.34e5 #J/kg
-options["specific heat of ice"] = 2.1e3 # J/kg*K (ice)
-options["density of ice"] = 920.0 # kg/m^3
-options["thermal conductivity of ice"] = 2.2 # W/m*K
+options["latent heat of fusion"] = 3.334e5 #J/kg
+options["specific heat of ice"] = 1520.0 # J/kg*K (ice at ~80K)
+options["density of ice"] = 926.9 # kg/m^3 (ice at ~80K)
+options["density of ocean"] = 916.7 # kg/m^3 (ice at ~273K)
+options["thermal conductivity of ice"] = 3.27 # W/m*K (ice at ~80K)
 options["thermal diffusivity"] = options["thermal conductivity of ice"] / (options["density of ice"]*options["specific heat of ice"]) # m^2/s
 options["Tm"] = 273.0 # K
-options["thermal expansivity"] = 1e-4 # 1/K (Nimmo,2004)
+options["thermal expansivity"] = 1.655e-5 # 1/K (ice at ~80K)
 options["ny"] = 101
 options["markx"] = 6
 options["marky"] = 6
@@ -100,7 +101,7 @@ function update_marker_prop!(markers::Markers,options::Dict)
         if markers.scalars[X,i] <= 0.0
             markers.scalars[rho,i] = options["density of ice"]*(1-options["thermal expansivity"]*(markers.scalars[T,i]-273.0))
         elseif markers.scalars[X,i] >= 1.0
-            markers.scalars[rho,i] = 1000.0 # kg/m^3
+            markers.scalars[rho,i] = options["density of ocean"] # kg/m^3
         else
             markers.scalars[rho,i] = options["density of ice"] + (1000.0-options["density of ice"])*markers.scalars[X,i] # kg/m^3
         end
