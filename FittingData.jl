@@ -30,7 +30,7 @@ function fitting_thickingd_data(thickness::Vector{Any},times::Vector{Any},itime:
         append!(hicefit,hice)
     end
     x = convert(Array{Float64},times)
-    y = convert(Array{Float64},ampfit)
+    y = convert(Array{Float64},hicefit)
     fit = fitexp(x/3.15e7/1e3,y,options=Options(fine=100))
     fitted_time_hice = fit.b
 
