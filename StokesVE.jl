@@ -2,12 +2,15 @@
 @inline vxdof(i::Int64, j::Int64, ny::Int64) = 3 * (node_index(i, j, ny) - 1) + 1
 @inline vydof(i::Int64, j::Int64, ny::Int64) = 3 * (node_index(i, j, ny) - 1) + 2
 @inline pdof(i::Int64, j::Int64, ny::Int64) = 3 * (node_index(i, j, ny) - 1) + 3
-function form_stokes(grid::CartesianGrid,eta_s::Matrix,eta_n::Matrix,rhoX::Matrix,rhoY::Matrix,bc::BoundaryConditions,gx::Float64,gy::Float64;dt::Float64=0.0)
+function form_stokes(grid::CartesianGrid,eta_s::Matrix,eta_n::Matrix,mu_s::Matrix,mu_n::Matrix,sxx_o::Matrix,sxy_o::Matrix,rhoX::Matrix,rhoY::Matrix,bc::BoundaryConditions,gx::Float64,gy::Float64;dt::Float64=0.0)
     # Form the Stokes system.
     # Inputs:
     # grid - the cartesian grid
     # eta_s - viscosity at the basic nodes
     # eta_n - viscosity at the cell centers
+    # mu_s - shear modulus at the basic nodes
+    # mu_n - shear modulus at the cell centers
+    # sxx_o,sxy_o - are the old deviatoric stresses
     # rhoX - density at the vx nodes
     # rhoY - density at the vy nodes
     # bc - a vector describing the boundary conditions along the [left,right,top,bottom]
@@ -94,7 +97,7 @@ function form_stokes(grid::CartesianGrid,eta_s::Matrix,eta_n::Matrix,rhoX::Matri
                 # vx3 term
                 row_index[k] = this_row
                 col_index[k] = this_row
-                value[k] = -2*(eta_s[i+1,j]/dyp + eta_s[i,j]/dym) - (eta_n[i+1,j]/dxp + eta_n[i,j]/dxm) - drhody*gy*dt
+                value[k] = -2*(eta_s[i+1,j]/dyp + eta_s[i,j]/dym)/dyc - (eta_n[i+1,j]/dxp + eta_n[i,j]/dxm)/dxc - drhody*gy*dt
                 k += 1
 
                 if i == ny #vx4
