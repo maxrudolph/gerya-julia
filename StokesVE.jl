@@ -1,13 +1,53 @@
-using Base: throw_invalid_char
-function form_vep_stokes()
-    # looping over j
+@inline node_index(i::Int64, j::Int64, ny::Int64) = ny * (j - 1) + i
+@inline vxdof(i::Int64, j::Int64, ny::Int64) = 3 * (node_index(i, j, ny) - 1) + 1
+@inline vydof(i::Int64, j::Int64, ny::Int64) = 3 * (node_index(i, j, ny) - 1) + 2
+@inline pdof(i::Int64, j::Int64, ny::Int64) = 3 * (node_index(i, j, ny) - 1) + 3
+function form_stokes(grid::CartesianGrid,eta_s::Matrix,eta_n::Matrix,rhoX::Matrix,rhoY::Matrix,bc::BoundaryConditions,gx::Float64,gy::Float64;dt::Float64=0.0)
+    # Form the Stokes system.
+    # Inputs:
+    # grid - the cartesian grid
+    # eta_s - viscosity at the basic nodes
+    # eta_n - viscosity at the cell centers
+    # rhoX - density at the vx nodes
+    # rhoY - density at the vy nodes
+    # bc - a vector describing the boundary conditions along the [left,right,top,bottom]
+    # gx,gy - gravitational body force in the x and y direction
+    # dt - the timestep, used in the free surface stabilization terms. dt=0.0 (default)
+    #         disables free surface stabilization.
+    # Outputs:
+    # L,R - the left hand side (matrix) and right hand side (vector) of the stokes system
+
+    k::Int64 = 1 # index into dof arrays
+    nx = grid.nx
+    ny = grid.ny
+    nn = nx*ny
+    nnz = 2*11*nn + 5*nn # total number of nonzeros in matrix (not including BCs)
+    row_index = zeros(Int64,nnz) # up to 5 nonzeros per row
+    col_index = zeros(Int64,nnz)
+    value = zeros(Float64, nnz)
+    dx = grid.W/(grid.nx-1)
+    dy = grid.H/(grid.ny-1)
+    kcont = 2*eta_s[1,1]/(dx+dy)# scaling factor for continuity equation
+    kcont = 1e20/(dx+dy)*2
+    kbond = 1.# scaling factor for dirichlet bc equations.
+
+    R=zeros(3*nn,1)
+
+    # loop over j
     for j in 1:nx
-        # looping over i
+        # loop over i
         for i in 1:ny
+            # dxp is the dx in the +x direction, dxm is dx in the -x direction, dxc is the spacing between cell centers
+            dxp = j<nx ? grid.x[j+1] - grid.x[j]   : grid.x[j]   - grid.x[j-1]
+            dxm = j>1  ? grid.x[j]   - grid.x[j-1] : grid.x[j+1] - grid.x[j]
+            dxc = 0.5*(dxp+dxm)
+            # dyp and dym are spacing between vx nodes in the +y and -y directions
+            dyp = i<ny ? grid.yc[i+1]- grid.yc[i]   : grid.yc[i]   -grid.yc[i-1]
+            dym = i>1  ? grid.yc[i]  - grid.yc[i-1] : grid.yc[i+1] -grid.yc[i]
+            dyc = 0.5*(dyp+dym)
 
-            dxx = (grid.x[j+1] - grid[j-1])
-            dyy = (grid.y[i] - grid.y[i-1])
-
+            # discretize the x-stokes - note that numbering in comments refers to Gerya Figure 7.18a
+            # and equation 7.22
             this_row = vxdof(i,j,ny)
             # Boundary cases first...
             if j==1 || j == nx # left boundary or right boundary
@@ -29,40 +69,105 @@ function form_vep_stokes()
                 k+=1
                 R[this_row] = 0.0*kbond
             else
-                # Computing Z term from equation 13.3 (See Gerya)
-                Z_n_f = dt * mu_n(i,j+1) / (dt * mu_n(i,j+1) + eta_vp_n(i,j+1))
-                Z_n = dt * mu_n(i,j) / (dt * mu_n(i,j) + eta_vp_n(i,j))
-                Z_s = dt * mu_s(i,j) / (dt * mu_s(i,j) + eta_vp_s(i,j))
-                Z_s_b = dt * mu_s(i-1,j) / (dt * mu_s(i-1,j) + eta_vp_s(i-1,j))
+                # add free surface stabilization
+                drhodx = (rhoX[i,j+1]-rhoX[i,j-1])/2/dxc
+                drhody = (rhoX[i+1,j]-rhoX[i-1,j])/2/dyc
 
-                # Computing left-hand side terms
-                L_term1 = 4/dxx
-                L_term2 = (eta_vp_n(i,j+1) * exx_dot(i,j+1) * Z_n_f) - (eta_vp_n(i,j) * exx_dot(i,j) * Z_n)
-                L_term3 = 2/dyy
-                L_term4 = (eta_vp_s(i,j) * exx_dot(i,j) * Z_s) - (eta_vp_s(i-1,j) * exy_dot(i-1,j) * Z_s_b)
-                L_term5 = -2 * (P(i,j+1) - P(i,j)) / dxx
-                L_term6 = -gx * dt
-                L_term7 = (vx(i,j) * (rho_h(i,j+1) - rho_h(i,j-1))/dxx) +
-                    (vy(i-1,j) + vy(i-1,j+1) + vy(i-1,j)) * (rho_h(i+1,j) -
-                    rho_h(i-1,j))/(2*(grid.y[i+1] + grid.y[i] - grid.y[i-1] - grid.y[i-2]))
+                # Z terms
+                Z_n = dt*mu_n[i,j]/(dt*mu_n[i,j]+eta_n[i,j])
+                Z_nf = dt*mu_n[i,j+1]/(dt*mu_n[i,j+1]+eta_n[i,j+1])
+                Z_s = dt*mu_s[i,j]/(dt*mu_s[i,j]+eta_s[i,j])
+                Z_sb = dt*mu_s[i-1,j]/(dt*mu_s[i-1,j]+eta_s[i-1,j])
 
-                # Computing right-hand side terms
-                R_term1 = -rho_h(i,j) * gx
-                R_term2 = -2/dxx
-                R_term3 = (sigma_xx_o(i,j+1) * eta_vp_n(i,j+1)) / (mu_n(i,j+1) * dt + eta_vp_n(i,j+1))
-                R_term4 = -(sigma_xx_o(i,j) * eta_vp_n(i,j)) / (mu_n(i,j) * dt + eta_vp_n(i,j))
-                R_term5 = -1/dyy
-                R_term6 = (sigma_xy_o(i,j) * eta_vp_s(i,j)) / (mu_s(i,j) * dt + eta_vp_s(i,j))
-                R_term7 = -(sigma_xy_o(i-1,j) * eta_vp_s(i-1,j)) / (mu_s(i-1,j) * dt + eta_vp_s(i-1,j))
+                # vx1 term
+                row_index[k] = this_row
+                col_index[k] = vxdof(i,j-1,ny)
+                value[k] = 2*eta_n[i,j]*Z_n/dxm/dxc
+                k += 1
 
-                # Left-hand side
-                
+                # vx2 term
+                row_index[k] = this_row
+                col_index[k] = vxdof(i-1,j,ny)
+                value[k] = eta_s[i-1,j]*Z_sb/dym/dyc
+                k+=1
+
+                # vx3 term
+                row_index[k] = this_row
+                col_index[k] = this_row
+                value[k] = -2*(eta_s[i+1,j]/dyp + eta_s[i,j]/dym) - (eta_n[i+1,j]/dxp + eta_n[i,j]/dxm) - drhody*gy*dt
+                k += 1
+
+                if i == ny #vx4
+                    # if i == nx, dvx/dy = 0 -> vx3 == vx4 (see Gerya fig 7.18a)
+                    value[k] += eta_s[i,j]*Z_s/dyp/dyc
+                    k+=1
+                else
+                    k+=1
+
+                    # vx4 term
+                    row_index[k] = this_row
+                    col_index[k] = vxdof(i+1,j,ny)
+                    value[k] = eta_s[i,j]*Z_s/dyp/dyc
+                    k+=1
+                end
+
+                # vx5 term
+                row_index[k] = this_row
+                col_index[k] = vxdof(i,j+1,ny)
+                value[k] = 2*eta_n[i,j+1]*Z_nf/dxp/dxc
+                k+=1
+
+                # vy1 term
+                row_index[k] = this_row
+                col_index[k] = vydof(i-1,j,ny)
+                value[k] = eta_s[i-1,j]*Z_sb/dxm/dyc - drhodx*gx*dt/4
+                k+=1
+
+                # vy2 term
+                row_index[k] = this_row
+                col_index[k] = vydof(i,j,ny)
+                value[k] = -eta_s[i,j]*Z_s/dxc/dyc - drhody*gx*dt/4
+                k+=1
+
+                # vy3 term
+                row_index[k] = this_row
+                col_index[k] = vydof(i-1,j+1,ny)
+                value[k] = -eta_s[i-1,j]*Z_sb/dxc/dyc - drhody*gx*dt/4
+                k+=1
+
+                # vy4 term
+                row_index[k] = this_row
+                col_index[k] = vydof(i,j+1,ny)
+                value[k] = eta_s[i,j]*Z_s/dxc/dyc - drhody*gx*dt/4
+                k+=1
+
+                # P1 term
+                row_index[k] = this_row
+                col_index[k] = pdof(i,j,ny)
+                value[k] = kcont/dxc
+                k+=1
+
+                # P2 term
+                row_index[k] = this_row
+                col_index[k] = pdof(i,j+1,ny)
+                value[k] = -kcont/dxc
+                k+=1
+
+                # Right-hand side
+                Sxy1 = sxy_o[i-1,j]*eta_s[i-1,j]/(mu_s[i-1,j]*dt+eta_s[i-1,j])
+                Sxy2 = sxy_o[i,j]*eta_s[i,j]/(mu_s[i,j]*dt+eta_s[i,j])
+                Sxx1 = sxx_o[i,j]*eta_n[i,j]/(mu_n[i,j]*dt+eta_n[i,j])
+                Sxx2 = sxx_o[i,j+1]*eta_n[i,j+1]/(mu_n[i,j+1]*dt+eta_n[i,j+1])
+
+                R[this_row] = -gx*rhoX[i,j] - 2*(Sxx2-Sxx1)/(grid.x[j+1]-grid.x[j-1]) - (Sxy2-Sxy1)/dym
             end
+            # END X-STOKES
         end
     end
     @views row_index = row_index[1:(k-1)]
     @views col_index = col_index[1:(k-1)]
     @views value = value[1:(k-1)]
+
     L = sparse(row_index,col_index,value)
     return L,R
 end
