@@ -219,7 +219,7 @@ function form_stokes_cylindrical(grid::CartesianGrid,eta_s::Matrix,eta_n::Matrix
                 #vx2 vx(i+1,j-1)
                 row_index[k] = this_row
                 col_index[k] = vxdof(i+1,j-1,ny)
-                value[k] = -eta_s[i+1,j-1]/dxc/dyc + eta_vy[i,j]/grid.xc[j]/dyc/2.0
+                value[k] = -eta_s[i,j-1]/dxc/dyc + eta_vy[i,j]/grid.xc[j]/dyc/2.0
                 k+=1
                 #vx3 vx(i,j)
                 row_index[k] = this_row
@@ -229,7 +229,7 @@ function form_stokes_cylindrical(grid::CartesianGrid,eta_s::Matrix,eta_n::Matrix
                 #vx4 vx(i+1,j)
                 row_index[k] = this_row
                 col_index[k] = vxdof(i+1,j,ny)
-                value[k] = eta_s[i+1,j]/dxc/dyc + eta_vy[i,j]/grid.xc[j]/dyc/2.0
+                value[k] = eta_s[i,j]/dxc/dyc + eta_vy[i,j]/grid.xc[j]/dyc/2.0
                 k+=1
                 #P1
                 row_index[k] = this_row

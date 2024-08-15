@@ -224,7 +224,8 @@ function form_stokes(grid::CartesianGrid,eta_s::Matrix,eta_n::Matrix,rhoX::Matri
                 #vx2
                 row_index[k] = this_row
                 col_index[k] = vxdof(i+1,j-1,ny)
-                value[k] = -eta_s[i+1,j-1]/dxc/dyc - drhodx*gy*dt/4
+                # I think this is a real bug. It uses for eta_s values instead of two, and the X-Stokes only uses two eta_s values.
+                value[k] = -eta_s[i,j-1]/dxc/dyc - drhodx*gy*dt/4
                 k+=1
                 #vx3
                 row_index[k] = this_row
@@ -234,7 +235,7 @@ function form_stokes(grid::CartesianGrid,eta_s::Matrix,eta_n::Matrix,rhoX::Matri
                 #vx4
                 row_index[k] = this_row
                 col_index[k] = vxdof(i+1,j,ny)
-                value[k] = eta_s[i+1,j]/dxc/dyc - drhodx*gy*dt/4
+                value[k] = eta_s[i,j]/dxc/dyc - drhodx*gy*dt/4
                 k+=1
                 #P1
                 row_index[k] = this_row
