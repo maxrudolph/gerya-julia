@@ -1,36 +1,22 @@
-struct BoundaryConditions
-    # The intent here is that each boundary gets a flag
-    # 0 = Free-slip
-    # 1 = No-slip
-    # other possibilities?
-    top::Int
-    bottom::Int
-    left::Int
-    right::Int
-end
-
-@inline node_index(i::Int64, j::Int64, ny::Int64) = ny * (j - 1) + i
-@inline vxdof(i::Int64, j::Int64, ny::Int64) = 3 * (node_index(i, j, ny) - 1) + 1
-@inline vydof(i::Int64, j::Int64, ny::Int64) = 3 * (node_index(i, j, ny) - 1) + 2
-@inline pdof(i::Int64, j::Int64, ny::Int64) = 3 * (node_index(i, j, ny) - 1) + 3
-function form_stokes(grid::CartesianGrid,eta_s::Matrix,eta_n::Matrix,mu_s::Matrix,mu_n::Matrix,sxx_o::Matrix,sxy_o::Matrix,rhoX::Matrix,rhoY::Matrix,bc::BoundaryConditions,gx::Float64,gy::Float64;dt::Float64=0.0)
-    # Form the Stokes system.
+function form_stokes_cylindrical(grid::CartesianGrid,eta_s::Matrix,eta_n::Matrix,eta_vx::Matrix,eta_vy::Matrix,rhoX::Matrix,rhoY::Matrix,bc::BoundaryConditions,gx::Float64,gy::Float64)
+    # Form the Stokes system.    
+    # For cylindrical axisymmetric coordinates.
+    # note that vx and x corresponds to the radial velocity and radius
+    # y and vy corresponds to the axial coordinate (up/down).
+    #
     # Inputs:
     # grid - the cartesian grid
     # eta_s - viscosity at the basic nodes
     # eta_n - viscosity at the cell centers
-    # mu_s - shear modulus at the basic nodes
-    # mu_n - shear modulus at the cell centers
-    # sxx_o,sxy_o - are the old deviatoric stresses
+    # eta_vx - viscosity at vx nodes
+    # eta_vy - viscosity at vy nodes
     # rhoX - density at the vx nodes
     # rhoY - density at the vy nodes
     # bc - a vector describing the boundary conditions along the [left,right,top,bottom]
     # gx,gy - gravitational body force in the x and y direction
-    # dt - the timestep, used in the free surface stabilization terms. dt=0.0 (default)
-    #         disables free surface stabilization.
     # Outputs:
     # L,R - the left hand side (matrix) and right hand side (vector) of the stokes system
-
+    
     k::Int64 = 1 # index into dof arrays
     nx = grid.nx
     ny = grid.ny
@@ -41,12 +27,12 @@ function form_stokes(grid::CartesianGrid,eta_s::Matrix,eta_n::Matrix,mu_s::Matri
     value = zeros(Float64, nnz)
     dx = grid.W/(grid.nx-1)
     dy = grid.H/(grid.ny-1)
-    kcont = 2*eta_s[1,1]/(dx+dy)# scaling factor for continuity equation
-    kcont = 1e20/(dx+dy)*2
+    kcont = 2*minimum(eta_s)/(dx+dy)# scaling factor for continuity equation
+    #kcont = 1e20/(dx+dy)*2
     kbond = 1.# scaling factor for dirichlet bc equations.
 
     R=zeros(3*nn,1)
-
+    
     # loop over j
     for j in 1:nx
         # loop over i
@@ -62,7 +48,7 @@ function form_stokes(grid::CartesianGrid,eta_s::Matrix,eta_n::Matrix,mu_s::Matri
 
             # discretize the x-stokes - note that numbering in comments refers to Gerya Figure 7.18a
             # and equation 7.22
-            this_row = vxdof(i,j,ny)        
+            this_row = vxdof(i,j,ny)
             # Boundary cases first...            
             if j==1 || j == nx # left boundary or right boundary
                 # vx = 0
@@ -71,129 +57,110 @@ function form_stokes(grid::CartesianGrid,eta_s::Matrix,eta_n::Matrix,mu_s::Matri
                 value[k] = kbond
                 k+=1
                 R[this_row] = 0.0 *kbond
-            elseif i==1
-                # dvx/dy = 0 (free slip)
-                row_index[k] = this_row
-                col_index[k] = this_row
-                value[k] = -kbond
-                k+=1
-                row_index[k] = this_row
-                col_index[k] = vxdof(i+1,j,ny)
-                value[k] = kbond
-                k+=1                
-                R[this_row] = 0.0*kbond
+            elseif i==1 # top
+                if grid.yperiodic
+                    # dvx/dy = 0 (free slip)
+                    row_index[k] = this_row
+                    col_index[k] = this_row
+                    value[k] = -kbond
+                    k+=1
+                    row_index[k] = this_row
+                    col_index[k] = vxdof(grid.ny,j,ny)
+                    value[k] = kbond
+                    k+=1                
+                    R[this_row] = 0.0*kbond
+                else
+                    # dvx/dy = 0 (free slip)
+                    row_index[k] = this_row
+                    col_index[k] = this_row
+                    value[k] = -kbond
+                    k+=1
+                    row_index[k] = this_row
+                    col_index[k] = vxdof(i+1,j,ny)
+                    value[k] = kbond
+                    k+=1                
+                    R[this_row] = 0.0*kbond
+                end
             else
-                # add free surface stabilization
-                drhodx = (rhoX[i,j+1]-rhoX[i,j-1])/2/dxc
-                drhody = (rhoX[i+1,j]-rhoX[i-1,j])/2/dyc
-
-                # Z terms
-                Z_n = dt*mu_n[i,j]/(dt*mu_n[i,j]+eta_n[i,j])
-                Z_nf = dt*mu_n[i,j+1]/(dt*mu_n[i,j+1]+eta_n[i,j+1])
-                Z_s = dt*mu_s[i,j]/(dt*mu_s[i,j]+eta_s[i,j])
-                Z_sb = dt*mu_s[i-1,j]/(dt*mu_s[i-1,j]+eta_s[i-1,j])
-
-                # vx1 term
+                # vx1 vx(i,j-1)
                 row_index[k] = this_row
                 col_index[k] = vxdof(i,j-1,ny)
-                value[k] = 2*eta_n[i,j]*Z_n/dxm/dxc
-                k += 1
-
-                # vx2 term
+                value[k] = 2*eta_n[i,j]/dxm/dxc - 2.0/grid.x[j]*eta_vx[i,j]/(dxp+dxm)
+                k+=1
+                # vx2 vx(i-1,j)
                 row_index[k] = this_row
                 col_index[k] = vxdof(i-1,j,ny)
-                value[k] = eta_s[i-1,j]*Z_sb/dym/dyc
+                value[k] = eta_s[i-1,j]/dym/dyc
                 k+=1
-
-                # vx3 term
+                # vx3 vx(i,j)
                 row_index[k] = this_row
                 col_index[k] = this_row
-                value[k] = -2*(eta_s[i+1,j]/dyp + eta_s[i,j]/dym)/dyc - (eta_n[i+1,j]/dxp + eta_n[i,j]/dxm)/dxc - drhody*gy*dt
-                k += 1
-
-                if i == ny #vx4
+                value[k] = -2*eta_n[i,j+1]/dxp/dxc -2*eta_n[i,j]/dxm/dxc - eta_s[i,j]/dyp/dyc - eta_s[i-1,j]/dym/dyc - 2.0/grid.x[j]^2*eta_vx[i,j]
+                if i == ny #vx4 vx(i+1,j)
                     # if i == nx, dvx/dy = 0 -> vx3 == vx4 (see Gerya fig 7.18a)
-                    value[k] += eta_s[i,j]*Z_s/dyp/dyc
+                    value[k] += eta_s[i,j]/dyp/dyc
                     k+=1
                 else
                     k+=1
+                    # vx4
 
-                    # vx4 term
+                    # enforce dvx/dy = 0 (free slip)                
                     row_index[k] = this_row
                     col_index[k] = vxdof(i+1,j,ny)
-                    value[k] = eta_s[i,j]*Z_s/dyp/dyc
+                    value[k] = eta_s[i,j]/dyp/dyc
                     k+=1
                 end
 
-                # vx5 term
+                # vx5 vx(i,j+1)
                 row_index[k] = this_row
                 col_index[k] = vxdof(i,j+1,ny)
-                value[k] = 2*eta_n[i,j+1]*Z_nf/dxp/dxc
+                value[k] = 2*eta_n[i,j+1]/dxp/dxc + 2.0/grid.x[j]*eta_vx[i,j]/(dxp+dxm)
                 k+=1
-
-                # vy1 term
+                # vy1 vy(i-1,j)
                 row_index[k] = this_row
                 col_index[k] = vydof(i-1,j,ny)
-                value[k] = eta_s[i-1,j]*Z_sb/dxm/dyc - drhodx*gx*dt/4
+                value[k] = eta_s[i-1,j]/dxc/dyc
                 k+=1
-
-                # vy2 term
+                # vy2
                 row_index[k] = this_row
                 col_index[k] = vydof(i,j,ny)
-                value[k] = -eta_s[i,j]*Z_s/dxc/dyc - drhody*gx*dt/4
+                value[k] = -eta_s[i,j]/dxc/dyc
                 k+=1
-
-                # vy3 term
+                # vy3
                 row_index[k] = this_row
                 col_index[k] = vydof(i-1,j+1,ny)
-                value[k] = -eta_s[i-1,j]*Z_sb/dxc/dyc - drhody*gx*dt/4
+                value[k] = -eta_s[i-1,j]/dxc/dyc
                 k+=1
-
-                # vy4 term
+                # vy4
                 row_index[k] = this_row
                 col_index[k] = vydof(i,j+1,ny)
-                value[k] = eta_s[i,j]*Z_s/dxc/dyc - drhody*gx*dt/4
+                value[k] = eta_s[i,j]/dxc/dyc
                 k+=1
-
-                # P1 term
+                # P1
                 row_index[k] = this_row
                 col_index[k] = pdof(i,j,ny)
                 value[k] = kcont/dxc
                 k+=1
-
-                # P2 term
+                # P2
                 row_index[k] = this_row
                 col_index[k] = pdof(i,j+1,ny)
                 value[k] = -kcont/dxc
                 k+=1
-                
-                # Right-hand side
-                Sxy1 = sxy_o[i-1,j]*eta_s[i-1,j]/(mu_s[i-1,j]*dt+eta_s[i-1,j])
-                Sxy2 = sxy_o[i,j]*eta_s[i,j]/(mu_s[i,j]*dt+eta_s[i,j])
-                Sxx1 = sxx_o[i,j]*eta_n[i,j]/(mu_n[i,j]*dt+eta_n[i,j])
-                Sxx2 = sxx_o[i,j+1]*eta_n[i,j+1]/(mu_n[i,j+1]*dt+eta_n[i,j+1])
 
-                R[this_row] = -gx*rhoX[i,j] - 2*(Sxx2-Sxx1)/(grid.x[j+1]-grid.x[j-1]) - (Sxy2-Sxy1)/dym
+                R[this_row] = -gx*rhoX[i,j]
             end
             # END X-STOKES
             
             # BEGIN Y-STOKES
             dxp = j < nx ? grid.xc[j+1] - grid.xc[j]   : grid.xc[j]  -grid.xc[j-1]
-            dxm = j > 1  ? grid.xc[j]   - grid.xc[j-1] : grid.xc[j+1]-grid.xc[j]
+            dxm = j > 1  ? grid.xc[j]   - grid.xc[j-1] : grid.xc[j+1]-grid.xc[j]            
             dxc = j > 1  ? grid.x[j]    - grid.x[j-1]  : grid.x[j+1] - grid.x[j]
             dyp = i < ny ? grid.y[i+1]  - grid.y[i]    : grid.y[i]   - grid.y[i-1]
             dym = i > 1  ? grid.y[i]    - grid.y[i-1]  : grid.y[i+1] - grid.y[i]
             dyc = i < ny ? grid.yc[i+1] - grid.yc[i]   : grid.yc[i]  - grid.yc[i-1]            
-            
+                    
             this_row = vydof(i,j,ny)
-            
-            # visco-elastic coefficient
-            Z_n1::float64 = mu_n[i,j]*dt/(mu_n[i,j]*dt + eta_n[i,j]) # P1
-            Z_n2::float64 = mu_n[i+1,j]*dt/(mu_n[i+1,j]*dt + eta_n[i+1,j]) # P1
-            Z_s1::float64 = mu_s[i,j-1]*dt/(mu_s[i,j-1]*dt + eta_s[i,j-1]) # S1
-            Z_s2::float64 = mu_s[i,j]*dt/(mu_s[i,j]*dt + eta_s[i,j]) # S2
-            
-            if i==1 || i == ny
+            if (!grid.yperiodic && i==1) || i == ny
                 # top row / bottom row
                 row_index[k] = this_row
                 col_index[k] = this_row
@@ -212,60 +179,57 @@ function form_stokes(grid::CartesianGrid,eta_s::Matrix,eta_n::Matrix,mu_s::Matri
                 k+=1
                 R[this_row] = 0.0*kbond
             else 
-                # add free surface stabilization
-                drhodx = (rhoY[i,j+1]-rhoY[i,j-1])/2/dxc
-                drhody = (rhoY[i+1,j]-rhoY[i-1,j])/2/dyc
-                #vy1
+                #vy1 vy(i,j-1)
                 row_index[k] = this_row
                 col_index[k] = vydof(i,j-1,ny)
-                value[k] = eta_s[i,j-1]*Z_s1/dxm/dxc
+                value[k] = eta_s[i,j-1]/dxm/dxc - eta_vy[i,j]/grid.xc[j]/(dxp+dxm)
                 k+=1
-                #vy2
+                #vy2 vy(i-1,j)
                 row_index[k] = this_row
                 col_index[k] = vydof(i-1,j,ny)
-                value[k] = eta_n[i,j]*Z_s2/dym/dyc
+                value[k] = 2*eta_n[i,j]/dym/dyc
                 k+=1
                 #vy3
                 row_index[k] = this_row
                 col_index[k] = this_row
-                value[k] = -eta_n[i+1,j]*Z_n2/dyp/dyc -eta_n[i,j]*Z_n1/dym/dyc - eta_s[i,j]*Z_s2/dxp/dxc - eta_s[i,j-1]*Z_s1/dxm/dxc - drhody*gy*dt
+                value[k] = -2*eta_n[i+1,j]/dyp/dyc -2*eta_n[i,j]/dym/dyc - eta_s[i,j]/dxp/dxc - eta_s[i,j-1]/dxm/dxc
                 if j == nx
-                   # free slip - vx5 = vx3.
-                   value[k] += eta_s[i,j]/dxp/dxc
+                   # free slip - vy5 = vx3.
+                   value[k] += eta_s[i,j]/dxp/dxc + eta_vy[i,j]/grid.xc[j]/(dxp+dxm)
                 end
                 k+=1
                 
-                #vy4
+                #vy4 vy(i+1,j)
                 row_index[k] = this_row
                 col_index[k] = vydof(i+1,j,ny)
-                value[k] = eta_n[i+1,j]*Z_n2/dyp/dyc
+                value[k] = 2*eta_n[i+1,j]/dyp/dyc
                 k+=1
-                #vy5
+                #vy5 vy(i,j+1)
                 if j<nx
                     row_index[k] = this_row
                     col_index[k] = vydof(i,j+1,ny)
-                    value[k] = eta_s[i,j]*Z_s2/dxp/dxc
+                    value[k] = eta_s[i,j]/dxp/dxc + eta_vy[i,j]/grid.xc[j]/(dxp+dxm)
                     k+=1
                 end
-                #vx1
+                #vx1 vx(i,j-1)
                 row_index[k] = this_row
                 col_index[k] = vxdof(i,j-1,ny)
-                value[k] = eta_s[i,j-1]*Z_s1/dxc/dyc - drhodx*gy*dt/4 - eta_n[i,j]*Z_n1/dxc/dyc
+                value[k] = eta_s[i,j-1]/dxc/dyc - eta_vy[i,j]/grid.xc[j]/dyc/2.0
                 k+=1
-                #vx2
+                #vx2 vx(i+1,j-1)
                 row_index[k] = this_row
                 col_index[k] = vxdof(i+1,j-1,ny)
-                value[k] = -eta_s[i,j-1]*Z_s1/dxc/dyc - drhodx*gy*dt/4 + eta_n[i+1,j]*Z_n2/dxc/dyc
+                value[k] = -eta_s[i+1,j-1]/dxc/dyc + eta_vy[i,j]/grid.xc[j]/dyc/2.0
                 k+=1
-                #vx3
+                #vx3 vx(i,j)
                 row_index[k] = this_row
                 col_index[k] = vxdof(i,j,ny)
-                value[k] = -eta_s[i,j]*Z_s2/dxc/dyc -drhodx*gy*dt/4 + eta_n[i,j]*Z_n1/dxc/dyc
+                value[k] = -eta_s[i,j]/dxc/dyc - eta_vy[i,j]/grid.xc[j]/dyc/2.0
                 k+=1
-                #vx4
+                #vx4 vx(i+1,j)
                 row_index[k] = this_row
                 col_index[k] = vxdof(i+1,j,ny)
-                value[k] = eta_s[i,j]*Z_s2/dxc/dyc - drhodx*gy*dt/4 - eta_n[i+1,j]*Z_n2/dxc/dyc
+                value[k] = eta_s[i+1,j]/dxc/dyc + eta_vy[i,j]/grid.xc[j]/dyc/2.0
                 k+=1
                 #P1
                 row_index[k] = this_row
@@ -278,10 +242,7 @@ function form_stokes(grid::CartesianGrid,eta_s::Matrix,eta_n::Matrix,mu_s::Matri
                 value[k] = -kcont/dyc
                 k+=1
 
-                # get old stress
-                # tbd
-                
-                R[this_row] = -gy*rhoY[i,j] - (syy[i+1,j]*(1-Z_n2)-syy[i,j]*(1-Z_n1))/dyc - (sxy[i,j]*(1-Z_s2)-sxy[i,j-1]*(1-Z_s1))/dxc
+                R[this_row] = -gy*rhoY[i,j]
             end
             # END Y-STOKES
             
@@ -297,15 +258,16 @@ function form_stokes(grid::CartesianGrid,eta_s::Matrix,eta_n::Matrix,mu_s::Matri
             else
                 dxm = grid.x[j] - grid.x[j-1]
                 dym = grid.y[i] - grid.y[i-1]
+                xc = grid.xc[j]
                 
                 row_index[k] = this_row
                 col_index[k] = vxdof(i,j,ny)
-                value[k] =  kcont/dxm
+                value[k] =  kcont/dxm*(grid.x[j]/grid.xc[j])
                 k+=1
 
                 row_index[k] = this_row
                 col_index[k] = vxdof(i,j-1,ny)
-                value[k] = -kcont/dxm
+                value[k] = -kcont/dxm*(grid.x[j-1]/grid.xc[j])
                 k+=1
 
                 row_index[k] = this_row
@@ -326,7 +288,7 @@ function form_stokes(grid::CartesianGrid,eta_s::Matrix,eta_n::Matrix,mu_s::Matri
                 R[this_row] = 0.0
             end
             # END CONTINUITY
-
+            
         end
     end
     @views row_index = row_index[1:(k-1)]
@@ -334,61 +296,24 @@ function form_stokes(grid::CartesianGrid,eta_s::Matrix,eta_n::Matrix,mu_s::Matri
     @views value = value[1:(k-1)]
 
     L = sparse(row_index,col_index,value)
-    return L,R    
+    return L,R  
 end
 
-
-function unpack(solution, grid::CartesianGrid; ghost::Bool=false)
-    if ghost
-        nx1 = grid.nx+1
-        ny1 = grid.ny+1
-        P = zeros(Float64,(ny1,nx1))
-        vx = zeros(Float64,(ny1,nx1))
-        vy = zeros(Float64,(ny1,nx1))
-        ny = grid.ny
-        for j in 1:grid.nx
-            for i in 1:grid.ny                
-                vx[i,j] = solution[vxdof(i,j,grid.ny)]
-                vy[i,j] = solution[vydof(i,j,grid.ny)]
-                P[i,j]  = solution[pdof(i,j,grid.ny)]            
-            end
-        end
-        # right boundary
-        j=nx1
-        for i in 1:grid.ny
-              vx[i,j] = 0.0
-              vy[i,j] = vy[i,j-1];# free slip
-        end
-        i=ny1
-        for j in 1:grid.nx
-               vx[i,j] = vx[i-1,j];# free-slip along bottom
-               vy[i,j] = 0.0
-        end
-    else
-        P = zeros(Float64,(grid.ny,grid.nx))
-        vx = zeros(Float64,(grid.ny,grid.nx))
-        vy = zeros(Float64,(grid.ny,grid.nx))
-        ny = grid.ny
-         for j in 1:grid.nx
-            for i in 1:grid.ny                
-                vx[i,j] = solution[vxdof(i,j,grid.ny)]
-                vy[i,j] = solution[vydof(i,j,grid.ny)]
-                P[i,j]  = solution[pdof(i,j,grid.ny)]            
-            end
+function compute_velocity_divergence(grid::CartesianGrid,vx::Matrix{Float64},vy::Matrix{Float64})
+    # This function computes the divergence of the velocity field.
+    # I wrote the function only to verify that the cylindrical version of the continuity equation is satisfied.
+    # inputs - grid, velocities at the velocity nodes.
+    nx = grid.nx
+    ny = grid.ny
+    divv = zeros(ny-1,nx-1)
+    # compute cell-by-cell velocity divergence
+    # 1/r d/dr(r vr)
+    for i in 2:ny
+        for j in 2:nx
+            dvxdx = 1.0/grid.xc[j]/(grid.x[j]-grid.x[j-1])*(grid.x[j]*vx[i,j] - grid.x[j-1]*vx[i,j-1])
+            dvydy = (vy[i,j]-vy[i-1,j])/(grid.y[i]-grid.y[i-1])
+            divv[i-1,j-1] = dvxdx + dvydy
         end
     end
-    return vx,vy,P
+    return divv    
 end
-
-function compute_timestep(grid::CartesianGrid,vxc::Matrix,vyc::Matrix;dtmax::Float64=Inf,cfl::Float64=0.5)
-    # compute the maximum timestep based on cell-centered velocities in vxc and vyc and the cfl number.
-    for i in 2:grid.ny
-        for j in 2:grid.nx
-            dx = grid.x[j]-grid.x[j-1]
-            dy = grid.y[i]-grid.y[i-1]
-            dtmax = min( dtmax , cfl*dx/abs(vxc[i,j]) , cfl*dy/abs(vyc[i,j]) )                            
-        end
-    end
-    return dtmax
-end
-
