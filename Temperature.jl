@@ -181,7 +181,7 @@ function temperature_to_basic_nodes(grid::CartesianGrid,Tc::Matrix{Float64})
     return Tn
 end
 
-function subgrid_temperature_relaxation_center!(markers::Markers,grid::CartesianGrid,Tlast::Matrix,dt::Float64)
+function subgrid_temperature_relaxation_center!(markers::Markers,grid::CartesianGrid,Tlast::Matrix,dt::Float64;diffusivity::Float64=1.0)
     # Perform the sub-grid scale temperature diffusion operation
     # Inputs:
     # markers - the markers
@@ -193,7 +193,7 @@ function subgrid_temperature_relaxation_center!(markers::Markers,grid::Cartesian
     # Returns:
     # a matrix whose values are the change in temperature at the cell centers
 
-    dsubgrid = 1.0; # subgrid temperature diffusivity
+    dsubgrid = diffusivity; # subgrid temperature diffusivity
     dT_subgrid_m = Array{Float64,2}(undef,1,markers.nmark)
     # compuate the nodal temperature on the markers.    
     cell_center_to_markers!(markers,grid,Tlast,dT_subgrid_m)

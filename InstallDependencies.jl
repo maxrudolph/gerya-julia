@@ -3,6 +3,7 @@ using Pkg
 Pkg.add("PyCall")
 #Pkg.build("PyCall")
 Pkg.add("SparseArrays")
+Pkg.add("StaticArrays")
 Pkg.add("LinearAlgebra")
 Pkg.add("Pardiso")
 Pkg.add("IterativeSolvers")
@@ -22,6 +23,11 @@ Pkg.add("AlgebraicMultigrid")
 Pkg.add("ProfileSVG")
 Pkg.add("HDF5")
 Pkg.add("Roots")
+<<<<<<< HEAD
 Pkg.add("Dates")
 Pkg.add("NLsolve")
 Pkg.add("EasyFit")
+=======
+Pkg.add("NLsolve")
+Pkg.add("FastRunningMedian")
+>>>>>>> 13a0965d38279c3857071f9d42922026bc418d35

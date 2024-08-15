@@ -169,7 +169,7 @@ function compute_q_cond(grid::CartesianGrid,T::Matrix{Float64},k_vx::Matrix{Floa
     return q_vx,q_vy
 end
 
-function compute_S_new(grid::CartesianGrid,Tlast::Matrix{Float64},rho::Matrix{Float64},H::Matrix{Float64},qx::Matrix{Float64},qy::Matrix{Float64},S_old::Matrix{Float64},dt::Float64)
+function compute_S_new(grid::CartesianGrid,T::Matrix{Float64},rho::Matrix{Float64},H::Matrix{Float64},qx::Matrix{Float64},qy::Matrix{Float64},S_old::Matrix{Float64},dt::Float64)
     S = zeros(grid.ny+1,grid.nx+1)
     # for j in 2:grid.nx
     #     for i in 2:grid.ny
@@ -180,7 +180,7 @@ function compute_S_new(grid::CartesianGrid,Tlast::Matrix{Float64},rho::Matrix{Fl
     # return S
     for j in 2:grid.nx
         for i in 2:grid.ny
-            S[i,j] = (dt/( rho[i,j] * Tlast[i,j]) ) *
+            S[i,j] = (dt/( rho[i,j] * T[i,j]) ) *
                 ( -( (qx[i,j]-qx[i,j-1] )/(grid.x[j]-grid.x[j-1]) +
                 (qy[i,j]-qy[i-1,j])/(grid.y[i]-grid.y[i-1]) ) +
                 H[i,j] ) +
@@ -193,6 +193,11 @@ end
 function compute_entropy_residual(grid::CartesianGrid,T::Matrix{Float64},rho::Matrix{Float64},H::Matrix{Float64},qx::Matrix{Float64},qy::Matrix{Float64},S_old::Matrix{Float64},S_new::Matrix{Float64},dt::Float64)
     return S_new .- compute_S_new(grid,T,rho,H,qx,qy,S_old,dt)
 end
+<<<<<<< HEAD
+=======
+
+
+>>>>>>> 13a0965d38279c3857071f9d42922026bc418d35
 #### end ####
 
 #### start ###
@@ -317,13 +322,32 @@ end
 
 #### start ####
 ##### Function to compute a subgird diffusion operation with entropy #####
+<<<<<<< HEAD
 function subgirdSdiff!(grid::CartesianGrid,markers::Markers,Slast::Matrix{Float64},dt::Float64,options::Dict;diff_coeff::Float64=1.0)
+=======
+function subgridSdiff!(grid::CartesianGrid,markers::Markers,Slast::Matrix{Float64},dt::Float64,options::Dict;diffusivity::Float64=1.0)
+    """
+    Arguments:
+        Slast -
+        dt -
+        options - allow the simulation of optional keyword arguments from a dictonary
+
+    Returns:
+        dSm -
+    """
+
+>>>>>>> 13a0965d38279c3857071f9d42922026bc418d35
     Hfus = options["latent heat of fusion"] # J/kg
     Tm = options["Tm"] # K
     Cv = options["specific heat of ice"] # J/kg*K
 
+<<<<<<< HEAD
      # Defining d a dimensionless numerical diffusion coefficient
     d = diff_coeff
+=======
+    # Defining d a dimensionless numerical diffusion coefficient
+    d = diffusivity
+>>>>>>> 13a0965d38279c3857071f9d42922026bc418d35
 
     # Creating a matrix for the subgrid entropy changes on the markers
     dS_subgrid_Sm = Array{Float64,2}(undef,1,markers.nmark)
@@ -338,15 +362,26 @@ function subgirdSdiff!(grid::CartesianGrid,markers::Markers,Slast::Matrix{Float6
     kThermal = markers.scalarFields["kThermal"]
     X = markers.scalarFields["X"]
 
+<<<<<<< HEAD
+=======
+    
+>>>>>>> 13a0965d38279c3857071f9d42922026bc418d35
     Threads.@threads for i in 1:markers.nmark
         dx2 = (grid.x[markers.cell[1,i]+1] - grid.x[markers.cell[1,i]])^2
         dy2 = (grid.y[markers.cell[2,i]+1] - grid.y[markers.cell[2,i]])^2
         dS::Float64=0.0
         dT::Float64=0.0
         dX::Float64=0.0
+<<<<<<< HEAD
         for iter in 1:3
              if iter == 1
                  # initial iteration
+=======
+               
+        for iter in 1:3
+             if iter == 1
+                 # initial iteration - guess heat capacity equal to Cv
+>>>>>>> 13a0965d38279c3857071f9d42922026bc418d35
                  Cpm = Cv
              else
                  # after first iteration
@@ -356,19 +391,36 @@ function subgirdSdiff!(grid::CartesianGrid,markers::Markers,Slast::Matrix{Float6
                      Cpm = markers.scalars[T,i]*(dS/dT)
                  end
              end
+<<<<<<< HEAD
             tdiff = markers.scalars[rho,i]*Cpm/markers.scalars[kThermal,i]/(2/dx2 + 2/dy2)
+=======
+
+            tdiff = markers.scalars[rho,i]*Cpm/markers.scalars[kThermal,i]/(2/dx2 + 2/dy2)
+            # tdiff
+                        
+>>>>>>> 13a0965d38279c3857071f9d42922026bc418d35
             dS_subgrid_Sm[i] = (Sm_nodal[i] - markers.scalars[S,i])*( 1.0 - exp(-d*dt/tdiff) )
             Si = markers.scalars[S,i] + dS_subgrid_Sm[i] # new guess of marker entropy
             Ti,Xi = compute_T_X_from_S(Si,options) # temperature consistent with new marker entropy
             dS = Si - markers.scalars[S,i] # change in marker entropy
             dT = Ti - markers.scalars[T,i] # change in marker temperature
+<<<<<<< HEAD
             dX = Xi - markers.scalars[X,i]
+=======
+            dX = Xi - markers.scalars[X,i]           
+>>>>>>> 13a0965d38279c3857071f9d42922026bc418d35
         end
     end
     # update the marker entropy
     markers.scalars[S,1:markers.nmark] += dS_subgrid_Sm[1,:]
+<<<<<<< HEAD
     rhoT = markers.scalars[markers.scalarFields["rho"],:] .* markers.scalars[markers.scalarFields["T"],:]
     dSm, = marker_to_stag(markers,grid,dS_subgrid_Sm,"center",extra_weight=rhoT)
+=======
+    
+    #rhoT = markers.scalars[markers.scalarFields["rho"],:] .* markers.scalars[markers.scalarFields["T"],:]
+    dSm, = marker_to_stag(markers,grid,dS_subgrid_Sm,"center")#,extra_weight=rhoT)
+>>>>>>> 13a0965d38279c3857071f9d42922026bc418d35
     dSm[isnan.(dSm)] .= 0.0
     return dSm
 end
