@@ -317,7 +317,7 @@ end
 
 #### start ####
 ##### Function to compute a subgird diffusion operation with entropy #####
-function subgridSdiff (grid::CartesianGrid,markers::Markers,Slast::Matrix{Float64},dt::Float64,options::Dict;diffusivity::Float64=1.0)
+function subgridSdiff(grid::CartesianGrid,markers::Markers,Slast::Matrix{Float64},dt::Float64,options::Dict;diffusivity::Float64=1.0)
     """
     Arguments:
         Slast -
