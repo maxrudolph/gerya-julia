@@ -30,7 +30,7 @@ function visualization(grid::CartesianGrid,output_fields::Dict,time ; filename="
                 vtk[key] = transpose(output_fields[key])
             end
         end
-        vtk["TimeValue"] = time
+        vtk["TimeValue",VTKFieldData()] = time
     end
 end
 

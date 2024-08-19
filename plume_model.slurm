@@ -12,4 +12,3 @@ source /home/rudolph/miniconda3/bin/activate
 which python3
 which julia
 julia --threads 64 -- PlumeModel.jl 500.0 60000.2
-
