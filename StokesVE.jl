@@ -109,7 +109,7 @@ function form_stokes(grid::CartesianGrid,eta_s::Matrix,eta_n::Matrix,mu_s::Matri
                 row_index[k] = this_row
                 col_index[k] = this_row
                 value[k] = -(eta_s[i-1,j]*Z_sb/dyp + eta_s[i,j]*Z_s/dym)/dyc - 2*(eta_n[i+1,j]*Z_nf/dxp + eta_n[i,j]*Z_n/dxm)/dxc - drhodx*gx*dt
-                k += 1
+                # k += 1
 
                 if i == ny #vx4
                     # if i == nx, dvx/dy = 0 -> vx3 == vx4 (see Gerya fig 7.18a)
@@ -187,12 +187,6 @@ function form_stokes(grid::CartesianGrid,eta_s::Matrix,eta_n::Matrix,mu_s::Matri
             
             this_row = vydof(i,j,ny)
             
-            # visco-elastic coefficient
-            Z_n1 = mu_n[i,j]*dt/(mu_n[i,j]*dt + eta_n[i,j]) # P1
-            Z_n2 = mu_n[i+1,j]*dt/(mu_n[i+1,j]*dt + eta_n[i+1,j]) # P1
-            Z_s1 = mu_s[i,j-1]*dt/(mu_s[i,j-1]*dt + eta_s[i,j-1]) # S1
-            Z_s2 = mu_s[i,j]*dt/(mu_s[i,j]*dt + eta_s[i,j]) # S2
-            
             if i==1 || i == ny
                 # top row / bottom row
                 row_index[k] = this_row
@@ -216,6 +210,12 @@ function form_stokes(grid::CartesianGrid,eta_s::Matrix,eta_n::Matrix,mu_s::Matri
                 drhodx = (rhoY[i,j+1]-rhoY[i,j-1])/2/dxc
                 drhody = (rhoY[i+1,j]-rhoY[i-1,j])/2/dyc
 
+                # visco-elastic coefficient
+                Z_n1 = mu_n[i,j]*dt/(mu_n[i,j]*dt + eta_n[i,j]) # P1
+                Z_n2 = mu_n[i+1,j]*dt/(mu_n[i+1,j]*dt + eta_n[i+1,j]) # P1
+                Z_s1 = mu_s[i,j-1]*dt/(mu_s[i,j-1]*dt + eta_s[i,j-1]) # S1
+                Z_s2 = mu_s[i,j]*dt/(mu_s[i,j]*dt + eta_s[i,j]) # S2
+                
                 # used LHS assume 2d incompressible flow
                 # use the comment out LHS if consistent with book assumption
                 #vy1
@@ -237,7 +237,7 @@ function form_stokes(grid::CartesianGrid,eta_s::Matrix,eta_n::Matrix,mu_s::Matri
                 if j == nx
                    # free slip - vx5 = vx3.
                    ###### CHECK! ######
-                   value[k] += eta_s[i,j]/dxp/dxc
+                   value[k] += eta_s[i,j]*Z_s2/dxp/dxc
                 end
                 k+=1
                 
@@ -332,7 +332,6 @@ function form_stokes(grid::CartesianGrid,eta_s::Matrix,eta_n::Matrix,mu_s::Matri
                 R[this_row] = 0.0
             end
             # END CONTINUITY
-
         end
     end
     @views row_index = row_index[1:(k-1)]
@@ -397,4 +396,3 @@ function compute_timestep(grid::CartesianGrid,vxc::Matrix,vyc::Matrix;dtmax::Flo
     end
     return dtmax
 end
-
