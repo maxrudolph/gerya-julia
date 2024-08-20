@@ -11,13 +11,13 @@ end
 ### Model agruments ###
 options = Dict()
 options["latent heat of fusion"] = 3.334e5 #J/kg
-options["specific heat of ice"] = 1520.0 # J/kg*K (ice at ~80K)
-options["density of ice"] = 926.9 # kg/m^3 (ice at ~80K)
-options["density of ocean"] = 916.7 # kg/m^3 (ice at ~273K)
-options["thermal conductivity of ice"] = 3.27 # W/m*K (ice at ~80K)
+options["specific heat of ice"] = 1520.0 # J/kg*K (ice at ~180K)
+options["density of ice"] = 926.9 # kg/m^3 (ice at ~180K)
+options["density of ocean"] = 1000.0 # kg/m^3 
+options["thermal conductivity of ice"] = 3.27 # W/m*K (ice at ~180K)
 options["thermal diffusivity"] = options["thermal conductivity of ice"] / (options["density of ice"]*options["specific heat of ice"]) # m^2/s
 options["Tm"] = 273.0 # K
-options["thermal expansivity"] = 1.655e-5 # 1/K (ice at ~80K)
+options["thermal expansivity"] = 0.0
 options["ny"] = 101
 options["markx"] = 6
 options["marky"] = 6
@@ -103,7 +103,7 @@ function update_marker_prop!(markers::Markers,options::Dict)
         elseif markers.scalars[X,i] >= 1.0
             markers.scalars[rho,i] = options["density of ocean"] # kg/m^3
         else
-            markers.scalars[rho,i] = options["density of ice"] + (1000.0-options["density of ice"])*markers.scalars[X,i] # kg/m^3
+            markers.scalars[rho,i] = options["density of ice"] + (options["density of water"]-options["density of ice"])*markers.scalars[X,i] # kg/m^3
         end
         if markers.scalars[S,i] < 0.0
             markers.scalars[eta,i] = ice_viscosity(markers.scalars[T,i])
@@ -379,18 +379,14 @@ function model_setup(options::Dict,plot_dir::String,io)
 
         if itime == 1.0 || terminate
             last_plot = time
-            # Gird output
+            # Grid output
             name1 = @sprintf("%s/viz.%04d.vtr",output_dir,iout)
             vn = velocity_to_basic_nodes(grid,vxc,vyc)
-            viz_fields = Dict("rho"=>rho_c[2:end-1,2:end-1],"eta"=>eta_s,"velocity"=>vn,"Pressure"=>P)
+            viz_fields = Dict("rho" => rho_c[2:end-1, 2:end-1], "eta" => eta_s, "velocity" => vn, "Pressure" => P, "Temperature" => Tnew[2:end-1, 2:end-1], "Entropy" => Snew[2:end-1, 2:end-1], "Melt Fraction" => Xnew[2:end-1, 2:end-1])
             visualization(grid,viz_fields,time/seconds_in_year;filename=name1);
             # Markers output
             name2 = @sprintf("%s/markers.%04d.vtp",output_dir,iout)
             visualization(markers,time/seconds_in_year;filename=name2);
-            # Additional output
-            name3 = @sprintf("%s/outfields.%04d.vtr",output_dir,iout)
-            output_fields = Dict("Temperature"=>Tnew[2:end-1,2:end-1],"Entropy"=>Snew[2:end-1,2:end-1],"Melt Fraction"=>Xnew[2:end-1,2:end-1]);
-            visualization(grid,output_fields,time/seconds_in_year;filename=name3);
             iout += 1
         end
 
