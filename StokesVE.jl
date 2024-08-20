@@ -287,7 +287,9 @@ function form_stokes(grid::CartesianGrid,eta_s::Matrix,eta_n::Matrix,mu_s::Matri
 
                 # get old stress
                 syy_o = -sxx_o
-                R[this_row] = -gy*rhoY[i,j] - (syy_o[i+1,j]*(1-Z_n2)-syy_o[i,j]*(1-Z_n1))/dyc - (sxy_o[i,j]*(1-Z_s2)-sxy_o[i,j-1]*(1-Z_s1))/dxc
+                R[this_row] = -gy*rhoY[i,j] - 
+                    (syy_o[i+1,j]*(1-Z_n2)-syy_o[i,j]*(1-Z_n1))/dyc -
+                    (sxy_o[i,j]*(1-Z_s2)-sxy_o[i,j-1]*(1-Z_s1))/dxc
             end
             # END Y-STOKES
             
