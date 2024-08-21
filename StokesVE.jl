@@ -88,9 +88,9 @@ function form_stokes(grid::CartesianGrid,eta_s::Matrix,eta_n::Matrix,mu_s::Matri
                 drhody = (rhoX[i+1,j]-rhoX[i-1,j])/2/dyc
 
                 # Z terms
-                Z_n = dt*mu_n[i,j]/(dt*mu_n[i,j]+eta_n[i,j])
+                Z_n  = dt*mu_n[i,j]  /(dt*mu_n[i,j]  +eta_n[i,j])
                 Z_nf = dt*mu_n[i,j+1]/(dt*mu_n[i,j+1]+eta_n[i,j+1])
-                Z_s = dt*mu_s[i,j]/(dt*mu_s[i,j]+eta_s[i,j])
+                Z_s  = dt*mu_s[i,j]  /(dt*mu_s[i,j]  +eta_s[i,j])
                 Z_sb = dt*mu_s[i-1,j]/(dt*mu_s[i-1,j]+eta_s[i-1,j])
 
                 # vx1 term
@@ -108,7 +108,8 @@ function form_stokes(grid::CartesianGrid,eta_s::Matrix,eta_n::Matrix,mu_s::Matri
                 # vx3 term
                 row_index[k] = this_row
                 col_index[k] = this_row
-                value[k] = -(eta_s[i-1,j]*Z_sb/dyp + eta_s[i,j]*Z_s/dym)/dyc - 2*(eta_n[i+1,j]*Z_nf/dxp + eta_n[i,j]*Z_n/dxm)/dxc - drhodx*gx*dt
+                # possible mistake in i+1,j term?
+                value[k] = -(eta_s[i-1,j]*Z_sb/dyp + eta_s[i,j]*Z_s/dym)/dyc - 2*(eta_n[i,j+1]*Z_nf/dxp + eta_n[i,j]*Z_n/dxm)/dxc - drhodx*gx*dt
                 # k += 1
 
                 if i == ny #vx4
@@ -226,7 +227,7 @@ function form_stokes(grid::CartesianGrid,eta_s::Matrix,eta_n::Matrix,mu_s::Matri
                 #vy2
                 row_index[k] = this_row
                 col_index[k] = vydof(i-1,j,ny)
-                value[k] = 2*eta_n[i,j]*Z_s2/dym/dyc
+                value[k] = 2*eta_n[i,j]*Z_n1/dym/dyc
                 # value[k] = eta_n[i,j]*Z_s2/dym/dyc
                 k+=1
                 #vy3
@@ -287,9 +288,7 @@ function form_stokes(grid::CartesianGrid,eta_s::Matrix,eta_n::Matrix,mu_s::Matri
 
                 # get old stress
                 syy_o = -sxx_o
-                R[this_row] = -gy*rhoY[i,j] - 
-                    (syy_o[i+1,j]*(1-Z_n2)-syy_o[i,j]*(1-Z_n1))/dyc -
-                    (sxy_o[i,j]*(1-Z_s2)-sxy_o[i,j-1]*(1-Z_s1))/dxc
+                R[this_row] = -gy*rhoY[i,j] - (syy_o[i+1,j]*(1-Z_n2)-syy_o[i,j]*(1-Z_n1))/dyc - (sxy_o[i,j]*(1-Z_s2)-sxy_o[i,j-1]*(1-Z_s1))/dxc
             end
             # END Y-STOKES
             
