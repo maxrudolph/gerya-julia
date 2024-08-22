@@ -427,20 +427,20 @@ function modelrun()
     println(io,"Numerical relaxation time: ",t_rel,"(yr)",t_rel/1e3,"(kyr) or ",t_rel/1e6,"(Myr)")
     close(io)
     println("Model ran successfully")
-    io = open(top_dir*"/AmplitudeData.txt","w")
-    for i in amplitude
-        for j in time_plot
-            println(io,i,",",j)
-        end
-    end
-    close(io)
-    io = open(top_dir*"/ThickeningData.txt","w")
-    for i in ice_shell_thickness
-        for j in time_plot
-            println(io,i,",",j)
-        end
-    end
-    close(io)
+    #io = open(top_dir*"/AmplitudeData.txt","w")
+    #for i in amplitude
+    #    for j in time_plot
+    #        println(io,i,",",j)
+    #    end
+    #end
+    #close(io)
+    #io = open(top_dir*"/ThickeningData.txt","w")
+    #for i in ice_shell_thickness
+    #    for j in time_plot
+    #        println(io,i,",",j)
+    #    end
+    #end
+    #close(io)
     hdf5_file(options,t_halfspace,t_rel,t_thick,t_rel_fitted,t_thick_fitted,top_dir)
 end
 
