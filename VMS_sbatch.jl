@@ -103,7 +103,7 @@ function update_marker_prop!(markers::Markers,options::Dict)
         elseif markers.scalars[X,i] >= 1.0
             markers.scalars[rho,i] = options["density of ocean"] # kg/m^3
         else
-            markers.scalars[rho,i] = options["density of ice"] + (options["density of water"]-options["density of ice"])*markers.scalars[X,i] # kg/m^3
+            markers.scalars[rho,i] = options["density of ice"] + (options["density of ocean"]-options["density of ice"])*markers.scalars[X,i] # kg/m^3
         end
         if markers.scalars[S,i] < 0.0
             markers.scalars[eta,i] = ice_viscosity(markers.scalars[T,i])
