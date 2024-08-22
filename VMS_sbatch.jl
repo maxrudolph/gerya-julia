@@ -10,11 +10,11 @@ end
 
 ### Model agruments ###
 options = Dict()
-options["latent heat of fusion"] = 3.334e5 #J/kg
-options["specific heat of ice"] = 1520.0 # J/kg*K (ice at ~180K)
-options["density of ice"] = 926.9 # kg/m^3 (ice at ~180K)
-options["density of ocean"] = 1000.0 # kg/m^3 
-options["thermal conductivity of ice"] = 3.27 # W/m*K (ice at ~180K)
+options["latent heat of fusion"] = 3.334e5 #J/kg 
+options["specific heat of ice"] = 2095.60 # J/kg*K
+options["density of ice"] = 916.73 # kg/m^3
+options["density of ocean"] = 1000.0 # kg/m^3
+options["thermal conductivity of ice"] = 2.14 # W/m*K
 options["thermal diffusivity"] = options["thermal conductivity of ice"] / (options["density of ice"]*options["specific heat of ice"]) # m^2/s
 options["Tm"] = 273.0 # K
 options["thermal expansivity"] = 0.0
