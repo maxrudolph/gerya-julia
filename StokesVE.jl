@@ -196,14 +196,14 @@ function form_stokes(grid::CartesianGrid,eta_s::Matrix,eta_n::Matrix,mu_s::Matri
                 k+=1
                 R[this_row] = 0.0*kbond
             elseif j==1
-                # left boundary - free slip
+                # left boundary - NO slip
                 row_index[k] = this_row
                 col_index[k] = this_row
                 value[k] = kbond
                 k+=1
                 row_index[k] = this_row
                 col_index[k] = vydof(i,j+1,ny)
-                value[k] = -kbond
+                value[k] = kbond
                 k+=1
                 R[this_row] = 0.0*kbond
             else 
