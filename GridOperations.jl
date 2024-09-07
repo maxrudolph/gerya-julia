@@ -101,13 +101,15 @@ function replace_nan!(old_field::Matrix{Float64},new_field::Matrix{Float64})
     new_field[nanind] = old_field[nanind]
 end
 
-function get_interface(grid::CartesianGrid,mat::Matrix{Float64},contour_level::Float64)
-    for i in 1:grid.nx
-        j=1;
-        while j < contour_level
-                
-        
-           j+=1 
+function compute_rotation(grid::CartesianGrid,vx::Matrix{Float64},vy::Matrix{Float64})
+    # compute the rotation. In 2d there is only one rotation component wxy.
+    # Gerya uses the shortening-positive sign convention. For consistency, rotations are defined clockwise-positive.
+    # it is expected the vx and vy contain the ghost velocity values. These arrays should be (ny+1)x(nx+1)
+    wz = zeros(Float64,grid.ny,grid.nx)
+    for j in 1:grid.nx
+        for i in 1:grid.ny
+            wz[i,j] = 0.5*( (vy[i,j+1]-vy[i,j])/(grid.xc[j+1]-grid.xc[j]) - (vx[i+1,j]-vx[i,j])/(grid.yc[i+1]-grid.yc[i]) )
         end
     end
+    return wz
 end

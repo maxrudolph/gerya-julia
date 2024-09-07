@@ -40,19 +40,20 @@ end
 #     end
 # end
 
-
 struct ScalarField
     #
     # This is a data structure to hold data defined on a (staggered) grid.
     # stagx and stagy are meant to indicate the offset (-1 or 0) in the x and y directions
     # Name is a field name, to be used in visualization
     # data contains the actual data.
+    # old_data contains the previous data (last timestep), which is used to infill NaN values if there are no local markers.
     #
     stagx::Int64
     stagy::Int64
     name::String
     data::Matrix{Float64}
-    function GridField(stagx::Int64,stagy::Int64,name::String,data::Matrix{Float64})
+    old_data::Matrix{Float64}
+    function ScalarField(stagx::Int64,stagy::Int64,name::String,data::Matrix{Float64})
         new(stagx,stagy,name,data)
     end
 end

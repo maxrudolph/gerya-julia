@@ -1,7 +1,6 @@
 # Install dependencies
 using Pkg
 Pkg.add("PyCall")
-#Pkg.build("PyCall")
 Pkg.add("SparseArrays")
 Pkg.add("StaticArrays")
 Pkg.add("LinearAlgebra")
@@ -24,4 +23,5 @@ Pkg.add("ProfileSVG")
 Pkg.add("HDF5")
 Pkg.add("Roots")
 Pkg.add("NLsolve")
+Pkg.add("ProfileVega")
 Pkg.add("FastRunningMedian")
