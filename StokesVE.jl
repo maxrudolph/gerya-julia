@@ -3,10 +3,10 @@ struct BoundaryConditions
     # 0 = Free-slip
     # 1 = No-slip
     # other possibilities?
-    top::Int
-    bottom::Int
-    left::Int
-    right::Int
+    top::Int64
+    bottom::Int64
+    left::Int64
+    right::Int64
 end
 
 @inline node_index(i::Int64, j::Int64, ny::Int64) = ny * (j - 1) + i
@@ -46,6 +46,9 @@ function form_stokes(grid::CartesianGrid,eta_s::Matrix,eta_n::Matrix,mu_s::Matri
     kbond = 1.# scaling factor for dirichlet bc equations.
 
     R=zeros(3*nn,1)
+    # Viscoelasticity factor - for convenience
+    Zn = mu_n.*dt ./ (mu_n.*dt .+ eta_n) 
+    Zs = mu_s.*dt ./ (mu_s.*dt .+ eta_s)
 
     # loop over j
     for j in 1:nx
@@ -88,33 +91,33 @@ function form_stokes(grid::CartesianGrid,eta_s::Matrix,eta_n::Matrix,mu_s::Matri
                 drhody = (rhoX[i+1,j]-rhoX[i-1,j])/2/dyc
 
                 # Z terms
-                Z_n  = dt*mu_n[i,j]  /(dt*mu_n[i,j]  +eta_n[i,j])
-                Z_nf = dt*mu_n[i,j+1]/(dt*mu_n[i,j+1]+eta_n[i,j+1])
-                Z_s  = dt*mu_s[i,j]  /(dt*mu_s[i,j]  +eta_s[i,j])
-                Z_sb = dt*mu_s[i-1,j]/(dt*mu_s[i-1,j]+eta_s[i-1,j])
+                # Z_n  = dt*mu_n[i,j]  /(dt*mu_n[i,j]  +eta_n[i,j])
+                # Z_nf = dt*mu_n[i,j+1]/(dt*mu_n[i,j+1]+eta_n[i,j+1])
+                # Z_s  = dt*mu_s[i,j]  /(dt*mu_s[i,j]  +eta_s[i,j])
+                # Z_sb = dt*mu_s[i-1,j]/(dt*mu_s[i-1,j]+eta_s[i-1,j])
 
                 # vx1 term
                 row_index[k] = this_row
                 col_index[k] = vxdof(i,j-1,ny)
-                value[k] = 2*eta_n[i,j]*Z_n/dxm/dxc
+                value[k] = 2*eta_n[i,j]*Zn[i,j]/dxm/dxc
                 k += 1
 
                 # vx2 term
                 row_index[k] = this_row
                 col_index[k] = vxdof(i-1,j,ny)
-                value[k] = eta_s[i-1,j]*Z_sb/dym/dyc
+                value[k] = eta_s[i-1,j]*Zs[i-1,j]/dym/dyc
                 k+=1
 
                 # vx3 term
                 row_index[k] = this_row
                 col_index[k] = this_row
                 # possible mistake in i+1,j term?
-                value[k] = -(eta_s[i-1,j]*Z_sb/dyp + eta_s[i,j]*Z_s/dym)/dyc - 2*(eta_n[i,j+1]*Z_nf/dxp + eta_n[i,j]*Z_n/dxm)/dxc - drhodx*gx*dt
+                value[k] = -(eta_s[i-1,j]*Zs[i-1,j]/dyp + eta_s[i,j]*Zs[i,j]/dym)/dyc - 2*(eta_n[i,j+1]*Zn[i,j+1]/dxp + eta_n[i,j]*Zn[i,j]/dxm)/dxc - drhodx*gx*dt
                 # k += 1
 
                 if i == ny #vx4
                     # if i == nx, dvx/dy = 0 -> vx3 == vx4 (see Gerya fig 7.18a)
-                    value[k] += eta_s[i,j]*Z_s/dyp/dyc
+                    value[k] += eta_s[i,j]*Zs[i,j]/dyp/dyc
                     k+=1
                 else
                     k+=1
@@ -122,38 +125,38 @@ function form_stokes(grid::CartesianGrid,eta_s::Matrix,eta_n::Matrix,mu_s::Matri
                     # vx4 term
                     row_index[k] = this_row
                     col_index[k] = vxdof(i+1,j,ny)
-                    value[k] = eta_s[i,j]*Z_s/dyp/dyc
+                    value[k] = eta_s[i,j]*Zs[i,j]/dyp/dyc
                     k+=1
                 end
 
                 # vx5 term
                 row_index[k] = this_row
                 col_index[k] = vxdof(i,j+1,ny)
-                value[k] = 2*eta_n[i,j+1]*Z_nf/dxp/dxc
+                value[k] = 2*eta_n[i,j+1]*Zn[i,j+1]/dxp/dxc
                 k+=1
 
                 # vy1 term
                 row_index[k] = this_row
                 col_index[k] = vydof(i-1,j,ny)
-                value[k] = eta_s[i-1,j]*Z_sb/dxm/dyc - drhody*gx*dt/4
+                value[k] = eta_s[i-1,j]*Zs[i-1,j]/dxm/dyc - drhody*gx*dt/4
                 k+=1
 
                 # vy2 term
                 row_index[k] = this_row
                 col_index[k] = vydof(i,j,ny)
-                value[k] = -eta_s[i,j]*Z_s/dxc/dyc - drhody*gx*dt/4
+                value[k] = -eta_s[i,j]*Zs[i,j]/dxc/dyc - drhody*gx*dt/4
                 k+=1
 
                 # vy3 term
                 row_index[k] = this_row
                 col_index[k] = vydof(i-1,j+1,ny)
-                value[k] = -eta_s[i-1,j]*Z_sb/dxc/dyc - drhody*gx*dt/4
+                value[k] = -eta_s[i-1,j]*Zs[i-1,j]/dxc/dyc - drhody*gx*dt/4
                 k+=1
 
                 # vy4 term
                 row_index[k] = this_row
                 col_index[k] = vydof(i,j+1,ny)
-                value[k] = eta_s[i,j]*Z_s/dxc/dyc - drhody*gx*dt/4
+                value[k] = eta_s[i,j]*Zs[i,j]/dxc/dyc - drhody*gx*dt/4
                 k+=1
 
                 # P1 term
@@ -169,10 +172,10 @@ function form_stokes(grid::CartesianGrid,eta_s::Matrix,eta_n::Matrix,mu_s::Matri
                 k+=1
                 
                 # Right-hand side
-                Sxy1 = sxy_o[i-1,j]*eta_s[i-1,j]/(mu_s[i-1,j]*dt+eta_s[i-1,j])
-                Sxy2 = sxy_o[i,j]*eta_s[i,j]/(mu_s[i,j]*dt+eta_s[i,j])
-                Sxx1 = sxx_o[i,j]*eta_n[i,j]/(mu_n[i,j]*dt+eta_n[i,j])
-                Sxx2 = sxx_o[i,j+1]*eta_n[i,j+1]/(mu_n[i,j+1]*dt+eta_n[i,j+1])
+                Sxy1 = sxy_o[i-1,j]*(1-Zs[i-1,j])#)eta_s[i-1,j]/(mu_s[i-1,j]*dt+eta_s[i-1,j])
+                Sxy2 = sxy_o[i,j]*(1-Zs[i,j])#)eta_s[i,j]/(mu_s[i,j]*dt+eta_s[i,j])
+                Sxx1 = sxx_o[i,j]*(1-Zn[i,j])#eta_n[i,j]/(mu_n[i,j]*dt+eta_n[i,j])
+                Sxx2 = sxx_o[i,j+1]*(1-Zn[i,j+1])#eta_n[i,j+1]/(mu_n[i,j+1]*dt+eta_n[i,j+1])
 
                 R[this_row] = -gx*rhoX[i,j] - 2*(Sxx2-Sxx1)/(grid.x[j+1]-grid.x[j-1]) - (Sxy2-Sxy1)/dym
             end
@@ -212,68 +215,68 @@ function form_stokes(grid::CartesianGrid,eta_s::Matrix,eta_n::Matrix,mu_s::Matri
                 drhody = (rhoY[i+1,j]-rhoY[i-1,j])/2/dyc
 
                 # visco-elastic coefficient
-                Z_n1 = mu_n[i,j]*dt/(mu_n[i,j]*dt + eta_n[i,j]) # P1
-                Z_n2 = mu_n[i+1,j]*dt/(mu_n[i+1,j]*dt + eta_n[i+1,j]) # P1
-                Z_s1 = mu_s[i,j-1]*dt/(mu_s[i,j-1]*dt + eta_s[i,j-1]) # S1
-                Z_s2 = mu_s[i,j]*dt/(mu_s[i,j]*dt + eta_s[i,j]) # S2
+                # Z_n1 = mu_n[i,j]*dt/(mu_n[i,j]*dt + eta_n[i,j]) # P1
+                # Z_n2 = mu_n[i+1,j]*dt/(mu_n[i+1,j]*dt + eta_n[i+1,j]) # P1
+                # Z_s1 = mu_s[i,j-1]*dt/(mu_s[i,j-1]*dt + eta_s[i,j-1]) # S1
+                # Z_s2 = mu_s[i,j]*dt/(mu_s[i,j]*dt + eta_s[i,j]) # S2
                 
                 # used LHS assume 2d incompressible flow
                 # use the comment out LHS if consistent with book assumption
                 #vy1
                 row_index[k] = this_row
                 col_index[k] = vydof(i,j-1,ny)
-                value[k] = eta_s[i,j-1]*Z_s1/dxm/dxc
+                value[k] = eta_s[i,j-1]*Zs[i,j-1]/dxm/dxc
                 k+=1
                 #vy2
                 row_index[k] = this_row
                 col_index[k] = vydof(i-1,j,ny)
-                value[k] = 2*eta_n[i,j]*Z_n1/dym/dyc
+                value[k] = 2*eta_n[i,j]*Zn[i,j]/dym/dyc
                 # value[k] = eta_n[i,j]*Z_s2/dym/dyc
                 k+=1
                 #vy3
                 row_index[k] = this_row
                 col_index[k] = this_row
-                value[k] = -2*eta_n[i+1,j]*Z_n2/dyp/dyc -2*eta_n[i,j]*Z_n1/dym/dyc - eta_s[i,j]*Z_s2/dxp/dxc - eta_s[i,j-1]*Z_s1/dxm/dxc - drhody*gy*dt
+                value[k] = -2*eta_n[i+1,j]*Zn[i+1,j]/dyp/dyc -2*eta_n[i,j]*Zn[i,j]/dym/dyc - eta_s[i,j]*Zs[i,j]/dxp/dxc - eta_s[i,j-1]*Zs[i,j-1]/dxm/dxc - drhody*gy*dt
                 # value[k] = -eta_n[i+1,j]*Z_n2/dyp/dyc -eta_n[i,j]*Z_n1/dym/dyc - eta_s[i,j]*Z_s2/dxp/dxc - eta_s[i,j-1]*Z_s1/dxm/dxc - drhody*gy*dt
                 if j == nx
                    # free slip - vx5 = vx3.
                    ###### CHECK! ######
-                   value[k] += eta_s[i,j]*Z_s2/dxp/dxc
+                   value[k] += eta_s[i,j]*Zs[i,j]/dxp/dxc
                 end
                 k+=1
                 
                 #vy4
                 row_index[k] = this_row
                 col_index[k] = vydof(i+1,j,ny)
-                value[k] = 2*eta_n[i+1,j]*Z_n2/dyp/dyc
+                value[k] = 2*eta_n[i+1,j]*Zn[i+1,j]/dyp/dyc
                 # value[k] = eta_n[i+1,j]*Z_n2/dyp/dyc
                 k+=1
                 #vy5
                 if j<nx
                     row_index[k] = this_row
                     col_index[k] = vydof(i,j+1,ny)
-                    value[k] = eta_s[i,j]*Z_s2/dxp/dxc
+                    value[k] = eta_s[i,j]*Zs[i,j]/dxp/dxc
                     k+=1
                 end
                 #vx1
                 row_index[k] = this_row
                 col_index[k] = vxdof(i,j-1,ny)
-                value[k] = eta_s[i,j-1]*Z_s1/dxc/dyc - drhodx*gy*dt/4 # - eta_n[i,j]*Z_n1/dxc/dyc
+                value[k] = eta_s[i,j-1]*Zs[i,j-1]/dxc/dyc - drhodx*gy*dt/4 # - eta_n[i,j]*Z_n1/dxc/dyc
                 k+=1
                 #vx2
                 row_index[k] = this_row
                 col_index[k] = vxdof(i+1,j-1,ny)
-                value[k] = -eta_s[i,j-1]*Z_s1/dxc/dyc - drhodx*gy*dt/4 # + eta_n[i+1,j]*Z_n2/dxc/dyc
+                value[k] = -eta_s[i,j-1]*Zs[i,j-1]/dxc/dyc - drhodx*gy*dt/4 # + eta_n[i+1,j]*Z_n2/dxc/dyc
                 k+=1
                 #vx3
                 row_index[k] = this_row
                 col_index[k] = vxdof(i,j,ny)
-                value[k] = -eta_s[i,j]*Z_s2/dxc/dyc -drhodx*gy*dt/4 # + eta_n[i,j]*Z_n1/dxc/dyc
+                value[k] = -eta_s[i,j]*Zs[i,j]/dxc/dyc -drhodx*gy*dt/4 # + eta_n[i,j]*Z_n1/dxc/dyc
                 k+=1
                 #vx4
                 row_index[k] = this_row
                 col_index[k] = vxdof(i+1,j,ny)
-                value[k] = eta_s[i,j]*Z_s2/dxc/dyc - drhodx*gy*dt/4 # - eta_n[i+1,j]*Z_n2/dxc/dyc
+                value[k] = eta_s[i,j]*Zs[i,j]/dxc/dyc - drhodx*gy*dt/4 # - eta_n[i+1,j]*Z_n2/dxc/dyc
                 k+=1
                 #P1
                 row_index[k] = this_row
@@ -289,7 +292,7 @@ function form_stokes(grid::CartesianGrid,eta_s::Matrix,eta_n::Matrix,mu_s::Matri
                 # get old stress
                 # syy_o = -sxx_o
                 # this should be -rho*gy + xelvis*dsyy0/dy + xelvis*dsxy/dx
-                R[this_row] = -gy*rhoY[i,j] + (sxx_o[i+1,j]*(1-Z_n2)-sxx_o[i,j]*(1-Z_n1))/dyc - (sxy_o[i,j]*(1-Z_s2)-sxy_o[i,j-1]*(1-Z_s1))/dxc
+                R[this_row] = -gy*rhoY[i,j] + (sxx_o[i+1,j]*(1-Zn[i+1,j])-sxx_o[i,j]*(1-Zn[i,j]))/dyc - (sxy_o[i,j]*(1-Zs[i,j])-sxy_o[i,j-1]*(1-Zs[i,j-1]))/dxc
             end
             # END Y-STOKES
             
