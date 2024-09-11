@@ -18,7 +18,7 @@ options["thermal conductivity of ice"] = 2.14 # W/m*K
 options["thermal diffusivity"] = options["thermal conductivity of ice"] / (options["density of ice"]*options["specific heat of ice"]) # m^2/s
 options["Tm"] = 273.0 # K
 options["thermal expansivity"] = 0.0
-options["ny"] = 101
+options["ny"] = 301
 options["markx"] = 6
 options["marky"] = 6
 options["hice"] = ice_shell_thickness*1e3
@@ -371,7 +371,7 @@ function model_setup(options::Dict,plot_dir::String,io)
         f_A = @sprintf("%.6g",Af/1e3)
 
         # Checking Termination Criteria, time is in Myr, amplitude is in meters
-        if time >= max_time || itime >= max_step || (ice_shell_thickness[itime] - ice_shell_thickness[1]) > 1e3
+        if time >= max_time || itime >= max_step || (ice_shell_thickness[itime] - ice_shell_thickness[1]) > (options["hice"] * 0.10)
             terminate = true
             ### Final Plots ###
             get_plots_new(grid,Snew,Tnew,Xnew,"final",plot_dir)
@@ -415,11 +415,8 @@ function modelrun()
     println(io,"Using Wavelength: ", options["wavelength"] / 1e3, "(km)", ", ", "Using Ice Shell Thickness: ", options["hice"] / 1e3, "(km)", ", ", "Using Amplitude Percentage: $percent_amplitude%")
     grid,time,itime,Af,interface_topograhy_array,time_plot,amplitude,ice_shell_thickness = model_setup(options,sub_plots,io);
     interface_topography_over_time(grid,interface_topograhy_array,time_plot,itime,sub_plots)
-    # thickness_over_time(ice_shell_thickness,time_plot,sub_plots)
     t_rel = get_numerical_time_viscous(options["amplitude"],Af,time)
     t_halfspace = get_halfspace_time_viscous(options["wavelength"])
-    # rate = get_thickening_rate(options["hice"])
-    # t_thick = get_thickening_time(options["amplitude"],rate)
     t_thick = compute_numerical_thickening_time(ice_shell_thickness,time_plot,options["hice"])
     t_rel_fitted = fitting_amp_data(amplitude,time_plot,itime,sub_plots)
     t_thick_fitted = fitting_thickingd_data(ice_shell_thickness,time_plot,itime,sub_plots)
