@@ -39,9 +39,9 @@ function get_thickening_rate(hice::Float64)
     *1W = 1J/s*
     """
     delta_T = 173
-    kthermal = 2.2
+    kthermal = 2.14
     L = 334*10^3 
-    rho = 1000
+    rho = 916.73
     q = kthermal*(delta_T/hice)
     rate = q/(L*rho)   
     return rate

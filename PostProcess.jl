@@ -2,12 +2,12 @@
 function mk_main_dir(hice::Float64,lambda::Float64,amp::Float64)
     dir_name = joinpath(@__DIR__,"Model_Outputs","h_$hice"*"_lambda_$lambda"*"_amp_$amp")
     return dir_name
-end
+end    
 
 # Function to get the HDF5 file path for a given combination of parameters
 function get_hdf5_file_path(hice::Float64,lambda::Float64,amp::Float64)
     main_dir = mk_main_dir(hice,lambda,amp)
-    file_path = joinpath(main_dir,"data.hdf5")  # Assuming the HDF5 file is named "output.h5"
+    file_path = joinpath(main_dir,"data.hdf5")  # Assuming the HDF5 file is named "data.hdf5"
     return file_path
 end
 
@@ -22,7 +22,8 @@ function combine_hdf5_files(ice_shell_thickness_range::AbstractRange{Float64},wa
         "Viscous Relaxation Time(Half-Space)" => Float64[],
         "Viscous Relaxation Time(Model)" => Float64[],
         "Fitted Viscous Relaxation Time" => Float64[],
-        "Thickening Time" => Float64[]
+        "Thickening Time" => Float64[],
+        "Fitted Thickening Time" => Float64[]
     )
 
     # Loop over the range of ice shell thickness and wavelength values
@@ -46,7 +47,7 @@ function combine_hdf5_files(ice_shell_thickness_range::AbstractRange{Float64},wa
             end
         end
     end
-
+    
     sorted_wavelength = sort(collect(wavelength_set))
     sorted_hice = sort(collect(ice_shell_thickness_set))
 
@@ -72,9 +73,9 @@ function combine_hdf5_files(ice_shell_thickness_range::AbstractRange{Float64},wa
         t_thic_matrix[i_idx,j_idx] = combined_data["Thickening Time"][i]
         t_thic_fit_matrix[i_idx,j_idx] = combined_data["Fitted Thickening Time"][i]
     end
-
-    h5open(output_path, "w") do file
-        g = create_group(file, "Combined Model Run")
+    
+    h5open(output_path,"w") do file
+        g = create_group(file,"Combined Model Run")
         g["Wavelength"] = sorted_wavelength
         g["Ice Shell Thickness"] = sorted_hice
         g["Viscous Relaxation Time(Half-Space)"] = t_hs_matrix
@@ -83,5 +84,6 @@ function combine_hdf5_files(ice_shell_thickness_range::AbstractRange{Float64},wa
         g["Thickening Time"] = t_thic_matrix
         g["Fitted Thickening Time"] = t_thic_fit_matrix
         attrs(g)["Description"] = "This group contains combined and sorted unique datasets"
+        println("Finished Saving Data into a HDF5 File")
     end
 end

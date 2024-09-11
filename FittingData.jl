@@ -20,7 +20,7 @@ function fitting_amp_data(amplitude::Vector{Any},times::Vector{Any},itime::Int64
     legend()
     savefig(sub_plots*"/ampfitted_data.png",dpi=300)
     close()
-    return fitted_time_amp/3.15e7
+    return fitted_time_amp
 end
 
 function fitting_thickingd_data(thickness::Vector{Any},times::Vector{Any},itime::Int64,sub_plots::String)
@@ -31,21 +31,21 @@ function fitting_thickingd_data(thickness::Vector{Any},times::Vector{Any},itime:
     end
     x = convert(Array{Float64},times)
     y = convert(Array{Float64},hicefit)
-    fit = fitexp(x/3.15e7/1e3,y,options=Options(fine=100))
+    fit = fitexp(x/3.15e7,y,options=Options(fine=100))
     fitted_time_hice = fit.b
 
     figure()
     for i in 1:itime-1
         plot(times[i]/3.15e7/1e3,thickness[i],".")
     end
-    plot(fit.x,fit.y,"r-",label="fitted data")
+    plot(fit.x/1e3,fit.y,"r-",label="fitted data")
     title(L"Ice\,\,Shell\,\,Thickness\,\,Over\,\,Time")
     gca().set_ylabel(L"Ice Shell Thickness\,(m)")
     gca().set_xlabel(L"Time\,(kyr)")
     legend()
     savefig(sub_plots*"/hicefitted_data.png",dpi=300)
     close()
-    return fitted_time_hice/3.15e7
+    return fitted_time_hice
 end
 
 function hdf5_file(options::Dict,t_hs::Float64,t_rel::Float64,t_thic::Float64,t_rel_fit::Float64,t_thick_fit::Float64,top_dir::String)

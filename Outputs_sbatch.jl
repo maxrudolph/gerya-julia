@@ -8,7 +8,7 @@ function mk_main_dir(hice::Float64,lambda::Float64,amp::Float64)
 end
 
 function mk_sub_dir(main_dir::String)
-	  sub_dir_plots = mkdir(joinpath(main_dir,"Plots"))
+    sub_dir_plots = mkdir(joinpath(main_dir,"Plots"))
     sub_dir_data = mkdir(joinpath(main_dir,"Visualization"))
     return sub_dir_plots,sub_dir_data
 end
