@@ -31,7 +31,7 @@ function form_stokes(grid::CartesianGrid,eta_s::Matrix,eta_n::Matrix,mu_s::Matri
     dx = grid.W/(grid.nx-1)
     dy = grid.H/(grid.ny-1)
     kcont = 2*eta_s[1,1]/(dx+dy)# scaling factor for continuity equation
-    kcont = 1e20/(dx+dy)*2
+    #kcont = 1e20/(dx+dy)*2
     kbond = 1.# scaling factor for dirichlet bc equations.
 
     R=zeros(3*nn,1)
@@ -346,11 +346,11 @@ function form_stokes(grid::CartesianGrid,eta_s::Matrix,eta_n::Matrix,mu_s::Matri
     @views value = value[1:(k-1)]
 
     L = sparse(row_index,col_index,value)
-    return L,R    
+    return L,R,kcont    
 end
 
 
-function unpack(solution, grid::CartesianGrid, bc::BoundaryConditions; ghost::Bool=false)
+function unpack(solution, grid::CartesianGrid, bc::BoundaryConditions,kcont::Float64; ghost::Bool=false)
     if ghost
         nx1 = grid.nx+1
         ny1 = grid.ny+1
@@ -362,7 +362,7 @@ function unpack(solution, grid::CartesianGrid, bc::BoundaryConditions; ghost::Bo
             for i in 1:grid.ny                
                 vx[i,j] = solution[vxdof(i,j,grid.ny)]
                 vy[i,j] = solution[vydof(i,j,grid.ny)]
-                P[i,j]  = solution[pdof(i,j,grid.ny)]            
+                P[i,j]  = solution[pdof(i,j,grid.ny)]*kcont            
             end
         end
         # right boundary
@@ -389,7 +389,7 @@ function unpack(solution, grid::CartesianGrid, bc::BoundaryConditions; ghost::Bo
             for i in 1:grid.ny                
                 vx[i,j] = solution[vxdof(i,j,grid.ny)]
                 vy[i,j] = solution[vydof(i,j,grid.ny)]
-                P[i,j]  = solution[pdof(i,j,grid.ny)]            
+                P[i,j]  = solution[pdof(i,j,grid.ny)]*kcont           
             end
         end
     end
