@@ -1,14 +1,3 @@
-struct BoundaryConditions
-    # The intent here is that each boundary gets a flag
-    # 0 = Free-slip
-    # 1 = No-slip
-    # other possibilities?
-    top::Int64
-    bottom::Int64
-    left::Int64
-    right::Int64
-end
-
 @inline node_index(i::Int64, j::Int64, ny::Int64) = ny * (j - 1) + i
 @inline vxdof(i::Int64, j::Int64, ny::Int64) = 3 * (node_index(i, j, ny) - 1) + 1
 @inline vydof(i::Int64, j::Int64, ny::Int64) = 3 * (node_index(i, j, ny) - 1) + 2
@@ -67,24 +56,31 @@ function form_stokes(grid::CartesianGrid,eta_s::Matrix,eta_n::Matrix,mu_s::Matri
             # and equation 7.22
             this_row = vxdof(i,j,ny)        
             # Boundary cases first...            
-            if j==1 || j == nx # left boundary or right boundary
+            if j==1 # left boundary
                 # vx = 0
                 row_index[k] = this_row
                 col_index[k] = this_row
                 value[k] = kbond
                 k+=1
-                R[this_row] = 0.0 *kbond
+                R[this_row] = bc.vx_bc_value[1]*kbond
+            elseif j==nx # right boundary
+                # vx = 0
+                row_index[k] = this_row
+                col_index[k] = this_row
+                value[k] = kbond
+                k+=1
+                R[this_row] = bc.vx_bc_value[2]*kbond
             elseif i==1
                 # dvx/dy = 0 (free slip)
                 row_index[k] = this_row
                 col_index[k] = this_row
-                value[k] = -kbond
+                value[k] = bc.vx_bc_type[3]*kbond
                 k+=1
                 row_index[k] = this_row
                 col_index[k] = vxdof(i+1,j,ny)
                 value[k] = kbond
                 k+=1                
-                R[this_row] = 0.0*kbond
+                R[this_row] = bc.vx_bc_value[3]*kbond
             else
                 # add free surface stabilization
                 drhodx = (rhoX[i,j+1]-rhoX[i,j-1])/2/dxc
@@ -110,13 +106,11 @@ function form_stokes(grid::CartesianGrid,eta_s::Matrix,eta_n::Matrix,mu_s::Matri
 
                 # vx3 term
                 row_index[k] = this_row
-                col_index[k] = this_row
-                # possible mistake in i+1,j term?
+                col_index[k] = this_row                
                 value[k] = -(eta_s[i-1,j]*Zs[i-1,j]/dyp + eta_s[i,j]*Zs[i,j]/dym)/dyc - 2*(eta_n[i,j+1]*Zn[i,j+1]/dxp + eta_n[i,j]*Zn[i,j]/dxm)/dxc - drhodx*gx*dt
-                # k += 1
 
                 if i == ny #vx4
-                    # if i == nx, dvx/dy = 0 -> vx3 == vx4 (see Gerya fig 7.18a)
+                    # if i == ny, dvx/dy = 0 -> vx3 == vx4 (see Gerya fig 7.18a)
                     value[k] += eta_s[i,j]*Zs[i,j]/dyp/dyc
                     k+=1
                 else
@@ -191,24 +185,31 @@ function form_stokes(grid::CartesianGrid,eta_s::Matrix,eta_n::Matrix,mu_s::Matri
             
             this_row = vydof(i,j,ny)
             
-            if i==1 || i == ny
-                # top row / bottom row
+            if i==1
+                # top row 
                 row_index[k] = this_row
                 col_index[k] = this_row
                 value[k] = kbond
                 k+=1
-                R[this_row] = 0.0*kbond
+                R[this_row] = bc.vy_bc_value[3]*kbond
+            elseif i==ny # bottom row
+                # top row 
+                row_index[k] = this_row
+                col_index[k] = this_row
+                value[k] = kbond
+                k+=1
+                R[this_row] = bc.vy_bc_value[4]*kbond
             elseif j==1
-                # left boundary - NO slip
+                # left boundary - FREE slip
                 row_index[k] = this_row
                 col_index[k] = this_row
                 value[k] = kbond
                 k+=1
                 row_index[k] = this_row
                 col_index[k] = vydof(i,j+1,ny)
-                value[k] = kbond
+                value[k] = bc.vy_bc_type[1]*kbond
                 k+=1
-                R[this_row] = 0.0*kbond
+                R[this_row] = bc.vy_bc_value[1]*kbond
             else 
                 # add free surface stabilization
                 drhodx = (rhoY[i,j+1]-rhoY[i,j-1])/2/dxc
@@ -240,6 +241,7 @@ function form_stokes(grid::CartesianGrid,eta_s::Matrix,eta_n::Matrix,mu_s::Matri
                 # value[k] = -eta_n[i+1,j]*Z_n2/dyp/dyc -eta_n[i,j]*Z_n1/dym/dyc - eta_s[i,j]*Z_s2/dxp/dxc - eta_s[i,j-1]*Z_s1/dxm/dxc - drhody*gy*dt
                 if j == nx
                    # free slip - vx5 = vx3.
+                    # no slip would be (vy5 + vy3) = 2*vb
                    ###### CHECK! ######
                    value[k] += eta_s[i,j]*Zs[i,j]/dxp/dxc
                 end
@@ -348,13 +350,13 @@ function form_stokes(grid::CartesianGrid,eta_s::Matrix,eta_n::Matrix,mu_s::Matri
 end
 
 
-function unpack(solution, grid::CartesianGrid; ghost::Bool=false)
+function unpack(solution, grid::CartesianGrid, bc::BoundaryConditions; ghost::Bool=false)
     if ghost
         nx1 = grid.nx+1
         ny1 = grid.ny+1
         P = zeros(Float64,(ny1,nx1))
-        vx = zeros(Float64,(ny1,nx1))
-        vy = zeros(Float64,(ny1,nx1))
+        vx = zeros(Float64,(ny1,grid.nx))
+        vy = zeros(Float64,(grid.ny,nx1))
         ny = grid.ny
         for j in 1:grid.nx
             for i in 1:grid.ny                
@@ -365,15 +367,19 @@ function unpack(solution, grid::CartesianGrid; ghost::Bool=false)
         end
         # right boundary
         j=nx1
-        for i in 1:grid.ny
-              vx[i,j] = 0.0
-              vy[i,j] = vy[i,j-1];# free slip
-        end
-        i=ny1
-        for j in 1:grid.nx
-               vx[i,j] = vx[i-1,j];# free-slip along bottom
-               vy[i,j] = 0.0
-        end
+        #vx[:,grid.nx] .= bc.vx_bc_value[2]
+        vy[:,nx1] .= vy[:,grid.nx]
+        # for i in 1:grid.ny
+              # vx[i,j] = bc.vx_bc_value[2]
+              # vy[i,j] = vy[i,j-1];# free slip
+        # end
+        # i=ny1
+        #vy[grid.ny,:] .= bc.vy_bc_value[4]
+        vx[grid.ny+1,:] .= vx[grid.ny,:]
+        # for j in 1:grid.nx
+               # vx[i,j] = vx[i-1,j];# free-slip along bottom
+               # vy[i,j] = bc.vy_bc_value[4]
+        # end
     else
         P = zeros(Float64,(grid.ny,grid.nx))
         vx = zeros(Float64,(grid.ny,grid.nx))

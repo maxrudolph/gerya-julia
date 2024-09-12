@@ -1,3 +1,25 @@
+struct BoundaryConditions
+    # The intent here is that each boundary gets a flag
+    # -1 = Free-slip d/dn = 0
+    #  1 = prescribed velocity v=const
+    # If the flag 1 is passed, the bc value should be set to 0.0 (i.e., dvx/dx = 0.0).
+    # other possibilities?
+    vx_bc_type::Vector{Int64}
+    vx_bc_value::Vector{Float64}
+    vy_bc_type::Vector{Int64}
+    vy_bc_value::Vector{Float64}
+    function BoundaryConditions(vx_bc_type,vx_bc_value,vy_bc_type,vy_bc_value)
+        # vx_bc_type [left,right,top,bottom]
+        # vx_bc_value [left,right,top,bottom]
+        # same for vy [left,right,top,bottom]        
+        new(vx_bc_type,vx_bc_value,vy_bc_type,vy_bc_value)
+    end
+    function BoundaryConditions()
+        # free slip everywhere
+        new([1,1,-1,-1],[0.0,0.0,0.0,0.0],[-1,-1,1,1],[0.0,0.0,0.0,0.0])
+    end
+end
+
 struct CartesianGrid
     x::Array{Float64,1}
     y::Array{Float64,1}
@@ -11,12 +33,12 @@ struct CartesianGrid
     xperiodic::Bool
     #dx::Float64
     #dy::Float64
-    function CartesianGrid(W::Float64,H::Float64,nx::Int,ny::Int)
+    function CartesianGrid(W::Float64,H::Float64,nx::Int64,ny::Int64;xstart::Float64=0.0,ystart::Float64=0.0)
         dx = W/(nx-1)
         dy = H/(ny-1)
-        new(LinRange(0,W,nx),LinRange(0,H,ny),
-            LinRange(0-dx/2,W+dx/2,nx+1),LinRange(0-dy/2,H+dy/2,ny+1),
-            nx,ny,W,H,false,false)#,W/(nx-1),H/(ny-1))
+        new(xstart.+LinRange(0,W,nx),ystart.+LinRange(0,H,ny),
+            xstart.+LinRange(0-dx/2,W+dx/2,nx+1),ystart.+LinRange(0-dy/2,H+dy/2,ny+1),
+            nx,ny,W,H,false,false)
     end
 end
 

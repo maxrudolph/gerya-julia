@@ -319,12 +319,12 @@ function stag_to_points(x::Matrix{Float64},cell::Matrix{Int64},grid::CartesianGr
     # x should be a vector of x/y coordinates
     # expect field to contain values at ghost nodes outside domain to right and bottom
     npoints = size(x,2)
-    if size(field,1) == grid.nx+1
+    if size(field,2) == grid.nx+1
         cellx_max = grid.nx
     else
         cellx_max = grid.nx-1
     end
-    if size(field,2) == grid.ny+1
+    if size(field,1) == grid.ny+1
         celly_max = grid.ny
     else
         celly_max = grid.ny-1
@@ -473,10 +473,10 @@ function viscosity_to_cell_centers(grid::CartesianGrid,etas::Matrix{Float64})
     return etan
 end
 
-function velocity_to_centers(grid::CartesianGrid,vx::Matrix{Float64},vy::Matrix{Float64})
+function velocity_to_centers(grid::CartesianGrid,vx::Matrix{Float64},vy::Matrix{Float64},bc::BoundaryConditions)
     # compute vx and vy at cell centers
-     vxc = zeros(grid.ny+1,grid.nx+1);
-     vyc = zeros(grid.ny+1,grid.nx+1);
+     vxc = zeros(grid.ny+1,grid.nx+1)
+     vyc = zeros(grid.ny+1,grid.nx+1)
      # cell centers are offset in (-) direction from basic nodes.
      #               |
      # (center)     vx[i,j]
@@ -494,23 +494,24 @@ function velocity_to_centers(grid::CartesianGrid,vx::Matrix{Float64},vy::Matrix{
             vyc[i,j] = 0.5*(vyp+vym)            
         end
     end
-    # vx - top
+    # vx - top FREE SLIP
+    # assert(bc.vx_bc_type[1] == -1)
     vxc[1,2:grid.nx] = vxc[2,2:grid.nx]
-    # bottom
+    # bottom FREE SLIP
     vxc[grid.ny+1,2:grid.nx] = vxc[grid.ny,2:grid.nx]
-    # left
-    vxc[:,1] = -vxc[:,2]
+    # left PRESCRIBED X VELOCITY
+    vxc[:,1] = 2.0*bc.vx_bc_value[1].-vxc[:,2]
     # right
-    vxc[:,grid.nx+1] = - vxc[:,grid.nx]
+    vxc[:,grid.nx+1] = 2.0*bc.vx_bc_value[2].-vxc[:,grid.nx]
 
-    # vy - left
+    # vy - left FREE SLIP
     vyc[2:grid.ny,1] = vyc[2:grid.ny,2]
-    # vy - right
+    # vy - right FREE SLIP
     vyc[2:grid.ny,grid.nx+1] = vyc[2:grid.ny,grid.nx]
-    # vy - top
-    vyc[1,:] = -vyc[2,:]
+    # vy - top 
+    vyc[1,:] = 2.0*bc.vy_bc_value[3].-vyc[2,:]
     # vy - bottom
-    vyc[grid.ny+1,:] = -vyc[grid.ny,:]        
+    vyc[grid.ny+1,:] = 2.0*bc.vy_bc_value[4].-vyc[grid.ny,:]        
     
     return vxc,vyc
 end
@@ -528,7 +529,7 @@ function velocity_to_basic_nodes(grid::CartesianGrid,vxc::Matrix{Float64},vyc::M
     return vn
 end
 
-function velocity_to_points(x::Matrix{Float64},cell::Matrix{Int64},grid::CartesianGrid,vx::Matrix{Float64},vy::Matrix{Float64}; continuity_weight::Float64=0.0,N::Int64=-1,vxc=nothing,vyc=nothing)
+function velocity_to_points(x::Matrix{Float64},cell::Matrix{Int64},grid::CartesianGrid,bc::BoundaryConditions,vx::Matrix{Float64},vy::Matrix{Float64}; continuity_weight::Float64=0.0,N::Int64=-1,vxc=nothing,vyc=nothing)
     # compute the velocity at points, using the continuity-based velocity interpolation
     # compute velocity at cell centers
     # compute the velocity at the markers from the velocity nodes:
@@ -539,7 +540,7 @@ function velocity_to_points(x::Matrix{Float64},cell::Matrix{Int64},grid::Cartesi
 
     # compute velocity at cell centers
     if vxc == nothing || vyc == nothing
-        vxc,vyc = velocity_to_centers(grid,vx,vy);
+        vxc,vyc = velocity_to_centers(grid,vx,vy,bc);
     end
     # compute the velocity at the markers from the cell centers:
     mvxc,mvyc = velocity_center_to_points(x,cell,grid,vxc,vyc,N=N)
@@ -610,11 +611,11 @@ function velocity_center_to_points(x::Matrix{Float64},cell::Matrix{Int64},grid::
     return mvx,mvy
 end
 
-function velocity_to_markers(m::Markers,grid::CartesianGrid,vx::Matrix{Float64},vy::Matrix{Float64};vxc=nothing,vyc=nothing,continuity_weight::Float64=0.0)
+function velocity_to_markers(m::Markers,grid::CartesianGrid,bc::BoundaryConditions,vx::Matrix{Float64},vy::Matrix{Float64};vxc=nothing,vyc=nothing,continuity_weight::Float64=0.0)
     # This function expects the velocities to be defined at the cell centers. vxc and vyc should each have
     # an 'extra' column and row corresponding to the ghost degrees of freedom that are needed to interpolate
     # velocities along the bottom and left of the domain.
-    mvx,mvy = velocity_to_points(m.x,m.cell,grid,vx,vy;continuity_weight=continuity_weight,N=m.nmark)
+    mvx,mvy = velocity_to_points(m.x,m.cell,grid,bc,vx,vy;continuity_weight=continuity_weight,N=m.nmark)
     return mvx,mvy
 end
 
@@ -659,12 +660,12 @@ function move_markers_rk2!(markers::Markers,grid::CartesianGrid,vx::Matrix{Float
     find_cells!(markers,grid)
 end
 
-function move_markers_rk4!(markers::Markers,grid::CartesianGrid,vx::Matrix{Float64},vy::Matrix{Float64},dt::Float64; continuity_weight::Float64=1.0/3.0)
+function move_markers_rk4!(markers::Markers,grid::CartesianGrid,bc::BoundaryConditions,vx::Matrix{Float64},vy::Matrix{Float64},dt::Float64; continuity_weight::Float64=1.0/3.0)
     # This function implements the 4th-order Runge-Kutta scheme for advection of markers. It expects
     # vx and vy are the velocities at the velocity nodes
     # dt is the timestep
     if continuity_weight != 0.0
-        vxc,vyc = velocity_to_centers(grid,vx,vy)
+        vxc,vyc = velocity_to_centers(grid,vx,vy,bc)
     else
         vxc=nothing
         vyc=nothing
@@ -683,7 +684,7 @@ function move_markers_rk4!(markers::Markers,grid::CartesianGrid,vx::Matrix{Float
         cell[1,i] = find_cell(xB[1,i], grid.x, grid.nx, guess=cell[1,i])
         cell[2,i] = find_cell(xB[2,i], grid.y, grid.ny, guess=cell[2,i])
     end
-    vxB, vyB = velocity_to_points(xB,cell,grid,vx,vy,continuity_weight=continuity_weight,vxc=vxc,vyc=vyc,N=markers.nmark)
+    vxB, vyB = velocity_to_points(xB,cell,grid,bc,vx,vy,continuity_weight=continuity_weight,vxc=vxc,vyc=vyc,N=markers.nmark)
     # 4. compute xC = xA+vB*dt/2
     xC = Array{Float64,2}(undef,2,markers.nmark)
     for i in 1:markers.nmark
@@ -695,7 +696,7 @@ function move_markers_rk4!(markers::Markers,grid::CartesianGrid,vx::Matrix{Float
         cell[1,i] = find_cell(xC[1,i], grid.x, grid.nx, guess=cell[1,i])
         cell[2,i] = find_cell(xC[2,i], grid.y, grid.ny, guess=cell[2,i])
     end
-    vxC, vyC = velocity_to_points(xC,cell,grid,vx,vy,continuity_weight=continuity_weight,vxc=vxc,vyc=vyc,N=markers.nmark)
+    vxC, vyC = velocity_to_points(xC,cell,grid,bc,vx,vy,continuity_weight=continuity_weight,vxc=vxc,vyc=vyc,N=markers.nmark)
     # 6. compute xD = xA + vC*dt
     xD = Array{Float64,2}(undef,2,markers.nmark)
     for i in 1:markers.nmark
@@ -707,7 +708,7 @@ function move_markers_rk4!(markers::Markers,grid::CartesianGrid,vx::Matrix{Float
         cell[1,i] = find_cell(xD[1,i], grid.x, grid.nx, guess=cell[1,i])
         cell[2,i] = find_cell(xD[2,i], grid.y, grid.ny, guess=cell[2,i])
     end
-    vxD, vyD = velocity_to_points(xD,cell,grid,vx,vy,continuity_weight=continuity_weight,vxc=vxc,vyc=vyc,N=markers.nmark)
+    vxD, vyD = velocity_to_points(xD,cell,grid,bc,vx,vy,continuity_weight=continuity_weight,vxc=vxc,vyc=vyc,N=markers.nmark)
     # 8. Compute v_eff = 1/6*(vA+2*vB+2*vC+vD) and move markers by v_eff*dt
     Threads.@threads for i in 1:markers.nmark
         markers.x[1,i] += dt/6.0*(vxA[i] + 2*vxB[i] + 2*vxC[i] + vxD[i]) 
