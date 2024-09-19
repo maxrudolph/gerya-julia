@@ -16,12 +16,12 @@ function main_script()
     # Define ice shell thickness range (adjust as needed) in km
     ice_start = 10.0
     ice_stop = 60.0
-    nice = 3
+    nice = 2
     ice_shell_thickness_range = range(ice_start,ice_stop,nice)
     # Define wavelength range (adjust as needed) in km
     wavelength_start = 5.0
     wavelength_stop = 200.0 
-    nwavelength = 4
+    nwavelength = 3
     wavelength_range = range(wavelength_start,wavelength_stop,nwavelength)
     # Define amplitude percentage range (adjust as needed)
     amplitude_start = amplitude_stop = 20.0
