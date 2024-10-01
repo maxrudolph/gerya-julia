@@ -136,7 +136,7 @@ function model_setup(options::Dict,plot_dir::String,io)
     W = options["wavelength"]
     H = options["hice"] + options["amplitude"] + options["hice"]/2
     ny = options["ny"]
-    # nx::Int64 = ceil(ny/H*W)
+    #nx::Int64 = ceil(ny/H*W)
     nx::Int64 = ny+1
     gx = 0.0
     gy = 0.113
@@ -433,8 +433,11 @@ function modelrun()
     t_rel = get_numerical_time_viscous(options["amplitude"],Af,time)
     t_halfspace = get_halfspace_time_viscous(options["wavelength"])
     t_thick = compute_numerical_thickening_time(ice_shell_thickness,time_plot,options["hice"])
+    analytic_thickening_rate = get_thickening_rate(options["hice"])
+    t_thick_analytic = get_thickening_time(options["hice"],analytic_thickening_rate)
     t_rel_fitted = fitting_amp_data(amplitude,time_plot,itime,sub_plots)
     t_thick_fitted = fitting_thickingd_data(ice_shell_thickness,time_plot,itime,sub_plots)
+    println(io,"Numerical thickening time: ",t_thick," Analytic thickening time",t_thick_analytic)
     println(io,"Analytic relaxation time: ",t_halfspace,"(yr)",t_halfspace/1e3,"(kyr) or ",t_halfspace/1e6,"(Myr)")
     println(io,"Numerical relaxation time: ",t_rel,"(yr)",t_rel/1e3,"(kyr) or ",t_rel/1e6,"(Myr)")
     close(io)
