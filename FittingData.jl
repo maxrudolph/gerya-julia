@@ -1,4 +1,7 @@
 function fitting_amp_data(amplitude::Vector{Any},times::Vector{Any},itime::Int64,sub_plots::String)
+    """
+    Info: This function will fit the relaxation data by performing a exponential fitting
+    """
     ampfit = []
     for i in 1:itime-1
         amp = amplitude[i]
@@ -23,7 +26,10 @@ function fitting_amp_data(amplitude::Vector{Any},times::Vector{Any},itime::Int64
     return fitted_time_amp
 end
 
-function fitting_thickingd_data(thickness::Vector{Any},times::Vector{Any},itime::Int64,sub_plots::String)
+function fitting_thicking_data(thickness::Vector{Any},times::Vector{Any},itime::Int64,sub_plots::String)
+    """
+    Info: This function will fit the thickening data by performing a linear fitting
+    """
     hicefit = []
     for i in 1:itime-1
         hice = thickness[i]
@@ -31,7 +37,7 @@ function fitting_thickingd_data(thickness::Vector{Any},times::Vector{Any},itime:
     end
     x = convert(Array{Float64},times)
     y = convert(Array{Float64},hicefit)
-    fit = fitexp(x/3.15e7,y,options=Options(fine=100))
+    fit = fitlinear(x/3.15e7,y,options=Options(fine=100))
     fitted_time_hice = fit.b
 
     figure()
