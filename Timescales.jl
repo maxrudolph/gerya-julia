@@ -70,7 +70,6 @@ function compute_numerical_thickening_time(h::Vector{Any},t::Vector{Any},hi::Flo
 end
 
 function get_numerical_time_viscous(initial_amplitude::Float64,final_amplitude::Float64,time::Float64)
-# function get_numerical_time_viscous(i_interface_1::Vector{Float64},interface_1::Vector{Float64},i_interface_2::Vector{Float64},interface_2::Vector{Float64},time::Float64)
     """
     Arguments:
     time::Float64 --- model time run in (seconds)
