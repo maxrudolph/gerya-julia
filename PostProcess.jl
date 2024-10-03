@@ -1,17 +1,17 @@
 # Function to get the directory path for a given combination of parameters
-function mk_main_dir(hice::Float64,lambda::Float64,amp::Float64,g::Float64)
-    dir_name = joinpath(@__DIR__,"Model_Outputs","h_$hice"*"_lambda_$lambda"*"_amp_$amp"*"_g_$g")
+function mk_main_dir(hice::Float64,lambda::Float64,amp::Float64,gravity::Float64)
+    dir_name = joinpath(@__DIR__,"Model_Outputs","h_$hice"*"_lambda_$lambda"*"_amp_$amp"*"_g_$gravity")
     return dir_name
 end    
 
 # Function to get the HDF5 file path for a given combination of parameters
-function get_hdf5_file_path(hice::Float64,lambda::Float64,amp::Float64,g::Float64)
-    main_dir = mk_main_dir(hice,lambda,amp,g)
+function get_hdf5_file_path(hice::Float64,lambda::Float64,amp::Float64,gravity::Float64)
+    main_dir = mk_main_dir(hice,lambda,amp,gravity)
     file_path = joinpath(main_dir,"data.hdf5")  # Assuming the HDF5 file is named "data.hdf5"
     return file_path
 end
 
-function combine_hdf5_files(ice_shell_thickness_range::AbstractRange{Float64},wavelength_range::AbstractRange{Float64},amplitude::Float64,g::Float64,output_path::String)
+function combine_hdf5_files(ice_shell_thickness_range::AbstractRange{Float64},wavelength_range::AbstractRange{Float64},amplitude::Float64,gravity::Float64,output_path::String)
     # Collect unique values
     wavelength_set = Set{Float64}()
     ice_shell_thickness_set = Set{Float64}()
@@ -29,7 +29,7 @@ function combine_hdf5_files(ice_shell_thickness_range::AbstractRange{Float64},wa
     # Loop over the range of ice shell thickness and wavelength values
     for h in ice_shell_thickness_range
         for lambda in wavelength_range
-            file_path = get_hdf5_file_path(h,lambda,amplitude,g)
+            file_path = get_hdf5_file_path(h,lambda,amplitude,gravity)
             if isfile(file_path)
                 h5open(file_path, "r") do file
                     g = file["Model Run"]
