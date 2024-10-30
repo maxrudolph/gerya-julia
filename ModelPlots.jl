@@ -163,7 +163,7 @@ end
 function interface_topography_over_time(grid::CartesianGrid,topography_array::Vector{Any},time_plot::Vector{Any},itime::Int64,plot_dir::String)
     figure()
     for i in 1:ceil(Int,itime/10):itime-1
-        plot(grid.xc/1e3,topography_array[i]/1e3,label=(L"At",@sprintf("%.3g",time_plot[i]/3.15e7/1e6),L"Myr"))
+        plot(grid.xc/1e3,topography_array[i]/1e3,label=(L"At",@sprintf("%.3g",time_plot[i]/3.15e7/1e3),L"kyr"))
     end
     title(L"Profile\,of\,Ocean-Ice\,Inferface\,Topograpgy\,Over\,Time")
     gca().invert_yaxis()
