@@ -1,11 +1,12 @@
-if length(ARGS) > 4
+if length(ARGS) > 5
     error("specify proper input arguments for range function for ice shell thickness and wavelength topogaphy for ocean-ice interface")
 else
     ice_shell_thickness = parse(Float64,ARGS[1])
     wavelength = parse(Float64,ARGS[2])
     percent_amplitude = parse(Float64,ARGS[3])
-    top_dir = ARGS[4]
-    println("Model run for ice shell thickness of $ice_shell_thickness, wavelength of $wavelength, amplitude percentage of $percent_amplitude")
+    gravity = parse(Float64,ARGS[4])
+    top_dir = ARGS[5]
+    println("Model run for ice shell thickness of $ice_shell_thickness, wavelength of $wavelength, amplitude percentage of $percent_amplitude with gravity of $gravity")
 end
 
 # Uncomment for debugging run
@@ -30,6 +31,9 @@ options["markx"] = 6
 options["marky"] = 6
 options["hice"] = ice_shell_thickness*1e3
 options["wavelength"] = wavelength*1e3
+options["gravity of icy moon"] = gravity # m/s^2
+options["reference viscosity"] = 1e14 # Pa*s
+options["upperlimit viscosity"] = 1e25 # Pa*s
 
 # Importing (using/include) packages and files needed for the code to run
 using SparseArrays
@@ -61,13 +65,13 @@ include("Outputs_sbatch.jl")
 ### Setting Up the Initial Conditions ###
 include("InitialConditions.jl")
 
-function ice_viscosity(T::Float64)
+function ice_viscosity(T::Float64,options::Dict)
     Q = 40000.0 # Activation Enegry (J/mol)
     R_cont = 8.314 # Gas Constant (J/molK)
-    meltingpoint_viscosity = 1e14
+    meltingpoint_viscosity = options["reference viscosity"]
     ice_vis = meltingpoint_viscosity*exp((Q*(273.0-T))/(R_cont*(273.0*T)))
-    upperlimit = 1e25
-    lowerlimit = meltingpoint_viscosity
+    upperlimit = options["upperlimit viscosity"]
+    lowerlimit = options["reference viscosity"]
     if ice_vis < lowerlimit
         ice_vis = lowerlimit
     elseif ice_vis > upperlimit
@@ -113,7 +117,7 @@ function update_marker_prop!(markers::Markers,options::Dict)
             markers.scalars[rho,i] = options["density of ice"] + (options["density of ocean"]-options["density of ice"])*markers.scalars[X,i] # kg/m^3
         end
         if markers.scalars[S,i] < 0.0
-            markers.scalars[eta,i] = ice_viscosity(markers.scalars[T,i])
+            markers.scalars[eta,i] = ice_viscosity(markers.scalars[T,i],options)
         else
             markers.scalars[eta,i] = 1e12
         end
@@ -136,10 +140,10 @@ function model_setup(options::Dict,plot_dir::String,io)
     W = options["wavelength"]
     H = options["hice"] + options["amplitude"] + options["hice"]/2
     ny = options["ny"]
-    #nx::Int64 = ceil(ny/H*W)
+    # nx::Int64 = ceil(ny/H*W)
     nx::Int64 = ny+1
     gx = 0.0
-    gy = 0.113
+    gy = options["gravity of icy moon"]
 
     # -1 = insulating, 1 = constant temp
     Tbctype = [-1,-1,1,1] #left, right, top, bottom
@@ -386,7 +390,7 @@ function model_setup(options::Dict,plot_dir::String,io)
         f_A = @sprintf("%.6g",Af/1e3)
 
         # Checking Termination Criteria, time is in Myr, amplitude is in meters
-        if time >= max_time || itime >= max_step || (ice_shell_thickness[itime] - ice_shell_thickness[1]) > (options["hice"] * 0.10)
+        if time >= max_time || itime >= max_step || ( Af/Ai <= 1/exp(1) && (ice_shell_thickness[itime] - ice_shell_thickness[1]) > (options["hice"] * 0.10) )
             terminate = true
             ### Final Plots ###
             get_plots_new(grid,Snew,Tnew,Xnew,"final",plot_dir)
@@ -430,18 +434,26 @@ function modelrun()
     println(io,"Using Wavelength: ", options["wavelength"] / 1e3, "(km)", ", ", "Using Ice Shell Thickness: ", options["hice"] / 1e3, "(km)", ", ", "Using Amplitude Percentage: $percent_amplitude%")
     grid,time,itime,Af,interface_topograhy_array,time_plot,amplitude,ice_shell_thickness = model_setup(options,sub_plots,io);
     interface_topography_over_time(grid,interface_topograhy_array,time_plot,itime,sub_plots)
+    ### Viscous Relaxation times ###
+    t_halfspace = get_halfspace_time_viscous(options)
     t_rel = get_numerical_time_viscous(options["amplitude"],Af,time)
-    t_halfspace = get_halfspace_time_viscous(options["wavelength"])
-    t_thick = compute_numerical_thickening_time(ice_shell_thickness,time_plot,options["hice"])
-    analytic_thickening_rate = get_thickening_rate(options["hice"])
-    t_thick_analytic = get_thickening_time(options["hice"],analytic_thickening_rate)
     t_rel_fitted = fitting_amp_data(amplitude,time_plot,itime,sub_plots)
-    t_thick_fitted = fitting_thickingd_data(ice_shell_thickness,time_plot,itime,sub_plots)
-    println(io,"Numerical thickening time: ",t_thick," Analytic thickening time",t_thick_analytic)
-    println(io,"Analytic relaxation time: ",t_halfspace,"(yr)",t_halfspace/1e3,"(kyr) or ",t_halfspace/1e6,"(Myr)")
-    println(io,"Numerical relaxation time: ",t_rel,"(yr)",t_rel/1e3,"(kyr) or ",t_rel/1e6,"(Myr)")
+    ### Thickening times ###
+    analytic_thickening_rate = get_thickening_rate(options)
+    analytic_thickening_time = get_thickening_time(options,analytic_thickening_rate)
+    t_thick = compute_numerical_thickening_time(ice_shell_thickness,time_plot,options)
+    t_thick_fitted_rate = fitting_thickening_data(ice_shell_thickness,time_plot,itime,sub_plots)
+    t_thick_fitted = options["amplitude"]/t_thick_fitted_rate
     close(io)
     println("Model ran successfully")
+    io = open(top_dir*"/TimeData.txt","w")
+    println(io,"Analytic relaxation time: ",t_halfspace,"(yr), ",t_halfspace/1e3,"(kyr) or ",t_halfspace/1e6,"(Myr)")
+    println(io,"Numerical relaxation time: ",t_rel,"(yr), ",t_rel/1e3,"(kyr) or ",t_rel/1e6,"(Myr)")
+    println(io,"Fitted numerical relaxation time: ",t_rel_fitted,"(yr), ",t_rel_fitted/1e3,"(kyr) or ",t_rel_fitted/1e6,"(Myr)")
+    println(io,"Analytic thickening time: ",analytic_thickening_time,"(yr), ",analytic_thickening_time/1e3,"(kyr), or ",analytic_thickening_time/1e6,"(Myr)")
+    println(io,"Numerical thickeing time: ",t_thick,"(yr), ",t_thick/1e3,"(kyr), or ",t_thick/1e6,"(Myr)")
+    println(io,"Fitted numerical thickeing time: ",t_thick_fitted,"(yr), ",t_thick_fitted/1e3,"(kyr), or ",t_thick_fitted/1e6,"(Myr)")
+    close(io)
     #io = open(top_dir*"/AmplitudeData.txt","w")
     #for i in amplitude
     #    for j in time_plot

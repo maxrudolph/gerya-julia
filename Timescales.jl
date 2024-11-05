@@ -1,4 +1,4 @@
-function get_halfspace_time_viscous(lambda::Float64)
+function get_halfspace_time_viscous(options::Dict)
     """
     Arguments:
     lambda::Float64 --- Topography Wavelength in (m)
@@ -12,14 +12,14 @@ function get_halfspace_time_viscous(lambda::Float64)
     ice_visosity --- Viscosity of ice in (Pa*s = kg/m*s)
     delta_rho --- Difference of density in (kg/m^3)
     """
-    g = 0.113 
-    ice_viscosity = 1e15
-    delta_rho = 80
-    time = (4*pi)*(ice_viscosity)*(1/g)*(1/delta_rho)*(1/lambda)
+    g = options["gravity of icy moon"]
+    ice_viscosity = options["reference viscosity"]
+    delta_rho = options["density of ocean"] - options["density of ice"]
+    time = (4*pi)*(ice_viscosity)*(1/g)*(1/delta_rho)*(1/options["wavelength"])
     return time/3.15e7
 end
 
-function get_thickening_rate(hice::Float64)
+function get_thickening_rate(options::Dict)
     """
     Arguments:
     hice::Float64 --- Ice shell thickness in (m)
@@ -39,15 +39,15 @@ function get_thickening_rate(hice::Float64)
     *1W = 1J/s*
     """
     delta_T = 173
-    kthermal = 2.14
-    L = 334*10^3 
-    rho = 916.73
-    q = kthermal*(delta_T/hice)
+    kthermal = options["thermal conductivity of ice"]
+    L = options["latent heat of fusion"]
+    rho = options["density of ice"]
+    q = kthermal*(delta_T/options["hice"])
     rate = q/(L*rho)   
     return rate
 end
 
-function get_thickening_time(hice::Float64,rate::Float64)
+function get_thickening_time(options,rate::Float64)
     """
     Arguments:
     hice::Float64 --- Ice shell thickness in (m)
@@ -58,14 +58,14 @@ function get_thickening_time(hice::Float64,rate::Float64)
     Info:
     rate --- Rate of thickening in (m/s) 
     """
-    time = hice/rate
+    time = options["amplitude"]/rate
     return time/3.15e7
 end
 
-function compute_numerical_thickening_time(h::Vector{Any},t::Vector{Any},hi::Float64)
+function compute_numerical_thickening_time(h::Vector{Any},t::Vector{Any},options::Dict)
     thickening_rate = diff(h)./diff(t)  # Change in thickness / Change in time
     average_thickening_rate = mean(thickening_rate)
-    t_thickening = hi/average_thickening_rate
+    t_thickening = options["amplitude"]/average_thickening_rate
     return t_thickening/3.15e7
 end
 

@@ -13,15 +13,17 @@ function execute_cmd(cmd::Cmd)
 end
 
 function main_script()
+    # Define g for icy moon
+    g = 0.113
     # Define ice shell thickness range (adjust as needed) in km
     ice_start = 10.0
     ice_stop = 60.0
-    nice = 2
+    nice = 15
     ice_shell_thickness_range = range(ice_start,ice_stop,nice)
     # Define wavelength range (adjust as needed) in km
     wavelength_start = 5.0
-    wavelength_stop = 200.0 
-    nwavelength = 3
+    wavelength_stop = 300.0
+    nwavelength = 14
     wavelength_range = range(wavelength_start,wavelength_stop,nwavelength)
     # Define amplitude percentage range (adjust as needed)
     amplitude_start = amplitude_stop = 20.0
@@ -34,9 +36,9 @@ function main_script()
         for h in ice_shell_thickness_range
             # Looping over the range of wavelength values
             for lambda in wavelength_range
-                main_dir = mk_main_dir(h,lambda,amp)
+                main_dir = mk_main_dir(h,lambda,amp,g)
                 # Constructing the command string
-                cmd = `julia VMS_sbatch.jl $h $lambda $amp $main_dir`
+                cmd = `sbatch --account rudolphgrp --exclusive -N 1 --mem=128G --time=6-00:00:0 -p high2 --wrap "julia --threads 32 VMS_sbatch.jl $h $lambda $amp $g $main_dir"`
                 # Executing the command
                 execute_cmd(cmd)
             end

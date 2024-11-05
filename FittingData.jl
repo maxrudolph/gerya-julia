@@ -6,7 +6,7 @@ function fitting_amp_data(amplitude::Vector{Any},times::Vector{Any},itime::Int64
     end
     x = convert(Array{Float64},times)
     y = convert(Array{Float64},ampfit)
-    fit = fitexp(x/3.15e7,y,options=Options(fine=100))
+    fit = fitexp(x/3.15e7,y)
     fitted_time_amp = fit.b
 
     figure()
@@ -23,7 +23,7 @@ function fitting_amp_data(amplitude::Vector{Any},times::Vector{Any},itime::Int64
     return fitted_time_amp
 end
 
-function fitting_thickingd_data(thickness::Vector{Any},times::Vector{Any},itime::Int64,sub_plots::String)
+function fitting_thickening_data(thickness::Vector{Any},times::Vector{Any},itime::Int64,sub_plots::String)
     hicefit = []
     for i in 1:itime-1
         hice = thickness[i]
@@ -31,8 +31,8 @@ function fitting_thickingd_data(thickness::Vector{Any},times::Vector{Any},itime:
     end
     x = convert(Array{Float64},times)
     y = convert(Array{Float64},hicefit)
-    fit = fitexp(x/3.15e7,y,options=Options(fine=100))
-    fitted_time_hice = fit.b
+    fit = fitlinear(x/3.15e7,y)
+    fitted_time_rate = fit.a
 
     figure()
     for i in 1:itime-1
@@ -45,7 +45,7 @@ function fitting_thickingd_data(thickness::Vector{Any},times::Vector{Any},itime:
     legend()
     savefig(sub_plots*"/hicefitted_data.png",dpi=300)
     close()
-    return fitted_time_hice
+    return fitted_time_rate
 end
 
 function hdf5_file(options::Dict,t_hs::Float64,t_rel::Float64,t_thic::Float64,t_rel_fit::Float64,t_thick_fit::Float64,top_dir::String)
