@@ -434,21 +434,7 @@ function modelrun()
     println(io,"Using Wavelength: ", options["wavelength"] / 1e3, "(km)", ", ", "Using Ice Shell Thickness: ", options["hice"] / 1e3, "(km)", ", ", "Using Amplitude Percentage: $percent_amplitude%")
     grid,time,itime,Af,interface_topograhy_array,time_plot,amplitude,ice_shell_thickness = model_setup(options,sub_plots,io);
     interface_topography_over_time(grid,interface_topograhy_array,time_plot,itime,sub_plots)
-<<<<<<< HEAD
-    ### Relaxation times ###
-    t_halfspace = get_halfspace_time_viscous(options["wavelength"])
-    t_rel = get_numerical_time_viscous(options["amplitude"],Af,time)
-    t_rel_fitted = fitting_amp_data(amplitude,time_plot,itime,sub_plots)
-    println(io,"Analytic relaxation time: ",t_halfspace,"(yr)",t_halfspace/1e3,"(kyr) or ",t_halfspace/1e6,"(Myr)")
-    println(io,"Numerical relaxation time: ",t_rel,"(yr)",t_rel/1e3,"(kyr) or ",t_rel/1e6,"(Myr)")
-    ### Thickening times ###
-    analytic_thickening_rate = get_thickening_rate(options["hice"])
-    analytic_thickening_time = get_thickening_time(options["hice"],analytic_thickening_rate)
-    t_thick = compute_numerical_thickening_time(ice_shell_thickness,time_plot,options["hice"])
-    t_thick_fitted = fitting_thicking_data(ice_shell_thickness,time_plot,itime,sub_plots)
-    println(io,"Analytic thickening time: ",analytic_thickeing_time,"(yr)",analytic_thickeing_time/1e3,"(kyr) or ",analytic_thickeing_time/1e6,"(Myr)")
-    println(io,"Numerical thickening time: ",t_thick,"(yr)",t_thick/1e3,"(kyr) or ",t_thick/1e6,"(Myr)")
-=======
+
     ### Viscous Relaxation times ###
     t_halfspace = get_halfspace_time_viscous(options)
     t_rel = get_numerical_time_viscous(options["amplitude"],Af,time)
@@ -459,7 +445,7 @@ function modelrun()
     t_thick = compute_numerical_thickening_time(ice_shell_thickness,time_plot,options)
     t_thick_fitted_rate = fitting_thickening_data(ice_shell_thickness,time_plot,itime,sub_plots)
     t_thick_fitted = options["amplitude"]/t_thick_fitted_rate
->>>>>>> tmp
+
     close(io)
     println("Model ran successfully")
     io = open(top_dir*"/TimeData.txt","w")
