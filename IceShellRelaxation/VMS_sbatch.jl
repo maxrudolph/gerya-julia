@@ -49,16 +49,16 @@ using NLsolve
 using Printf
 using HDF5
 using EasyFit
-include("Grid.jl")
-include("Markers.jl")
-include("Stokes.jl")
-include("GridOperations.jl")
+include("../Grid.jl")
+include("../Markers.jl")
+include("../Stokes.jl")
+include("../GridOperations.jl")
 # Note: that we import pyplot last to avoid a name conflict with grid
 using PyPlot
-include("Visualization.jl")
+include("../Visualization.jl")
 include("Timescales.jl")
 include("FittingData.jl")
-include("TemperatureEntropy.jl")
+include("../TemperatureEntropy.jl")
 include("ModelPlots.jl")
 include("Outputs_sbatch.jl")
 
@@ -353,14 +353,7 @@ function model_setup(options::Dict,plot_dir::String,io)
             # Computing the maximum entropy change
             dS = Snew - Slast
             dSmax = maximum(abs.(dS[2:grid.ny,2:grid.nx]))
-
-            # Checking for convergence:
-            if Snorm < tolerance
-                break
-            elseif titer == max_titer
-                terminate = true
-                @error(io,"Did not converge")
-            elseif any(isnan.(dT))
+	    if any(isnan.(dT))
                 terminate = true
                 @error(io,"NaN or Inf apperred")
             end
