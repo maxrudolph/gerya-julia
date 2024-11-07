@@ -63,6 +63,42 @@ function stefan_initial_condition(theta::Float64,options::Dict)
     T = (theta*dT)+To
     return T
 end
+
+function compute_stefan_temp_solution(grid::CartesianGrid,Numerical_T::Matrix{Float64},X_contour::Vector{Any},time::Vector{Any},itime::Int64)
+    # Setting up Stefan conidtion
+    lambda1 = get_lambda1(options)
+    t = get_t(lambda1,options)
+    y = get_y.(lambda1,time_plot.+t,Ref(options))
+
+    stefan_T = zeros(grid.ny,grid.nx)
+    for k in 1:itime-1
+        for j in 1:grid.nx
+            for i in 1:grid.ny
+                theta = get_theta(grid.yc[i],time[k]+t,lambda1)
+                stefan_T[i,j] = stefan_initial_condition(theta,options)
+            end
+        end
+    end
+
+    figure()
+    title("Comparison of Temperature")
+    plot(grid.yc[1:end-1]/1e3,stefan_T[:,1],"b-",label="Stefan Temperature")
+    plot(grid.yc[1:end-1]/1e3,Numerical_T[1:end-1,1],"r--",label="Numerical Temperature")
+    gca().set_xlabel("Depth(km)")
+    gca().set_ylabel("Temperature(K)")
+    legend()
+    show()
+
+    figure()
+    title("Comparison of Thickness Over Time")
+    plot(time_plot/3.15e7/1e6,y/1e3,"b-",label="Stefan Solution")
+    plot(time_plot/3.15e7/1e6,X_contour/1e3,"r--",label="Numerical Solution")
+    gca().set_ylabel(L"Ice\,Thickness\,(km)")
+    gca().set_xlabel(L"Time\,(Myr)")
+    legend()
+    # legend(loc="upper center",bbox_to_anchor=(0.5,-0.15),ncol=5)
+    show()
+end
 #### end ####
 
 #### start ####
@@ -157,8 +193,6 @@ end
 function compute_entropy_residual(grid::CartesianGrid,T::Matrix{Float64},rho::Matrix{Float64},H::Matrix{Float64},qx::Matrix{Float64},qy::Matrix{Float64},S_old::Matrix{Float64},S_new::Matrix{Float64},dt::Float64)
     return S_new .- compute_S_new(grid,T,rho,H,qx,qy,S_old,dt)
 end
-
-
 #### end ####
 
 #### start ###
@@ -189,7 +223,7 @@ function calculate_diffusion_timestep(grid::CartesianGrid,options::Dict)
     dy = grid.y[2]-grid.y[1]
     diffusion_timestep_x = dx^2 / options["thermal diffusivity"]
     diffusion_timestep_y = dy^2 / options["thermal diffusivity"]
-    return min(diffusion_timestep_x, diffusion_timestep_y) / 10
+    return min(diffusion_timestep_x, diffusion_timestep_y) / 6
 end
 
 #### start ####
@@ -283,7 +317,7 @@ end
 
 #### start ####
 ##### Function to compute a subgird diffusion operation with entropy #####
-function subgridSdiff!(grid::CartesianGrid,markers::Markers,Slast::Matrix{Float64},dt::Float64,options::Dict;diffusivity::Float64=1.0)
+function subgridSdiff(grid::CartesianGrid,markers::Markers,Slast::Matrix{Float64},dt::Float64,options::Dict;diffusivity::Float64=1.0)
     """
     Arguments:
         Slast -
@@ -293,7 +327,6 @@ function subgridSdiff!(grid::CartesianGrid,markers::Markers,Slast::Matrix{Float6
     Returns:
         dSm -
     """
-
     Hfus = options["latent heat of fusion"] # J/kg
     Tm = options["Tm"] # K
     Cv = options["specific heat of ice"] # J/kg*K
@@ -314,7 +347,6 @@ function subgridSdiff!(grid::CartesianGrid,markers::Markers,Slast::Matrix{Float6
     kThermal = markers.scalarFields["kThermal"]
     X = markers.scalarFields["X"]
 
-    
     Threads.@threads for i in 1:markers.nmark
         dx2 = (grid.x[markers.cell[1,i]+1] - grid.x[markers.cell[1,i]])^2
         dy2 = (grid.y[markers.cell[2,i]+1] - grid.y[markers.cell[2,i]])^2
@@ -336,7 +368,7 @@ function subgridSdiff!(grid::CartesianGrid,markers::Markers,Slast::Matrix{Float6
              end
 
             tdiff = markers.scalars[rho,i]*Cpm/markers.scalars[kThermal,i]/(2/dx2 + 2/dy2)
-            # tdiff
+
                         
             dS_subgrid_Sm[i] = (Sm_nodal[i] - markers.scalars[S,i])*( 1.0 - exp(-d*dt/tdiff) )
             Si = markers.scalars[S,i] + dS_subgrid_Sm[i] # new guess of marker entropy
@@ -348,7 +380,8 @@ function subgridSdiff!(grid::CartesianGrid,markers::Markers,Slast::Matrix{Float6
     end
     # update the marker entropy
     markers.scalars[S,1:markers.nmark] += dS_subgrid_Sm[1,:]
-    
+    rhoT = markers.scalars[markers.scalarFields["rho"],:] .* markers.scalars[markers.scalarFields["T"],:]
+    dSm, = marker_to_stag(markers,grid,dS_subgrid_Sm,"center",extra_weight=rhoT)    
     #rhoT = markers.scalars[markers.scalarFields["rho"],:] .* markers.scalars[markers.scalarFields["T"],:]
     dSm, = marker_to_stag(markers,grid,dS_subgrid_Sm,"center")#,extra_weight=rhoT)
     dSm[isnan.(dSm)] .= 0.0
