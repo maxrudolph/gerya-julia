@@ -16,7 +16,7 @@ function main_script()
     # Define g for icy moon
     g = 0.113
     # Define ice shell thickness range (adjust as needed) in km
-    ice_start = 10.0
+    ice_start = 5.0
     ice_stop = 60.0
     nice = 15
     ice_shell_thickness_range = range(ice_start,ice_stop,nice)
@@ -38,7 +38,7 @@ function main_script()
             for lambda in wavelength_range
                 main_dir = mk_main_dir(h,lambda,amp,g)
                 # Constructing the command string
-                cmd = `sbatch --account rudolphgrp --exclusive -N 1 --mem=128G --time=6-00:00:0 -p high2 --wrap "julia --threads 32 VMS_sbatch.jl $h $lambda $amp $g $main_dir"`
+                cmd = `sbatch --account rudolphgrp --exclusive -N 1 --mem=128G --time=6-00:00:0 -p high2 --job-name=relax-$h-$lambda-$amp-$g --wrap "julia --threads 32 VMS_sbatch.jl $h $lambda $amp $g $main_dir"`
                 # Executing the command
                 execute_cmd(cmd)
             end
