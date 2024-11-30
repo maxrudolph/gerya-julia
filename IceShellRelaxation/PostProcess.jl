@@ -44,7 +44,9 @@ function combine_hdf5_files(ice_shell_thickness_range::AbstractRange{Float64},wa
                     union!(wavelength_set,read(g["Wavelength"]))
                     union!(ice_shell_thickness_set,read(g["Ice Shell Thickness"]))
                 end
-            end
+             else
+              error("file not found",file_path)      
+              end
         end
     end
     
