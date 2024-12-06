@@ -26,7 +26,7 @@ options["thermal conductivity of ice"] = 2.14 # W/m*K
 options["thermal diffusivity"] = options["thermal conductivity of ice"] / (options["density of ice"]*options["specific heat of ice"]) # m^2/s
 options["Tm"] = 273.0 # K
 options["thermal expansivity"] = 0.0
-options["ny"] = 101
+options["ny"] = 151
 options["markx"] = 6
 options["marky"] = 6
 options["hice"] = ice_shell_thickness*1e3
@@ -138,7 +138,7 @@ end
 ## starts here ##
 function model_setup(options::Dict,plot_dir::String,io)
     W = options["wavelength"]
-    H = options["hice"] + options["amplitude"] + options["hice"]/2
+    H = options["hice"] + options["amplitude"] + options["hice"]
     ny = options["ny"]
     # nx::Int64 = ceil(ny/H*W)
     nx::Int64 = ny+1
