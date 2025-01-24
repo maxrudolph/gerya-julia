@@ -149,6 +149,149 @@ struct Materials
     end
 end
 
+# density from lookup table 
+function pro_lookup(filename::String, P::Float64, T::Float64)
+    # Read the header and data efficiently
+    dataframe = CSV.File(filename; delim=' ', skipto=14,silencewarnings=true) |> DataFrame
+
+    # Assume the header is in the first skipped line
+    header = CSV.File(filename; delim=' ', skipto=13, limit=1,silencewarnings=true) |> DataFrame |> first |> collect
+    rename!(dataframe, header)
+
+    # Determine if loop_over_P
+    loop_over_P = dataframe[1, "T(K)"] == dataframe[2, "T(K)"]
+
+    # Extract unique values and compute deltas
+    temperatures = unique(dataframe[!, "T(K)"])
+    pressures = unique(dataframe[!, "P(bar)"]) .* 1e5  # Convert bar to Pa
+    delta_temp = temperatures[2] - temperatures[1]
+    delta_press = pressures[2] - pressures[1]
+
+    n_temperatures = length(temperatures)
+    n_pressures = length(pressures)
+
+    # Reshape densities once
+    densities = loop_over_P ?
+        reshape(dataframe[!, "rho,kg/m3"], n_pressures, n_temperatures)' :
+        reshape(dataframe[!, "rho,kg/m3"], n_temperatures, n_pressures)
+
+    # Bound the input values to avoid indexing out of range
+    bounded_temperature = clamp(T, minimum(temperatures), maximum(temperatures) - delta_temp)
+    bounded_pressure = clamp(P, minimum(pressures), maximum(pressures) - delta_press)
+
+    nT = (bounded_temperature - minimum(temperatures)) / delta_temp
+    inT = Int(floor(nT))
+    np = (bounded_pressure - minimum(pressures)) / delta_press
+    inp = Int(floor(np))
+
+    xi = nT - inT
+    eta = np - inp
+
+    # Handle edge cases and compute final value
+    if inp == n_pressures || inp == 0
+        if inT == 0
+            final_value = densities[inT+1,inp+1]
+        else
+            final_value = (1-xi)*densities[inT,inp+1] +
+                          xi    *densities[inT+1,inp+1]
+        end
+    elseif inT == n_temperatures || inT == 0
+        if inp == 0
+            final_value = densities[inT+1,inp+1]
+        else
+            final_value = (1 - eta) * densities[inT + 1, inp] +
+                          eta * densities[inT + 1, inp + 1]
+        end
+    else
+        final_value = (1 - xi) * (1 - eta) * densities[inT, inp] +
+                      xi * (1 - eta) * densities[inT + 1, inp] +
+                      (1 - xi) * eta * densities[inT, inp + 1] +
+                      xi * eta * densities[inT + 1, inp + 1]
+    end
+
+    return final_value
+end
+
+function compute_adiabatic(filename::String,Tref::Float64,Z::Float64,option::String="press")    
+    gravity = 9.81
+    np1 = 290
+    temp = zeros(Float64, np1)
+    press = zeros(Float64, np1)
+    temp[1] = Tref
+    press[1] = 0
+    delta_z = Z/(np1-1)
+    one_over_cp = 1 / 1000.0
+    alpha = 3e-5
+    depth = range(0,Z,np1) 
+    
+    # Read the header and data efficiently
+    dataframe = CSV.File(filename; delim=' ', skipto=14,silencewarnings=true) |> DataFrame;
+
+    # Assume the header is in the first skipped line
+    header = CSV.File(filename; delim=' ', skipto=13, limit=1,silencewarnings=true) |> DataFrame |> first |> collect;
+    rename!(dataframe, header)
+
+    # Determine if loop_over_P
+    loop_over_P = dataframe[1, "T(K)"] == dataframe[2, "T(K)"]
+
+    # Extract unique values and compute deltas
+    temperatures = unique(dataframe[!, "T(K)"])
+    pressures = unique(dataframe[!, "P(bar)"]) .* 1e5  # Convert bar to Pa
+    delta_temp = temperatures[2] - temperatures[1]
+    delta_press = pressures[2] - pressures[1]
+
+    n_temperatures = length(temperatures)
+    n_pressures = length(pressures)
+
+    # Reshape densities once
+    densities = loop_over_P ?
+        reshape(dataframe[!, "rho,kg/m3"], n_pressures, n_temperatures)' :
+        reshape(dataframe[!, "rho,kg/m3"], n_temperatures, n_pressures)
+    
+    for i in 2:np1
+        # compute density
+        # Bound the input values to avoid indexing out of range
+        bounded_temperature = clamp(temp[i-1], minimum(temperatures), maximum(temperatures) - delta_temp)
+        bounded_pressure = clamp(press[i-1], minimum(pressures), maximum(pressures) - delta_press)
+    
+        nT = (bounded_temperature - minimum(temperatures)) / delta_temp
+        inT = Int(floor(nT))
+        np = (bounded_pressure - minimum(pressures)) / delta_press
+        inp = Int(floor(np))
+    
+        xi = nT - inT
+        eta = np - inp
+    
+        # Handle edge cases and compute final value
+        if inp == n_pressures || inp == 0
+            if inT == nT
+                final_value = densities[inT+1,inp+1]
+            else
+                final_value = (1-xi)*densities[inT,inp+1] +
+                              xi    *densities[inT+1,inp+1]
+            end
+        elseif inT == n_temperatures || inT == 0
+            final_value = (1 - eta) * densities[inT + 1, inp] +
+                          eta * densities[inT + 1, inp + 1]
+        else
+            final_value = (1 - xi) * (1 - eta) * densities[inT, inp] +
+                          xi * (1 - eta) * densities[inT + 1, inp] +
+                          (1 - xi) * eta * densities[inT, inp + 1] +
+                          xi * eta * densities[inT + 1, inp + 1]
+        end
+        
+        density = final_value
+        press[i] = press[i - 1] + density * gravity * delta_z 
+        temp[i] = temp[i - 1] * (1 + alpha * gravity * delta_z * one_over_cp)
+        # alpha = interp(temp[i - 1], tt[:, i], alphas[:, i])
+        # one_over_cp = 1 / interp(temp[i - 1], tt[:, i], Cps[:, i])
+    end 
+    if option == "temp"
+        return linear_interpolation(depth,temp,extrapolation_bc=Line())
+    else
+        return linear_interpolation(depth,press,extrapolation_bc=Line())
+    end
+end
 function update_melt!(markers::Markers,dt::Float64,mask::BitVector;new_markers::Bool=false)
     # update the melt fraction on the markers.
     # Also update the carbon content on the markers
@@ -160,6 +303,7 @@ function update_melt!(markers::Markers,dt::Float64,mask::BitVector;new_markers::
     mat = markers.integerFields["material"]
     carbon = markers.scalarFields["carbon"]
     dcarbon = markers.scalarFields["dC"]
+    adb_temperature = compute_adiabatic("/home/ayylu/look_up_process/pyrolite_24.dat",mantle_temperature,2890e3,"temp")
     
     Threads.@threads for i in 1:markers.nmark
         if mask[i]            
@@ -252,9 +396,10 @@ function initial_conditions!(markers::Markers,materials::Materials,options::Dict
     # Define geometric properties
     lithosphere_thickness = options["lithosphere thickness"]
     mantle_temperature = options["mantle temperature"]
-    
+
     material = markers.integerFields["material"]
     T = markers.scalarFields["T"]
+    # P = markers.scalarFields["P"]
     eta = markers.scalarFields["eta"]
     alpha = markers.scalarFields["alpha"]
     cp = markers.scalarFields["Cp"]
@@ -305,10 +450,10 @@ melt_model = yasuda()
 # melt_model.pressure(5e5)
 # melt_fraction(melt_model,3e5,1400.0)
 melt_model.pressure(0.99e5)
-function adiabatic_temperature(depth::Float64,T::Float64)
-   # assume representative upper mantle adiabat of 0.4 K/km
-   return T + 0.4/1000.0 * depth
-end
+# function adiabatic_temperature(depth::Float64,T::Float64)
+#    # assume representative upper mantle adiabat of 0.4 K/km
+#    return T + 0.4/1000.0 * depth
+# end
 
 function total_melt_rate(grid::CartesianGrid,dXdt::Matrix{Float64},dC::Matrix{Float64})
     total_melt = 0.0
@@ -474,7 +619,7 @@ function plume_model(options::Dict;max_step::Int64=-1,max_time::Float64=-1.0)
         # Get the velocity at the cell centers:
         vxc,vyc = velocity_to_centers(grid,vx,vy)
         adiabatic_heating = compute_adiabatic_heating(grid,rho_c,Tlast,alpha,gx,gy,vxc,vyc)
-        shear_heating = compute_shear_heating(grid,vx,vy,eta_n,eta_s)
+        shear_heating = compute_shear_heating_cylindrical(grid,vx,vy,eta_n,eta_s,eta_vx)
         H = (adiabatic_heating .+ shear_heating).*0.0
     
         # 3. Compute the advection timestep:
