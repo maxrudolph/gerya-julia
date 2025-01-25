@@ -1,4 +1,3 @@
-
 function visualization(grid::CartesianGrid,rho::Matrix,eta::Matrix,vn::Array{Float64},pressure::Matrix,temperature::Matrix,time ; filename="test.vts")
     # write the visualization output from the regular grid as a .vts file.
     vtk_grid(filename, grid.x, grid.y) do vtk
@@ -34,14 +33,13 @@ function visualization(grid::CartesianGrid,output_fields::Dict,time ; filename="
     end
 end
 
-function visualization(markers::Markers,time; filename="markers.vtp")  
+function visualization(markers::Markers,time; filename="markers.vtp")
     p3 = Array{Float64,2}(undef,3,markers.nmark)
     p3[1:2,:] = markers.x[1:2,1:markers.nmark]
     p3[3,:] .= 0.0
-      
-    @time polys = [MeshCell(PolyData.Polys(),i:i) for i in 1:markers.nmark]
-    vtk_grid(filename,p3,polys) do vtk    
-    #vtk_grid(filename,p3) do vtk
+
+    polys = [MeshCell(PolyData.Polys(),i:i) for i in 1:markers.nmark]
+    vtk_grid(filename,p3,polys) do vtk
         for key in keys(markers.scalarFields)
             vtk[key] = markers.scalars[markers.scalarFields[key],1:markers.nmark]
         end
@@ -57,7 +55,7 @@ function draw_grid(grid::CartesianGrid ; nodes::Bool=false)
         plot([grid.x[1],grid.x[end]],[y,y],"k")
     end
     for x in grid.x
-        plot([x,x],[grid.y[1],grid.y[end]],"k") 
+        plot([x,x],[grid.y[1],grid.y[end]],"k")
     end
     if nodes
         for i in 1:grid.ny
