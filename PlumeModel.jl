@@ -17,7 +17,7 @@ options["W"] = 1e6
 options["H"] = 2.850e6
 options["g"] = 10.0
 
-options["Tcmb"] = 1300.0 + Tex + 273.0
+# options["Tcmb"] = 1300. + Tex + 273.0
 options["lithosphere thickness"] = h
 options["mantle temperature"] = 1300.0 + 273.0
 
@@ -25,8 +25,9 @@ options["plot interval"] = 1e6*seconds_in_year
 options["melting plot interval"] = 1e5*seconds_in_year
 options["output directory"] = "plume_" * string(Tex) * "_" * string(h)
 options["max time"] = 1e8*seconds_in_year
-options["max step"] = -1
-println("Options: ", options )
+options["max step"] = 100000
+options["method"] = "lookup"
+# println("Options: ", options )
 
 # Import necessary packages
 using SparseArrays
@@ -46,10 +47,12 @@ include("GridOperations.jl")
 include("Markers.jl")
 include("Stokes.jl")
 include("StokesCylindrical.jl")
+include("lookup.jl")
 
 include("Temperature.jl")
 include("TemperatureCylindrical.jl")
 include("melting/yasuda.jl")
+include("melting/katz.jl")
 
 # note that we import pyplot last to avoid a name conflict with grid.
 using PyPlot
@@ -149,67 +152,46 @@ struct Materials
     end
 end
 
-# density from lookup table 
-function pro_lookup(filename::String, P::Float64, T::Float64)
-    # Read the header and data efficiently
-    dataframe = CSV.File(filename; delim=' ', skipto=14,silencewarnings=true) |> DataFrame
+# density profile
+function setup_prem_density()
+   filename = "data/prem_den.csv"
+   tmp = CSV.read(filename,DataFrame,delim=",");
+   depth = tmp[:,2] .* 1.e3 
+   prem = tmp[:,1]
+   return linear_interpolation(depth,prem,extrapolation_bc=Line())
+end
+# eclogite profile
+function setup_eclogite_density()
+   filename = "data/ecl_diff.csv"
+   tmp = CSV.read(filename,DataFrame,delim=",");
+   depth = tmp[:,2] .* 1.e3 
+   ecl_diff = tmp[:,1]
+   return linear_interpolation(depth,ecl_diff,extrapolation_bc=Line())
+end
 
-    # Assume the header is in the first skipped line
-    header = CSV.File(filename; delim=' ', skipto=13, limit=1,silencewarnings=true) |> DataFrame |> first |> collect
-    rename!(dataframe, header)
+prem_profile = setup_prem_density()
+ecl_diff = setup_eclogite_density()
+# function to compute density
+function density(mmat::Int16,alpha::Float64,depth::Float64,T::Float64,frac::Float64,Tref::Float64)
+   # density from reference profile
+   # Reference temperature is mantle potential temperature.
+   if mmat == 2
+      density = prem_profile(depth)*(1.0-alpha*(T-Tref)) + frac*ecl_diff(depth)
+   else
+      density = prem_profile(depth)*(1.0-alpha*(T-Tref))  
+   end
+   return density
+end
 
-    # Determine if loop_over_P
-    loop_over_P = dataframe[1, "T(K)"] == dataframe[2, "T(K)"]
-
-    # Extract unique values and compute deltas
-    temperatures = unique(dataframe[!, "T(K)"])
-    pressures = unique(dataframe[!, "P(bar)"]) .* 1e5  # Convert bar to Pa
-    delta_temp = temperatures[2] - temperatures[1]
-    delta_press = pressures[2] - pressures[1]
-
-    n_temperatures = length(temperatures)
-    n_pressures = length(pressures)
-
-    # Reshape densities once
-    densities = loop_over_P ?
-        reshape(dataframe[!, "rho,kg/m3"], n_pressures, n_temperatures)' :
-        reshape(dataframe[!, "rho,kg/m3"], n_temperatures, n_pressures)
-
-    # Bound the input values to avoid indexing out of range
-    bounded_temperature = clamp(T, minimum(temperatures), maximum(temperatures) - delta_temp)
-    bounded_pressure = clamp(P, minimum(pressures), maximum(pressures) - delta_press)
-
-    nT = (bounded_temperature - minimum(temperatures)) / delta_temp
-    inT = Int(floor(nT))
-    np = (bounded_pressure - minimum(pressures)) / delta_press
-    inp = Int(floor(np))
-
-    xi = nT - inT
-    eta = np - inp
-
-    # Handle edge cases and compute final value
-    if inp == n_pressures || inp == 0
-        if inT == 0
-            final_value = densities[inT+1,inp+1]
-        else
-            final_value = (1-xi)*densities[inT,inp+1] +
-                          xi    *densities[inT+1,inp+1]
-        end
-    elseif inT == n_temperatures || inT == 0
-        if inp == 0
-            final_value = densities[inT+1,inp+1]
-        else
-            final_value = (1 - eta) * densities[inT + 1, inp] +
-                          eta * densities[inT + 1, inp + 1]
-        end
-    else
-        final_value = (1 - xi) * (1 - eta) * densities[inT, inp] +
-                      xi * (1 - eta) * densities[inT + 1, inp] +
-                      (1 - xi) * eta * densities[inT, inp + 1] +
-                      xi * eta * densities[inT + 1, inp + 1]
-    end
-
-    return final_value
+# function to compute any compositional based properties from lookup table
+function property(mmat::Int16,P::Float64,T::Float64,frac::Float64,index::Int64,model1::lookup,model2::lookup)
+   # density from lookup tables
+   if mmat == 2
+      property = model1.property_lookup(T,P)*(1-frac) + frac*model2.property_lookup(T,P)
+   else
+      property = model1.property_lookup(T,P)
+   end
+   return property
 end
 
 function compute_adiabatic(filename::String,Tref::Float64,Z::Float64,option::String="press")    
@@ -225,10 +207,10 @@ function compute_adiabatic(filename::String,Tref::Float64,Z::Float64,option::Str
     depth = range(0,Z,np1) 
     
     # Read the header and data efficiently
-    dataframe = CSV.File(filename; delim=' ', skipto=14,silencewarnings=true) |> DataFrame;
+    dataframe = CSV.File(filename; delim=' ', skipto=14,silencewarnings=true,ntasks=1) |> DataFrame;
 
     # Assume the header is in the first skipped line
-    header = CSV.File(filename; delim=' ', skipto=13, limit=1,silencewarnings=true) |> DataFrame |> first |> collect;
+    header = CSV.File(filename; delim=' ', skipto=13, limit=1,silencewarnings=true,ntasks=1) |> DataFrame |> first |> collect;
     rename!(dataframe, header)
 
     # Determine if loop_over_P
@@ -239,10 +221,9 @@ function compute_adiabatic(filename::String,Tref::Float64,Z::Float64,option::Str
     pressures = unique(dataframe[!, "P(bar)"]) .* 1e5  # Convert bar to Pa
     delta_temp = temperatures[2] - temperatures[1]
     delta_press = pressures[2] - pressures[1]
-
+    
     n_temperatures = length(temperatures)
     n_pressures = length(pressures)
-
     # Reshape densities once
     densities = loop_over_P ?
         reshape(dataframe[!, "rho,kg/m3"], n_pressures, n_temperatures)' :
@@ -250,37 +231,8 @@ function compute_adiabatic(filename::String,Tref::Float64,Z::Float64,option::Str
     
     for i in 2:np1
         # compute density
-        # Bound the input values to avoid indexing out of range
-        bounded_temperature = clamp(temp[i-1], minimum(temperatures), maximum(temperatures) - delta_temp)
-        bounded_pressure = clamp(press[i-1], minimum(pressures), maximum(pressures) - delta_press)
-    
-        nT = (bounded_temperature - minimum(temperatures)) / delta_temp
-        inT = Int(floor(nT))
-        np = (bounded_pressure - minimum(pressures)) / delta_press
-        inp = Int(floor(np))
-    
-        xi = nT - inT
-        eta = np - inp
-    
-        # Handle edge cases and compute final value
-        if inp == n_pressures || inp == 0
-            if inT == nT
-                final_value = densities[inT+1,inp+1]
-            else
-                final_value = (1-xi)*densities[inT,inp+1] +
-                              xi    *densities[inT+1,inp+1]
-            end
-        elseif inT == n_temperatures || inT == 0
-            final_value = (1 - eta) * densities[inT + 1, inp] +
-                          eta * densities[inT + 1, inp + 1]
-        else
-            final_value = (1 - xi) * (1 - eta) * densities[inT, inp] +
-                          xi * (1 - eta) * densities[inT + 1, inp] +
-                          (1 - xi) * eta * densities[inT, inp + 1] +
-                          xi * eta * densities[inT + 1, inp + 1]
-        end
-        
-        density = final_value
+        rho_interp = linear_interpolation((temperatures,pressures),densities,extrapolation_bc=Line())
+        density = rho_interp(temp[i-1],press[i-1])
         press[i] = press[i - 1] + density * gravity * delta_z 
         temp[i] = temp[i - 1] * (1 + alpha * gravity * delta_z * one_over_cp)
         # alpha = interp(temp[i - 1], tt[:, i], alphas[:, i])
@@ -292,23 +244,42 @@ function compute_adiabatic(filename::String,Tref::Float64,Z::Float64,option::Str
         return linear_interpolation(depth,press,extrapolation_bc=Line())
     end
 end
+
+adb_temperature = compute_adiabatic("/home/ayylu/look_up_process/pyrolite_24.dat",options["mantle temperature"],options["H"],"temp")
+options["Tcmb"] = adb_temperature(options["H"]) + Tex + 273.0
+println("Options: ", options )
+
+# compute combined melt
+function melt_composite(P::Float64,T::Float64,frac::Float64,model1::katz,model2::yasuda)
+    pyr_melt = model1.melt_lookup(P/1e9,T-273.0)
+    ecl_melt = melt_fraction(model2,P/1e9,T-273.0)
+    melt_comp = (1.0-frac)*pyr_melt + frac*ecl_melt
+    if melt_comp >1
+        melt_comp = 1.
+    end
+    return melt_comp
+end
+melt_model1 = katz()
+melt_model2 = yasuda()
+
 function update_melt!(markers::Markers,dt::Float64,mask::BitVector;new_markers::Bool=false)
     # update the melt fraction on the markers.
     # Also update the carbon content on the markers
     # if markers are newly added, the flag new_markers should be True. In this case, the melt fraction should be set
     # according to the interpolated temperature. The carbon should be set in accordance with the melt fraction.
     T = markers.scalarFields["T"]
+    P = markers.scalarFields["P"]
     melt = markers.scalarFields["Xmelt"]
     dxdt = markers.scalarFields["dXdt"]
     mat = markers.integerFields["material"]
     carbon = markers.scalarFields["carbon"]
     dcarbon = markers.scalarFields["dC"]
-    adb_temperature = compute_adiabatic("/home/ayylu/look_up_process/pyrolite_24.dat",mantle_temperature,2890e3,"temp")
     
     Threads.@threads for i in 1:markers.nmark
         if mask[i]            
             # note - melt fraction assumes celsius temperature:  
-            new_melt = markers.integers[mat,i] == 2 ? melt_fraction(melt_model,markers.x[2,i],adiabatic_temperature(markers.x[2,i],markers.scalars[T,i])-273.0) : 0.0
+            # new_melt = markers.integers[mat,i] == 2 ? melt_fraction(melt_model,markers.x[2,i],markers.scalars[T,i]-273.0) : 0.0
+            new_melt = melt_composite(markers.scalars[P,i]/1e9,markers.scalars[T,i]-273.0,0.15,melt_model1,melt_model2)
             old_melt = markers.scalars[melt,i]
             markers.scalars[dxdt,i] = new_melt > old_melt ? (new_melt - old_melt)/dt : 0.0
             markers.scalars[melt,i] = new_melt
@@ -329,17 +300,28 @@ function update_melt!(markers::Markers,dt::Float64)
     update_melt!(markers,dt,mask)
 end
 
-function update_marker_properties!(markers::Markers,materials::Materials)
+function update_marker_properties!(markers::Markers,materials::Materials,option)
     rho = markers.scalarFields["rho"]
     T = markers.scalarFields["T"]
+    P = markers.scalarFields["P"]
     mmat = markers.integers[markers.integerFields["material"],:]
     eta = markers.scalarFields["eta"]
+    file1 = "/home/ayylu/look_up_process/pyrolite_24.dat"
+    file2 = "/home/ayylu/look_up_process/basalt_24.dat"
+    model1 = lookup(file1,1)
+    model2 = lookup(file2,1)
     
     Threads.@threads for i in 1:markers.nmark        
         # re-compute density using the current temperature value
         # assume reference temperature is 273.0
         # markers.scalars[rho,i] = materials.rho0[mmat[i]] # don't update density - for comparison with gerya
-        markers.scalars[rho,i] = materials.rho0[mmat[i]]*(1.0-materials.alpha[mmat[i]]*(markers.scalars[T,i]-273.0)) 
+        # define density based on mixing of eclogite and pyrolite
+        if option == "lookup"
+            markers.scalars[rho,i] = property(mmat[i],markers.scalars[P,i],markers.scalars[T,i],0.15,1,model1,model2)
+        else
+            markers.scalars[rho,i] = density(mmat[i],materials.alpha[mmat[i]],markers.x[2,i],markers.scalars[T,i],0.15,adb_temperature(markers.x[2,i]))
+        end
+        # markers.scalars[rho,i] = materials.rho0[mmat[i]]*(1.0-materials.alpha[mmat[i]]*(markers.scalars[T,i]-273.0)) 
         markers.scalars[eta,i] = viscosity(materials.eta[mmat[i]],markers.x[2,i],markers.scalars[T,i],materials.Ea[mmat[i]])
     end
 end
@@ -399,7 +381,7 @@ function initial_conditions!(markers::Markers,materials::Materials,options::Dict
 
     material = markers.integerFields["material"]
     T = markers.scalarFields["T"]
-    # P = markers.scalarFields["P"]
+    P = markers.scalarFields["P"]
     eta = markers.scalarFields["eta"]
     alpha = markers.scalarFields["alpha"]
     cp = markers.scalarFields["Cp"]
@@ -408,6 +390,8 @@ function initial_conditions!(markers::Markers,materials::Materials,options::Dict
     dxdt = markers.scalarFields["dXdt"]
     carbon = markers.scalarFields["carbon"]
     dC = markers.scalarFields["dC"]
+    adb_pressure = compute_adiabatic("/home/ayylu/look_up_process/pyrolite_24.dat",mantle_temperature,options["H"])
+    adb_temperature = compute_adiabatic("/home/ayylu/look_up_process/pyrolite_24.dat",mantle_temperature,options["H"],"temp")
 
     Threads.@threads for i in 1:markers.nmark
         mx = markers.x[1,i]
@@ -424,14 +408,17 @@ function initial_conditions!(markers::Markers,materials::Materials,options::Dict
            markers.integers[material,i] = 1
         end
         
-        if my < 6.6e5
-            markers.scalars[T,i] = halfspace_cooling_from_thickness(273.0,mantle_temperature,1e-6,my,options["lithosphere thickness"])
+        if my < lithosphere_thickness
+            markers.scalars[T,i] = halfspace_cooling_from_thickness(273.0,adb_temperature(lithosphere_thickness),1e-6,my,options["lithosphere thickness"])
             #plate_cooling(273.0,mantle_temperature,1.5e5,1e-6,my,50e6*3.15e7)
+        elseif my < options["H"]-h
+            markers.scalars[T,i] = adb_temperature(my)
         else
             #markers.scalars[T,i] = 1300.0+273.0
-            markers.scalars[T,i] = halfspace_cooling_from_thickness(options["Tcmb"],mantle_temperature,1e-6,options["H"]-my,h)
+            markers.scalars[T,i] = halfspace_cooling_from_thickness(options["Tcmb"],adb_temperature(options["H"]-h),1e-6,options["H"]-my,h)
         end
-                        
+
+        markers.scalars[P,i] = adb_pressure(markers.x[2,i])
         ind = markers.integers[material,i]
         markers.scalars[eta,i] = viscosity(materials.eta[ind],markers.x[2,i],markers.scalars[T,i],materials.Ea[ind])
         markers.scalars[alpha,i] = materials.alpha[ind]            
@@ -441,15 +428,15 @@ function initial_conditions!(markers::Markers,materials::Materials,options::Dict
         markers.scalars[dxdt,i] = 0.0
         markers.scalars[dC,i] = 0.0
     end
-    update_marker_properties!(markers,materials)
+    update_marker_properties!(markers,materials,options["method"])
     initial_carbon!(markers)
 end
 
 # Data and functions related to melting model
-melt_model = yasuda()
+# melt_model = yasuda()
 # melt_model.pressure(5e5)
 # melt_fraction(melt_model,3e5,1400.0)
-melt_model.pressure(0.99e5)
+# melt_model.pressure(0.99e5)
 # function adiabatic_temperature(depth::Float64,T::Float64)
 #    # assume representative upper mantle adiabat of 0.4 K/km
 #    return T + 0.4/1000.0 * depth
@@ -501,7 +488,7 @@ function plume_model(options::Dict;max_step::Int64=-1,max_time::Float64=-1.0)
     dtmax = plot_interval
     
     println("Creating Markers...")
-    @time markers = Markers(grid,["alpha","Cp","T","kThermal","rho","eta","Hr","Xmelt","dXdt","carbon","dC"],["material"] ; nmx=markx,nmy=marky,random=true)
+    @time markers = Markers(grid,["alpha","Cp","T","kThermal","rho","eta","Hr","Xmelt","dXdt","carbon","dC","P"],["material"] ; nmx=markx,nmy=marky,random=true)
     println("Initial condition...")
     @time initial_conditions!(markers, materials, options)
 
@@ -557,7 +544,7 @@ function plume_model(options::Dict;max_step::Int64=-1,max_time::Float64=-1.0)
         
     local terminate = false
     while !terminate        
-        update_marker_properties!(markers,materials)#itime==1 ? 0.0 : dt)
+        update_marker_properties!(markers,materials,options["method"])#itime==1 ? 0.0 : dt)
         # 1. Transfer properties markers -> nodes
         visc_method = "logarithmic"
         # 1a. Basic Nodes
@@ -615,11 +602,14 @@ function plume_model(options::Dict;max_step::Int64=-1,max_time::Float64=-1.0)
         stokes_solution = L\R
         #stokes_solution = solve(pardiso_solver,L,R) # note - problems with accuracy using pardiso
         vx,vy,P = unpack(stokes_solution,grid;ghost=true)
+        dx = options["W"]/(options["nx"]-1)
+        dy = options["H"]/(options["ny"]-1)
+        P = P* 1e20/(dx+dy)*2
     
         # Get the velocity at the cell centers:
         vxc,vyc = velocity_to_centers(grid,vx,vy)
         adiabatic_heating = compute_adiabatic_heating(grid,rho_c,Tlast,alpha,gx,gy,vxc,vyc)
-        shear_heating = compute_shear_heating_cylindrical(grid,vx,vy,eta_n,eta_s,eta_vx)
+        shear_heating = compute_shear_heating_cylindrical(grid,vx,vy,eta_n,eta_s,eta_vx[1:end-1,:])
         H = (adiabatic_heating .+ shear_heating).*0.0
     
         # 3. Compute the advection timestep:
@@ -664,6 +654,7 @@ function plume_model(options::Dict;max_step::Int64=-1,max_time::Float64=-1.0)
         dT_subgrid_node = subgrid_temperature_relaxation_center!(markers,grid,Tlast,dt)
         dT_remaining = dTemp - dT_subgrid_node
         cell_center_change_to_markers!(markers,grid,dT_remaining,"T")
+        cell_center_to_markers!(markers,grid,P,"P")
         
         # compute the melt fraction and carbon release on the markers using the NEW temperature.
         if itime > 1
@@ -705,7 +696,7 @@ function plume_model(options::Dict;max_step::Int64=-1,max_time::Float64=-1.0)
             println("Writing visualization fle ",name)
             vn = velocity_to_basic_nodes(grid,vxc,vyc)
             Tn = temperature_to_basic_nodes(grid,Tnew)
-            output_fields = Dict("rho"=>rho_c,"eta"=>eta_s,"velocity"=>vn,"pressure"=>P[2:end-1,2:end-1],"T"=>Tn,"dXdt"=>dXdt[2:end-1,2:end-1],"dC"=>dC[2:end-1,2:end-1])
+            output_fields = Dict("rho"=>rho_c[2:end-1,2:end-1],"eta"=>eta_s,"velocity"=>vn,"pressure"=>P[2:end-1,2:end-1],"T"=>Tn,"dXdt"=>dXdt[2:end-1,2:end-1],"dC"=>dC[2:end-1,2:end-1])
             @time visualization(grid,output_fields,time/seconds_in_year;filename=name)
             # Markers output:
             name1 = @sprintf("%s/markers.%04d.vtp",output_dir,iout)

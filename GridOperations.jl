@@ -40,7 +40,11 @@ function compute_strainrate_cylindrical(grid::CartesianGrid,vx::Matrix{Float64},
     for i in 1:grid.ny
         for j in 1:grid.nx
             exy[i,j] = 0.5*( (vx[i+1,j]-vx[i,j])/(grid.yc[i+1]-grid.yc[i]) + (vy[i,j+1]-vy[i,j])/(grid.xc[j+1]-grid.xc[j]) )
-            ett[i,j] = vx[i,j]/grid.x[j]
+            if grid.x[j] != 0.0
+                ett[i,j] = vx[i,j]/grid.x[j]
+            else
+                ett[i,j] = 0.0
+            end
         end
     end
     exx = zeros(grid.ny+1,grid.nx+1)
