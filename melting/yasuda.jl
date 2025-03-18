@@ -29,8 +29,8 @@ end
 
 
 
-function melt_fraction(model::yasuda,depth::Float64,T::Float64)
-    P = model.pressure(depth)
+function melt_fraction(model::yasuda,P::Float64,T::Float64)
+    # P = model.pressure(depth)
     Tliq = model.liquidus(P)
     Tsol = model.solidus(P)
     if T<Tsol
