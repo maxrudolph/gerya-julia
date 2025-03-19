@@ -9,10 +9,10 @@ end
 seconds_in_year = 3.15e7
 
 options = Dict()
-options["nx"] = 161 #201
-options["ny"] = 229 #571
-options["markx"] = 2#12
-options["marky"] = 4#24
+options["nx"] = 51  #161 #201
+options["ny"] = 101 #229 #571
+options["markx"] = 12
+options["marky"] = 24
 options["W"] = 2e6
 options["H"] = 2.850e6
 options["g"] = 10.0
@@ -510,7 +510,7 @@ function plume_model(options::Dict;max_step::Int64=-1,max_time::Float64=-1.0)
     marky = options["marky"]
     target_markers = markx*marky
     min_markers = Int(floor(target_markers*0.1))
-    max_markers = Int(ceil(target_markers*10.0))
+    max_markers = Int(ceil(target_markers*2.0))
 
     plot_interval = options["plot interval"] # plot interval in seconds
     max_time::Float64 = max_time == -1.0 ? typemax(Float64) : max_time
