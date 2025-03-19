@@ -10,7 +10,7 @@ seconds_in_year = 3.15e7
 
 options = Dict()
 options["nx"] = 51  #161 #201
-options["ny"] = 101 #229 #571
+options["ny"] = 73 #229 #571
 options["markx"] = 12
 options["marky"] = 24
 options["W"] = 2e6
@@ -116,9 +116,9 @@ function compute_adiabatic(filename::String,Tref::Float64,Z::Float64,option::Str
         return linear_interpolation(depth,press,extrapolation_bc=Line())
     end
 end
-adb_temperature = compute_adiabatic("/home/ayylu/look_up_process/pyrolite_24.dat",options["mantle temperature"],options["H"],"temp")
-adb_pressure = compute_adiabatic("/home/ayylu/look_up_process/pyrolite_24.dat",options["mantle temperature"],options["H"])
-adb_rho = compute_adiabatic("/home/ayylu/look_up_process/pyrolite_24.dat",options["mantle temperature"],options["H"],"rho")
+adb_temperature = compute_adiabatic("data/pyrolite_24.dat",options["mantle temperature"],options["H"],"temp")
+adb_pressure = compute_adiabatic("data/pyrolite_24.dat",options["mantle temperature"],options["H"])
+adb_rho = compute_adiabatic("data/pyrolite_24.dat",options["mantle temperature"],options["H"],"rho")
 
 options["Tcmb"] = adb_temperature(options["H"]) + 1000.
 println("Options: ", options )
@@ -318,8 +318,8 @@ function update_melt!(markers::Markers,dt::Float64,options::Dict)
     update_melt!(markers,dt,mask,options)
 end
 
-model1_rho = lookup("/home/ayylu/look_up_process/pyrolite_24.dat",1)
-model2_rho = lookup("/home/ayylu/look_up_process/basalt_24.dat",1)
+model1_rho = lookup("data/pyrolite_24.dat",1)
+model2_rho = lookup("data/basalt_24.dat",1)
 function update_marker_properties!(markers::Markers,materials::Materials,option,frac::Float64)
     rho = markers.scalarFields["rho"]
     T = markers.scalarFields["T"]
@@ -509,7 +509,7 @@ function plume_model(options::Dict;max_step::Int64=-1,max_time::Float64=-1.0)
     markx = options["markx"]
     marky = options["marky"]
     target_markers = markx*marky
-    min_markers = Int(floor(target_markers*0.1))
+    min_markers = Int(floor(target_markers*0.5))
     max_markers = Int(ceil(target_markers*2.0))
 
     plot_interval = options["plot interval"] # plot interval in seconds
@@ -519,7 +519,7 @@ function plume_model(options::Dict;max_step::Int64=-1,max_time::Float64=-1.0)
     dtmax = plot_interval
     
     println("Creating Markers...")
-    @time markers = Markers(grid,["alpha","Cp","T","kThermal","rho","eta","Hr","Xmelt_pyr","Xmelt_ecl","dXdt_pyr","dXdt_ecl","carbon","dC","P","delta_rho"],["material"] ; nmx=markx,nmy=marky,random=true)
+    @time markers = Markers(grid,["alpha","Cp","T","kThermal","rho","eta","Hr","Xmelt_pyr","Xmelt_ecl","dXdt_pyr","dXdt_ecl","carbon","dC","P","delta_rho"],["material"] ; nmx=markx,nmy=marky,random=true,maxmarkfactor=2.0)
     println("Initial condition...")
     @time initial_conditions!(markers, materials, options)
 
