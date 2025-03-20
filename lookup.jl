@@ -10,12 +10,6 @@ struct lookup
     pressures::Array{Float64,1}
     property_lookup
     
-    # prop = Dict()
-    # prop["1"] = "rho,kg/m3"
-    # prop["2"] = "alpha,1/K"
-    # # density from lookup tables
-    # file1 = "/home/ayylu/look_up_process/pyrolite_24.dat"
-    # file2 = "/home/ayylu/look_up_process/basalt_24.dat"
     function lookup(filename::String,index::Int64)
         prop = Dict()
         prop["1"] = "rho,kg/m3"

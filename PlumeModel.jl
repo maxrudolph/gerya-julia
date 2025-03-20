@@ -9,10 +9,10 @@ end
 seconds_in_year = 3.15e7
 
 options = Dict()
-options["nx"] = 161 #201
-options["ny"] = 229 #571
-options["markx"] = 2#12
-options["marky"] = 4#24
+options["nx"] = 101 #201
+options["ny"] = 143 #571
+options["markx"] = 6#12
+options["marky"] = 12#24
 options["W"] = 2e6
 options["H"] = 2.850e6
 options["g"] = 10.0
@@ -27,7 +27,7 @@ options["output directory"] = "plume_" * string(Tex) * "_" * string(h)
 options["max time"] = 1e8*seconds_in_year
 options["max step"] = -1
 options["method"] = "lookup"
-options["eclogite frac"] = 0.1
+options["eclogite frac"] = 0.15
 # println("Options: ", options )
 
 # Import necessary packages
@@ -71,8 +71,7 @@ function compute_adiabatic(filename::String,Tref::Float64,Z::Float64,option::Str
     temp[1] = Tref
     press[1] = 0
     delta_z = Z/(np1-1)
-    one_over_cp = 1 / 1000.0
-    alpha = 3e-5
+    # alpha = 3e-5
     depth = range(0,Z,np1) 
     
     # Read the header and data efficiently
@@ -97,15 +96,22 @@ function compute_adiabatic(filename::String,Tref::Float64,Z::Float64,option::Str
     densities = loop_over_P ?
         reshape(dataframe[!, "rho,kg/m3"], n_pressures, n_temperatures)' :
         reshape(dataframe[!, "rho,kg/m3"], n_temperatures, n_pressures)
-    
+    alphas = loop_over_P ?
+        reshape(dataframe[!, "alpha,1/K"], n_pressures, n_temperatures)' :
+        reshape(dataframe[!, "alpha,1/K"], n_temperatures, n_pressures)
+    Cp = loop_over_P ?
+        reshape(dataframe[!, "cp,J/K/kg"], n_pressures, n_temperatures)' :
+        reshape(dataframe[!, "cp,J/K/kg"], n_temperatures, n_pressures)
     # compute density
     rho_interp = linear_interpolation((temperatures,pressures),densities,extrapolation_bc=Line())
+    alpha_interp = linear_interpolation((temperatures,pressures),alphas,extrapolation_bc=Line())
+    Cp_interp = linear_interpolation((temperatures,pressures),Cp,extrapolation_bc=Line())
     for i in 2:np1
         rho[i-1] = rho_interp(temp[i-1],press[i-1])
+        one_over_cp = 1/Cp_interp(temp[i-1],press[i-1])
+        alpha = alpha_interp(temp[i-1],press[i-1])
         press[i] = press[i - 1] + rho[i-1] * gravity * delta_z 
         temp[i] = temp[i - 1] * (1 + alpha * gravity * delta_z * one_over_cp)
-        # alpha = interp(temp[i - 1], tt[:, i], alphas[:, i])
-        # one_over_cp = 1 / interp(temp[i - 1], tt[:, i], Cps[:, i])
     end
     rho[end] = rho_interp(temp[end],press[end])
     if option == "temp"
@@ -190,7 +196,8 @@ function viscosity(eta0::Float64,depth::Float64,T::Float64,E::Float64,Tref::Floa
    depth_factor = depth > 6.6e5 ? 20.0 : 1.0
    #depth_factor = viscosity_depth_function(depth)
    # note that eta0 = 5e19 in Leitch and Davies - quite low viscosity.
-   viscosity = 6*5.0e19*depth_factor*exp(E/R/Tref*(Tref/T-1))
+   # viscosity = 6*5.0e19*depth_factor*exp(E/R/Tref*(Tref/T-1))
+   viscosity = eta0*depth_factor*exp(E/R/Tref*(Tref/T-1))
    if viscosity > visc_max
       viscosity = visc_max
    end
@@ -244,7 +251,7 @@ function density(mmat::Int16,alpha::Float64,depth::Float64,T::Float64,frac::Floa
 end
 
 # function to compute any compositional based properties from lookup table
-function property(mmat::Int16,P::Float64,T::Float64,frac::Float64,index::Int64,model1::lookup,model2::lookup)
+function property(mmat::Int16,P::Float64,T::Float64,frac::Float64,model1::lookup,model2::lookup)
    # density from lookup tables
    if mmat == 2
       property = model1.property_lookup(T,P)*(1-frac) + frac*model2.property_lookup(T,P)
@@ -320,8 +327,15 @@ end
 
 model1_rho = lookup("/home/ayylu/look_up_process/pyrolite_24.dat",1)
 model2_rho = lookup("/home/ayylu/look_up_process/basalt_24.dat",1)
+model1_alpha = lookup("/home/ayylu/look_up_process/pyrolite_24.dat",2)
+model2_alpha = lookup("/home/ayylu/look_up_process/basalt_24.dat",2)
+model1_Cp = lookup("/home/ayylu/look_up_process/pyrolite_24.dat",3)
+model2_Cp = lookup("/home/ayylu/look_up_process/basalt_24.dat",3)
+
 function update_marker_properties!(markers::Markers,materials::Materials,option,frac::Float64)
     rho = markers.scalarFields["rho"]
+    alpha = markers.scalarFields["alpha"]
+    Cp = markers.scalarFields["Cp"]
     T = markers.scalarFields["T"]
     P = markers.scalarFields["P"]
     delta_rho = markers.scalarFields["delta_rho"]
@@ -334,7 +348,9 @@ function update_marker_properties!(markers::Markers,materials::Materials,option,
         # markers.scalars[rho,i] = materials.rho0[mmat[i]] # don't update density - for comparison with gerya
         # define density based on mixing of eclogite and pyrolite
         if option == "lookup"
-            markers.scalars[rho,i] = property(mmat[i],adb_pressure(markers.x[2,i]),markers.scalars[T,i],frac,1,model1_rho,model2_rho)
+            markers.scalars[rho,i] = property(mmat[i],adb_pressure(markers.x[2,i]),markers.scalars[T,i],frac,model1_rho,model2_rho)
+            markers.scalars[alpha,i] = property(mmat[i],adb_pressure(markers.x[2,i]),markers.scalars[T,i],frac,model1_alpha,model2_alpha)
+            markers.scalars[Cp,i] = property(mmat[i],adb_pressure(markers.x[2,i]),markers.scalars[T,i],frac,model1_Cp,model2_Cp)
         else
             markers.scalars[rho,i] = density(mmat[i],materials.alpha[mmat[i]],markers.x[2,i],markers.scalars[T,i],frac,adb_temperature(markers.x[2,i]))
         end
@@ -353,11 +369,11 @@ function reassimilate_lithosphere!(markers::Markers,options::Dict)
 
     Threads.@threads for i in 1:markers.nmark
         my::Float64 = markers.x[2,i]
-        if my <= lithosphere_thickness
+        if my <= 2e5
             markers.scalars[T,i] = halfspace_cooling_from_thickness(273.0,adb_temperature(lithosphere_thickness),1e-6,my,lithosphere_thickness)
-        elseif my <= 1.5e5
-            markers.scalars[T,i] = adb_temperature(my)
-            # plate_cooling(273.0,mantle_temperature,1.5e5,1e-6,my,50e6*3.15e7)
+        # elseif my <= 1.5e5
+        #     markers.scalars[T,i] = adb_temperature(my)
+        #     # plate_cooling(273.0,mantle_temperature,1.5e5,1e-6,my,50e6*3.15e7)
         end
     end
 end
@@ -405,7 +421,7 @@ function initial_conditions!(markers::Markers,materials::Materials,options::Dict
     P = markers.scalarFields["P"]
     eta = markers.scalarFields["eta"]
     alpha = markers.scalarFields["alpha"]
-    cp = markers.scalarFields["Cp"]
+    Cp = markers.scalarFields["Cp"]
     kThermal = markers.scalarFields["kThermal"]
     Hr = markers.scalarFields["Hr"]
     pyr_dxdt = markers.scalarFields["dXdt_pyr"]
@@ -419,29 +435,31 @@ function initial_conditions!(markers::Markers,materials::Materials,options::Dict
         mr = ((mx-0)^2 + (my-options["H"]-1e5)^2)^0.5 
         
         #define initial cmb hot layer geometry
-        # h = 2e5 - (2e5-1.12e5)*(mx)/options["W"]
-        h = 3e5
+        # h = 4e5 - (4e5-2e5)*(mx)/options["W"]
+        h = 4e5
                 
         #set material - eclogite at cmb
-        # if my > 2.85e6-h # eclogite-enriched material
+        # if my > options["H"]-h # eclogite-enriched material
         #    markers.integers[material,i] = 2
         # else # background mantle
         #    markers.integers[material,i] = 1
         # end
-        if mr <= 5e5 || my >= options["H"]-h
+        if mr <= 6e5 || my >= options["H"]-h
             markers.integers[material,i] = 2
         else
             markers.integers[material,i] = 1
         end           
         
-        if my <= lithosphere_thickness
-            markers.scalars[T,i] = halfspace_cooling_from_thickness(273.0,adb_temperature(lithosphere_thickness),1e-6,my,options["lithosphere thickness"])
+        if my <= 2e5
+            markers.scalars[T,i] = halfspace_cooling_from_thickness(273.0,adb_temperature(lithosphere_thickness),2.6e-7,my,options["lithosphere thickness"])
             #plate_cooling(273.0,mantle_temperature,1.5e5,1e-6,my,50e6*3.15e7)
-        elseif my >= options["H"]-h && mr > 5e5
+        elseif my >= options["H"]-h && mr > 6e5
             #markers.scalars[T,i] = 1300.0+273.0
-            markers.scalars[T,i] = halfspace_cooling_from_thickness(options["Tcmb"],adb_temperature(options["H"]-h),1e-6,options["H"]-my,h)
-        elseif mr <= 5e5 
-            markers.scalars[T,i] = max(adb_temperature(my) + Tex, halfspace_cooling_from_thickness(options["Tcmb"],adb_temperature(options["H"]-h),1e-6,options["H"]-my,h))
+            markers.scalars[T,i] = halfspace_cooling_from_thickness(options["Tcmb"],adb_temperature(options["H"]-h),1e-7,options["H"]-my,h)
+        elseif mr <= 6e5 
+            markers.scalars[T,i] = max(adb_temperature(my) + Tex, halfspace_cooling_from_thickness(options["Tcmb"],adb_temperature(options["H"]-h),1e-7,options["H"]-my,h))
+        # elseif my >= options["H"]-h
+        #     markers.scalars[T,i] = halfspace_cooling_from_thickness(options["Tcmb"],adb_temperature(options["H"]-h),1e-7,options["H"]-my,h)
         else
             markers.scalars[T,i] = adb_temperature(my)
         end
@@ -449,8 +467,10 @@ function initial_conditions!(markers::Markers,materials::Materials,options::Dict
         markers.scalars[P,i] = adb_pressure(markers.x[2,i])
         ind = markers.integers[material,i]
         markers.scalars[eta,i] = viscosity(materials.eta[ind],markers.x[2,i],markers.scalars[T,i],materials.Ea[ind],adb_temperature(markers.x[2,i]))
-        markers.scalars[alpha,i] = materials.alpha[ind]            
-        markers.scalars[cp,i] = materials.Cp[ind]
+        if options["method"] != "lookup"
+            markers.scalars[alpha,i] = materials.alpha[ind]            
+            markers.scalars[Cp,i] = materials.Cp[ind]
+        end
         markers.scalars[kThermal,i] = materials.kThermal[ind]
         markers.scalars[Hr,i] = materials.Hr[ind]  
         markers.scalars[pyr_dxdt,i] = 0.0
@@ -509,8 +529,8 @@ function plume_model(options::Dict;max_step::Int64=-1,max_time::Float64=-1.0)
     markx = options["markx"]
     marky = options["marky"]
     target_markers = markx*marky
-    min_markers = Int(floor(target_markers*0.1))
-    max_markers = Int(ceil(target_markers*10.0))
+    min_markers = Int(floor(target_markers*0.2))
+    max_markers = Int(ceil(target_markers*5.0))
 
     plot_interval = options["plot interval"] # plot interval in seconds
     max_time::Float64 = max_time == -1.0 ? typemax(Float64) : max_time
@@ -651,9 +671,9 @@ function plume_model(options::Dict;max_step::Int64=-1,max_time::Float64=-1.0)
         else
             this_dtmax = 1e10
         end
-        dt = compute_timestep(grid,vxc,vyc ; dtmax=this_dtmax,cfl=0.25)
+        dt = compute_timestep(grid,vxc,vyc ; dtmax=this_dtmax,cfl=0.5)
         if dt < 0.1*seconds_in_year
-            terminate=true
+           terminate=true
         end
         dTmax = Inf
         dTemp = nothing
