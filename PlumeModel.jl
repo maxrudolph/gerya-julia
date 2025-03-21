@@ -370,7 +370,7 @@ function reassimilate_lithosphere!(markers::Markers,options::Dict)
     Threads.@threads for i in 1:markers.nmark
         my::Float64 = markers.x[2,i]
         if my <= 2e5
-            markers.scalars[T,i] = halfspace_cooling_from_thickness(273.0,adb_temperature(lithosphere_thickness),1e-6,my,lithosphere_thickness)
+            markers.scalars[T,i] = halfspace_cooling_from_thickness(273.0,adb_temperature(lithosphere_thickness),9e-7,my,lithosphere_thickness)
         # elseif my <= 1.5e5
         #     markers.scalars[T,i] = adb_temperature(my)
         #     # plate_cooling(273.0,mantle_temperature,1.5e5,1e-6,my,50e6*3.15e7)
@@ -451,15 +451,15 @@ function initial_conditions!(markers::Markers,materials::Materials,options::Dict
         end           
         
         if my <= 2e5
-            markers.scalars[T,i] = halfspace_cooling_from_thickness(273.0,adb_temperature(lithosphere_thickness),2.6e-7,my,options["lithosphere thickness"])
+            markers.scalars[T,i] = halfspace_cooling_from_thickness(273.0,adb_temperature(lithosphere_thickness),9e-7,my,options["lithosphere thickness"])
             #plate_cooling(273.0,mantle_temperature,1.5e5,1e-6,my,50e6*3.15e7)
         elseif my >= options["H"]-h && mr > 6e5
             #markers.scalars[T,i] = 1300.0+273.0
-            markers.scalars[T,i] = halfspace_cooling_from_thickness(options["Tcmb"],adb_temperature(options["H"]-h),1e-7,options["H"]-my,h)
+            markers.scalars[T,i] = halfspace_cooling_from_thickness(options["Tcmb"],adb_temperature(options["H"]-h),4.3e-7,options["H"]-my,h)
         elseif mr <= 6e5 
-            markers.scalars[T,i] = max(adb_temperature(my) + Tex, halfspace_cooling_from_thickness(options["Tcmb"],adb_temperature(options["H"]-h),1e-7,options["H"]-my,h))
+            markers.scalars[T,i] = max(adb_temperature(my) + Tex, halfspace_cooling_from_thickness(options["Tcmb"],adb_temperature(options["H"]-h),4.3e-7,options["H"]-my,h))
         # elseif my >= options["H"]-h
-        #     markers.scalars[T,i] = halfspace_cooling_from_thickness(options["Tcmb"],adb_temperature(options["H"]-h),1e-7,options["H"]-my,h)
+        #     markers.scalars[T,i] = halfspace_cooling_from_thickness(options["Tcmb"],adb_temperature(options["H"]-h),4.3e-7,options["H"]-my,h)
         else
             markers.scalars[T,i] = adb_temperature(my)
         end

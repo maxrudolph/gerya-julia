@@ -44,7 +44,7 @@ struct lookup
                 reshape(dataframe[!, item.second], n_temperatures, n_pressures)
             i += 1
         end
-        property_lookup = linear_interpolation((temperatures,pressures),values[:,:,1],extrapolation_bc=Line())
+        property_lookup = linear_interpolation((temperatures,pressures),values[:,:,index],extrapolation_bc=Line())
         return new(values, temperatures, pressures, property_lookup )
     end
 end
