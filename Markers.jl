@@ -785,9 +785,6 @@ function add_remove_markers!(markers::Markers,grid::CartesianGrid,T::Matrix{Floa
                 this_cell = (j-1)*(grid.ny-1) + i
                 ind = findall(marker_cell .== this_cell)
                 kdtree = KDTree(markers.x[:,ind])
-                if kdtree < 0
-                    println("k<0")
-                end
                 idxs,dists = nn(kdtree, new_x)
                 
                 old_ints = markers.integers[:,ind]
