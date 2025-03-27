@@ -22,10 +22,10 @@ options["lithosphere thickness"] = h
 options["mantle temperature"] = 1300.0 + 273.0
 
 options["plot interval"] = 2e6*seconds_in_year
-options["melting plot interval"] = 1e6*seconds_in_year
+options["melting plot interval"] = 2e6*seconds_in_year
 options["output directory"] = "plume_" * string(Tex) * "_" * string(h)
-options["max time"] = 1e8*seconds_in_year
-options["max step"] = -1
+options["max time"] = -1.0#1e8*seconds_in_year
+options["max step"] = 5
 options["method"] = "lookup"
 options["eclogite frac"] = 0.15
 # println("Options: ", options )
@@ -42,6 +42,7 @@ using NearestNeighbors
 using DataFrames
 using Printf
 using CSV,DataFrames
+using DelimitedFiles
 
 include("Grid.jl")
 include("GridOperations.jl")
@@ -189,7 +190,7 @@ end
 # viscosity_depth_function = setup_steinberger_viscosity()
 
 # function to compute viscosity
-function viscosity(eta0::Float64,depth::Float64,T::Float64,E::Float64,Tref::Float64 ; visc_max=1.0e25)
+function viscosity(eta0::Float64,depth::Float64,T::Float64,E::Float64,Tref::Float64 ; visc_max=1.0e25, visc_min=1.0e19)
    # E should be given in J/mol/K
    # Expect all temperatures in kelvin.
    R = 8.314 #J/mol/K
@@ -200,6 +201,8 @@ function viscosity(eta0::Float64,depth::Float64,T::Float64,E::Float64,Tref::Floa
    viscosity = eta0*depth_factor*exp(E/R/Tref*(Tref/T-1))
    if viscosity > visc_max
       viscosity = visc_max
+   elseif viscosity < visc_min
+        viscosity = visc_min
    end
    return viscosity
 end
@@ -436,7 +439,7 @@ function initial_conditions!(markers::Markers,materials::Materials,options::Dict
         
         #define initial cmb hot layer geometry
         # h = 4e5 - (4e5-2e5)*(mx)/options["W"]
-        h = 4e5
+        h = 3e5
                 
         #set material - eclogite at cmb
         # if my > options["H"]-h # eclogite-enriched material
@@ -512,6 +515,14 @@ function update_statistics(stats_file,step,time,total_melt_pyr,total_melt_ecl,to
     flush(stats_file)
 end
 
+function write_topography(grid::CartesianGrid,topography::Matrix{Float64},filename::String)
+    column1 = vec(grid.xc[2:end-1])
+    column2 = vec(topography[2,2:end-1])
+    open(filename, "w") do io
+        writedlm(io, [column1 column2])
+    end
+end
+
 function plume_model(options::Dict;max_step::Int64=-1,max_time::Float64=-1.0)
     nx = options["nx"]
     ny = options["ny"]
@@ -529,8 +540,8 @@ function plume_model(options::Dict;max_step::Int64=-1,max_time::Float64=-1.0)
     markx = options["markx"]
     marky = options["marky"]
     target_markers = markx*marky
-    min_markers = Int(floor(target_markers*0.2))
-    max_markers = Int(ceil(target_markers*5.0))
+    min_markers = Int(floor(target_markers*0.1))
+    max_markers = Int(ceil(target_markers*2.0))
 
     plot_interval = options["plot interval"] # plot interval in seconds
     max_time::Float64 = max_time == -1.0 ? typemax(Float64) : max_time
@@ -663,6 +674,8 @@ function plume_model(options::Dict;max_step::Int64=-1,max_time::Float64=-1.0)
         adiabatic_heating = compute_adiabatic_heating(grid,rho_c,Tlast,alpha,gx,gy,vxc,vyc)
         shear_heating = compute_shear_heating_cylindrical(grid,vx,vy,eta_n,eta_s,eta_vx[1:end-1,:])
         H = (adiabatic_heating .+ shear_heating)
+        sxx,syy,sxy,stt =compute_stress_cylindrical(grid,vx,vy,eta_n,eta_s,eta_vx[1:end-1,:])
+        topography = compute_topography(syy,rho_c,gy,0.0)
     
         # 3. Compute the advection timestep:
         if itime > 1
@@ -745,7 +758,7 @@ function plume_model(options::Dict;max_step::Int64=-1,max_time::Float64=-1.0)
                 
         # Visualization Output
         this_plot_interval = total_melt_pyr + total_melt_ecl > 0.0 ? options["melting plot interval"] : options["plot interval"]
-        if time == 0.0 || time - last_plot >= this_plot_interval || terminate
+        if time == 0.0 || time - last_plot >= this_plot_interval || terminate || true
             last_plot = time 
             # Eulerian grid output:
             name = @sprintf("%s/viz.%04d.vtr",output_dir,iout)
@@ -758,8 +771,10 @@ function plume_model(options::Dict;max_step::Int64=-1,max_time::Float64=-1.0)
             name1 = @sprintf("%s/markers.%04d.vtp",output_dir,iout)
             println("Writing visualization fle ",name1)
             @time visualization(markers,time/seconds_in_year;filename=name1)
+            topo_file = @sprintf("%s/topo.%04d.txt",output_dir,iout)
+            write_topography(grid,topography,topo_file)
             
-            iout += 1
+            iout += 1 
         end
         update_statistics(stats_file,itime,time,total_melt_pyr,total_melt_ecl,total_carbon)
         

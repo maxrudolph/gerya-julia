@@ -33,10 +33,12 @@ function melt_fraction(model::yasuda,P::Float64,T::Float64)
     # P = model.pressure(depth)
     Tliq = model.liquidus(P)
     Tsol = model.solidus(P)
-    if T<Tsol
+    if P>21.0
         return 0.0
     elseif T>Tliq
         return 1.0
+    elseif T<Tsol # cap it based on Yasuda et al., 1994
+        return 0.0
     else
         # assume linear variation of melt fraction between solidus and liquidus per Leitch and Davies
         theta = (T-Tsol)/(Tliq-Tsol)
