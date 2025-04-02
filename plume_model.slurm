@@ -5,11 +5,11 @@
 #SBATCH --mem-per-cpu=16G
 #SBATCH --job-name=plume
 #SBATCH --mail-type=FAIL,TIME_LIMIT
-#SBATCH --mail-user=maxrudolph@ucdavis.edu
+#SBATCH --mail-user=ayylu@ucdavis.edu
 #SBATCH --partition=high2
 #SBATCH --time=6-00:00:00
-source /home/rudolph/miniconda3/bin/activate
+#source /home/qxl51/miniconda3/bin/activate
 which python3
 which julia
-julia --threads 64 -- PlumeModel.jl 500.0 60000.2
-
+julia --threads 64 -- PlumeModelsub.jl 500.0 150000.3
+#julia InstallDependencies.jl
