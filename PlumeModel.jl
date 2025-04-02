@@ -1,9 +1,10 @@
 # Define options and parse command-line arguments:
-if length( ARGS ) < 2
-    error("specify excess temperature and lithosphere thickness (in m)")
+if length( ARGS ) < 3
+    error("specify initial anomaly radius (m), excess temperature (K), lithosphere thickness (m)")
 else
-    Tex = parse( Float64, ARGS[1] )
-    h = parse( Float64, ARGS[2] )
+    blob_r = parse( Float64, ARGS[1] )
+    Tex = parse( Float64, ARGS[2] )
+    h = parse( Float64, ARGS[3] )
 end
 
 seconds_in_year = 3.15e7
@@ -447,7 +448,7 @@ function initial_conditions!(markers::Markers,materials::Materials,options::Dict
         # else # background mantle
         #    markers.integers[material,i] = 1
         # end
-        if mr <= 6e5 || my >= options["H"]-h
+        if mr <= blob_r || my >= options["H"]-h
             markers.integers[material,i] = 2
         else
             markers.integers[material,i] = 1
@@ -456,10 +457,10 @@ function initial_conditions!(markers::Markers,materials::Materials,options::Dict
         if my <= 2e5
             markers.scalars[T,i] = halfspace_cooling_from_thickness(273.0,adb_temperature(lithosphere_thickness),9e-7,my,options["lithosphere thickness"])
             #plate_cooling(273.0,mantle_temperature,1.5e5,1e-6,my,50e6*3.15e7)
-        elseif my >= options["H"]-h && mr > 6e5
+        elseif my >= options["H"]-h && mr > blob_r
             #markers.scalars[T,i] = 1300.0+273.0
             markers.scalars[T,i] = halfspace_cooling_from_thickness(options["Tcmb"],adb_temperature(options["H"]-h),4.3e-7,options["H"]-my,h)
-        elseif mr <= 6e5 
+        elseif mr <= blob_r 
             markers.scalars[T,i] = max(adb_temperature(my) + Tex, halfspace_cooling_from_thickness(options["Tcmb"],adb_temperature(options["H"]-h),4.3e-7,options["H"]-my,h))
         # elseif my >= options["H"]-h
         #     markers.scalars[T,i] = halfspace_cooling_from_thickness(options["Tcmb"],adb_temperature(options["H"]-h),4.3e-7,options["H"]-my,h)
