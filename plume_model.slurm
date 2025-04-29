@@ -11,5 +11,5 @@
 #source /home/qxl51/miniconda3/bin/activate
 which python3
 which julia
-julia --threads 64 -- PlumeModelsub.jl 500.0 150000.3
+julia --threads 64 -- PlumeModel_old.jl 150000.0 400.0 60000.3
 #julia InstallDependencies.jl
