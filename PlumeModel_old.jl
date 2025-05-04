@@ -25,8 +25,8 @@ options["mantle temperature"] = 1300.0 + 273.0
 options["plot interval"] = 4e6*seconds_in_year
 options["melting plot interval"] = 4e6*seconds_in_year
 options["output directory"] = "plume_" * string(ecl_h) * "_" * string(Tex) * "_" * string(h)
-options["max time"] = 2e8*seconds_in_year
-options["max step"] = -1
+options["max time"] = -1.0#2e8*seconds_in_year
+options["max step"] = 5
 options["method"] = "lookup"
 options["eclogite frac"] = 0.1
 # println("Options: ", options )
@@ -773,7 +773,8 @@ function plume_model(options::Dict;max_step::Int64=-1,max_time::Float64=-1.0)
             println("Writing visualization fle ",name)
             vn = velocity_to_basic_nodes(grid,vxc,vyc)
             Tn = temperature_to_basic_nodes(grid,Tnew)
-            output_fields = Dict("rho"=>rho_c[2:end-1,2:end-1],"eta"=>eta_s,"velocity"=>vn,"pressure"=>P[2:end-1,2:end-1],"T"=>Tn,"dXdt_pyr"=>pyr_dXdt[2:end-1,2:end-1],"dXdt_ecl"=>ecl_dXdt[2:end-1,2:end-1],"dC"=>dC[2:end-1,2:end-1])
+            delta_T = temperature_anomaly(grid,Tn,adb_temperature)
+            output_fields = Dict("rho"=>rho_c[2:end-1,2:end-1],"eta"=>eta_s,"velocity"=>vn,"pressure"=>P[2:end-1,2:end-1],"T"=>Tn,"delta_T"=>delta_T,"dXdt_pyr"=>pyr_dXdt[2:end-1,2:end-1],"dXdt_ecl"=>ecl_dXdt[2:end-1,2:end-1],"dC"=>dC[2:end-1,2:end-1])
             @time visualization(grid,output_fields,time/seconds_in_year;filename=name)
             # Markers output:
             name1 = @sprintf("%s/markers.%04d.vtp",output_dir,iout)
