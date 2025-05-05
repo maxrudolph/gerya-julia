@@ -22,11 +22,12 @@ options["g"] = 10.0
 options["lithosphere thickness"] = h
 options["mantle temperature"] = 1300.0 + 273.0
 
-options["plot interval"] = 4e6*seconds_in_year
-options["melting plot interval"] = 4e6*seconds_in_year
+options["plot interval field"] = 2e6*seconds_in_year
+options["plot interval marker"] = 1e7*seconds_in_year
+options["melting plot interval"] = 1e6*seconds_in_year
 options["output directory"] = "plume_" * string(ecl_h) * "_" * string(Tex) * "_" * string(h)
-options["max time"] = -1.0#2e8*seconds_in_year
-options["max step"] = 5
+options["max time"] = 1.5e7*seconds_in_year
+options["max step"] = -1
 options["method"] = "lookup"
 options["eclogite frac"] = 0.1
 # println("Options: ", options )
@@ -551,11 +552,12 @@ function plume_model(options::Dict;max_step::Int64=-1,max_time::Float64=-1.0)
     min_markers = Int(floor(target_markers*0.1))
     max_markers = Int(ceil(target_markers*2.0))
 
-    plot_interval = options["plot interval"] # plot interval in seconds
+    plot_interval_field = options["plot interval field"] # field plot interval in seconds
+    plot_interval_marker = options["plot interval marker"] # marker plot interval in seconds
     max_time::Float64 = max_time == -1.0 ? typemax(Float64) : max_time
     max_step::Int64 = max_step == -1 ? typemax(Int64) : max_step
     
-    dtmax = plot_interval
+    dtmax = plot_interval_field
     
     println("Creating Markers...")
     @time markers = Markers(grid,["alpha","Cp","T","kThermal","rho","eta","Hr","Xmelt_pyr","Xmelt_ecl","dXdt_pyr","dXdt_ecl","carbon","dC","P","delta_rho"],["material"] ; nmx=markx,nmy=marky,random=true)
@@ -566,8 +568,10 @@ function plume_model(options::Dict;max_step::Int64=-1,max_time::Float64=-1.0)
     kThermal = 3.0 .*ones(grid.ny+1,grid.nx+1);
 
     time = 0.0
-    iout=0
-    last_plot = 0.0
+    iout_field=0
+    iout_marker=0
+    last_plot_field = 0.0
+    last_plot_marker = 0.0
     rho_c = nothing
 
     local rho_c
@@ -765,25 +769,34 @@ function plume_model(options::Dict;max_step::Int64=-1,max_time::Float64=-1.0)
         end
                 
         # Visualization Output
-        this_plot_interval = total_melt_pyr + total_melt_ecl > 0.0 ? options["melting plot interval"] : options["plot interval"]
-        if time == 0.0 || time - last_plot >= this_plot_interval || terminate
-            last_plot = time 
+        # field
+        this_plot_interval_field = total_melt_pyr + total_melt_ecl > 0.0 ? options["melting plot interval"] : options["plot interval field"]
+        if time == 0.0 || time - last_plot_field >= this_plot_interval_field || terminate
+            last_plot_field = time 
             # Eulerian grid output:
-            name = @sprintf("%s/viz.%04d.vtr",output_dir,iout)
-            println("Writing visualization fle ",name)
+            name = @sprintf("%s/viz.%04d.vtr",output_dir,iout_field)
+            println("Writing visualization file ",name)
             vn = velocity_to_basic_nodes(grid,vxc,vyc)
             Tn = temperature_to_basic_nodes(grid,Tnew)
             delta_T = temperature_anomaly(grid,Tn,adb_temperature)
             output_fields = Dict("rho"=>rho_c[2:end-1,2:end-1],"eta"=>eta_s,"velocity"=>vn,"pressure"=>P[2:end-1,2:end-1],"T"=>Tn,"delta_T"=>delta_T,"dXdt_pyr"=>pyr_dXdt[2:end-1,2:end-1],"dXdt_ecl"=>ecl_dXdt[2:end-1,2:end-1],"dC"=>dC[2:end-1,2:end-1])
             @time visualization(grid,output_fields,time/seconds_in_year;filename=name)
-            # Markers output:
-            name1 = @sprintf("%s/markers.%04d.vtp",output_dir,iout)
-            println("Writing visualization fle ",name1)
-            @time visualization(markers,time/seconds_in_year;filename=name1)
-            topo_file = @sprintf("%s/topo.%04d.txt",output_dir,iout)
+            # write dynamic topography
+            topo_file = @sprintf("%s/topo.%04d.txt",output_dir,iout_field)
             write_topography(grid,topography,topo_file)
             
-            iout += 1 
+            iout_field += 1 
+        end
+        # markers
+        this_plot_interval_marker = options["plot interval marker"]
+        if time == 0.0 || time - last_plot_marker >= this_plot_interval_marker || terminate
+            last_plot_marker = time 
+            # Markers output:
+            name1 = @sprintf("%s/markers.%04d.vtp",output_dir,iout_marker)
+            println("Writing visualization fle ",name1)
+            @time visualization(markers,time/seconds_in_year;filename=name1)
+            
+            iout_marker += 1 
         end
         update_statistics(stats_file,itime,time,total_melt_pyr,total_melt_ecl,total_carbon)
         
