@@ -22,14 +22,14 @@ options["g"] = 10.0
 options["lithosphere thickness"] = h
 options["mantle temperature"] = 1300.0 + 273.0
 
-options["plot interval field"] = 2e6*seconds_in_year
-options["plot interval marker"] = 1e7*seconds_in_year
-options["melting plot interval"] = 1e6*seconds_in_year
+options["plot interval field"] = 4e6*seconds_in_year
+options["plot interval marker"] = 2e7*seconds_in_year
+options["melting plot interval"] = 2e6*seconds_in_year
 options["output directory"] = "plume_" * string(ecl_h) * "_" * string(Tex) * "_" * string(h)
-options["max time"] = 1.5e7*seconds_in_year
+options["max time"] = 2.5e8*seconds_in_year
 options["max step"] = -1
 options["method"] = "lookup"
-options["eclogite frac"] = 0.1
+options["eclogite frac"] = 0.15
 # println("Options: ", options )
 
 # Import necessary packages
@@ -202,7 +202,7 @@ function viscosity(eta0::Float64,depth::Float64,T::Float64,E::Float64,Tref::Floa
    if depth < 1e5
       depth_factor = 20.0
    elseif depth >=1e5 && depth < 4.1e5
-      depth_factor = (k*depth + b)/eta0
+      depth_factor = 10^(k*depth + b)/eta0
    elseif depth > 6.6e5
       depth_factor =  20.0
    else
@@ -779,7 +779,9 @@ function plume_model(options::Dict;max_step::Int64=-1,max_time::Float64=-1.0)
             vn = velocity_to_basic_nodes(grid,vxc,vyc)
             Tn = temperature_to_basic_nodes(grid,Tnew)
             delta_T = temperature_anomaly(grid,Tn,adb_temperature)
-            output_fields = Dict("rho"=>rho_c[2:end-1,2:end-1],"eta"=>eta_s,"velocity"=>vn,"pressure"=>P[2:end-1,2:end-1],"T"=>Tn,"delta_T"=>delta_T,"dXdt_pyr"=>pyr_dXdt[2:end-1,2:end-1],"dXdt_ecl"=>ecl_dXdt[2:end-1,2:end-1],"dC"=>dC[2:end-1,2:end-1])
+            delta_rho, = marker_to_stag(markers,grid,["delta_rho",],"basic");
+            
+            output_fields = Dict("rho"=>rho_c[2:end-1,2:end-1],"eta"=>eta_s,"velocity"=>vn,"pressure"=>P[2:end-1,2:end-1],"T"=>Tn,"delta_T"=>delta_T,"dXdt_pyr"=>pyr_dXdt[2:end-1,2:end-1],"dXdt_ecl"=>ecl_dXdt[2:end-1,2:end-1],"dC"=>dC[2:end-1,2:end-1],"delta_rho"=>delta_rho)
             @time visualization(grid,output_fields,time/seconds_in_year;filename=name)
             # write dynamic topography
             topo_file = @sprintf("%s/topo.%04d.txt",output_dir,iout_field)
