@@ -200,7 +200,7 @@ function viscosity(eta0::Float64,depth::Float64,T::Float64,E::Float64,Tref::Floa
    b = 18-30/31
    R = 8.314 #J/mol/K
    if depth < h
-      depth_factor = 20.0
+      depth_factor = 0.05
    elseif depth >= h  && depth < 4.1e5
       depth_factor = 10^(k*depth + b)/eta0
    elseif depth > 6.6e5
