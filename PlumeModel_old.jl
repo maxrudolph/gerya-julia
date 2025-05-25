@@ -196,11 +196,11 @@ function viscosity(eta0::Float64,depth::Float64,T::Float64,E::Float64,Tref::Floa
    # E should be given in J/mol/K
    # Expect all temperatures in kelvin.
    # Linear viscosity increase in the ashtenosphere from 10^18 to 10^21
-   k = 3/310e3
-   b = 18-30/31
+   k = 3/350e3
+   b = 18-18/35
    R = 8.314 #J/mol/K
    if depth < h
-      depth_factor = 20.0
+      depth_factor = 0.05
    elseif depth >= h  && depth < 4.1e5
       depth_factor = 10^(k*depth + b)/eta0
    elseif depth > 6.6e5
