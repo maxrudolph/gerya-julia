@@ -10,8 +10,8 @@ end
 seconds_in_year = 3.15e7
 
 options = Dict()
-options["nx"] = 101 #201
-options["ny"] = 143 #571
+options["nx"] = 101 #201,101
+options["ny"] = 143 #571,143
 options["markx"] = 6#12
 options["marky"] = 12#24
 options["W"] = 2e6
@@ -22,14 +22,14 @@ options["g"] = 10.0
 options["lithosphere thickness"] = h
 options["mantle temperature"] = 1300.0 + 273.0
 
-options["plot interval field"] = 4e6*seconds_in_year
-options["plot interval marker"] = 2e7*seconds_in_year
+options["plot interval field"] = 5e6*seconds_in_year
+options["plot interval marker"] = 5e7*seconds_in_year
 options["melting plot interval"] = 2e6*seconds_in_year
 options["output directory"] = "plume_" * string(ecl_h) * "_" * string(Tex) * "_" * string(h)
-options["max time"] = 2e8*seconds_in_year
+options["max time"] = 3e8*seconds_in_year
 options["max step"] = -1
 options["method"] = "lookup"
-options["eclogite frac"] = 0.0
+options["eclogite frac"] = 0.15
 # println("Options: ", options )
 
 # Import necessary packages
@@ -321,8 +321,8 @@ function update_melt!(markers::Markers,dt::Float64,mask::BitVector,options::Dict
             old_ecl_melt = markers.scalars[ecl_melt,i]
             markers.scalars[pyr_dxdt,i] = new_pyr_melt > old_pyr_melt ? (new_pyr_melt - old_pyr_melt)/dt : 0.0
             markers.scalars[ecl_dxdt,i] = new_ecl_melt > old_ecl_melt ? (new_ecl_melt - old_ecl_melt)/dt : 0.0
-            markers.scalars[pyr_melt,i] = new_pyr_melt
-            markers.scalars[ecl_melt,i] = new_ecl_melt
+            markers.scalars[pyr_melt,i] = new_pyr_melt > old_pyr_melt ? new_pyr_melt : old_pyr_melt
+            markers.scalars[ecl_melt,i] = new_ecl_melt > old_ecl_melt ? new_ecl_melt : old_ecl_melt
             old_melt = old_pyr_melt + old_ecl_melt
             if new_melt > .01 && new_melt > old_melt
                 # if melt fraction exceeds 1%, liberate all carbon
