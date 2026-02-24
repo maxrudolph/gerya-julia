@@ -581,7 +581,7 @@ function plume_model(options::Dict;max_step::Int64=-1,max_time::Float64=-1.0)
     dtmax = plot_interval
     
     println("Creating Markers...")
-    @time markers = Markers(grid,["alpha","Cp","T","kThermal","rho","eta","Hr","Xmelt_pyr","Xmelt_ecl","dXdt_pyr","dXdt_ecl","carbon","dC","P","delta_rho"],["material"] ; nmx=markx,nmy=marky,random=true)
+    @time markers = Markers(grid,["alpha","Cp","T","kThermal","rho","eta","Hr","Xmelt_pyr","Xmelt_ecl","dXdt_pyr","dXdt_ecl","carbon","dC","P","delta_rho"],["material"] ; nmx=markx,nmy=marky,random=true,maxmarkfactor=2.0)
     println("Initial condition...")
     @time initial_conditions!(markers, materials, options)
 
