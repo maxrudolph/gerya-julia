@@ -55,4 +55,7 @@ There are some additional notebooks written to demonstrate solutions in curvilin
 - Solution of a Poisson problem on a spherical surface using an overset grid, called the yin-yang grid, described in Kageyama and Sato (2004). The point of this problem was to think about how to set up the constraint equations and indexing for a code like StagYY. It is guaranteed to be far from optimal and the disretization doesn't appear to be well-suited to the use of iterative solvers.
 
 ### PlumeModel_lower_eta.jl
-- Script used for plume model with a low viscosity asthenosphere.
+- Script used for plume model with a low viscosity asthenosphere and two components melting of eclogite and peridotite.
+
+### PlumeModel.jl
+- Script used for original plume model that only consider eclogite melting.

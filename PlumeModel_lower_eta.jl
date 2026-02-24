@@ -363,11 +363,11 @@ function update_marker_properties!(markers::Markers,materials::Materials,option,
         # assume reference temperature is 273.0
         # markers.scalars[rho,i] = materials.rho0[mmat[i]] # don't update density - for comparison with gerya
         # define density based on mixing of eclogite and pyrolite
-        if option == "lookup"
+        if option == "lookup" # using lookup tables
             markers.scalars[rho,i] = property(mmat[i],adb_pressure(markers.x[2,i]),markers.scalars[T,i],frac,model1_rho,model2_rho)
             markers.scalars[alpha,i] = property(mmat[i],adb_pressure(markers.x[2,i]),markers.scalars[T,i],frac,model1_alpha,model2_alpha)
             markers.scalars[Cp,i] = property(mmat[i],adb_pressure(markers.x[2,i]),markers.scalars[T,i],frac,model1_Cp,model2_Cp)
-        else
+        else # using 1D profile of density contrast between ecl and pyr
             markers.scalars[rho,i] = density(mmat[i],materials.alpha[mmat[i]],markers.x[2,i],markers.scalars[T,i],frac,adb_temperature(markers.x[2,i]))
         end
         markers.scalars[delta_rho,i] = markers.scalars[rho,i] - adb_rho(markers.x[2,i])
