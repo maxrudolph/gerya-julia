@@ -181,6 +181,16 @@ function temperature_to_basic_nodes(grid::CartesianGrid,Tc::Matrix{Float64})
     return Tn
 end
 
+function temperature_anomaly(grid::CartesianGrid,Tn::Matrix{Float64},T_ref)
+    delta_T = zeros(grid.ny,grid.nx)
+    Threads.@threads for i in 1:grid.ny
+        for j in 1:grid.nx
+            delta_T[i,j] = Tn[i,j]-T_ref(grid.y[i])
+        end
+    end
+    return delta_T
+end
+
 function subgrid_temperature_relaxation_center!(markers::Markers,grid::CartesianGrid,Tlast::Matrix,dt::Float64;diffusivity::Float64=1.0)
     # Perform the sub-grid scale temperature diffusion operation
     # Inputs:

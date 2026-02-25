@@ -95,6 +95,20 @@ function compute_stress_cylindrical(grid::CartesianGrid,vx::Matrix{Float64},vy::
     return sxx,syy,sxy,stt
 end
 
+function compute_topography(syy::Matrix{Float64},rho_c::Matrix{Float64},g::Float64,rho_surface::Float64)
+    # compute stresses.
+    # Inputs:
+    # grid
+    # syy at the cell centers
+    # rho_c is density at the cell centers
+    # g is the radial gravity
+    # rho_surface is the density above the surface, 0 kg/m^3 for air and 1 kg/m^3 for water
+    # returns:
+    # topography in m at the cell centers
+    topography = -syy ./ (rho_c.- rho_surface) /g
+    return topography
+end
+
 function compute_shear_heating(grid::CartesianGrid,vx::Matrix{Float64},vy::Matrix{Float64},etan::Matrix{Float64},etas::Matrix{Float64})
     # compute shear heating at the cell centers
     # inputs: 

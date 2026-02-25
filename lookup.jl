@@ -10,12 +10,6 @@ struct lookup
     pressures::Array{Float64,1}
     property_lookup
     
-    # prop = Dict()
-    # prop["1"] = "rho,kg/m3"
-    # prop["2"] = "alpha,1/K"
-    # # density from lookup tables
-    # file1 = "/home/ayylu/look_up_process/pyrolite_24.dat"
-    # file2 = "/home/ayylu/look_up_process/basalt_24.dat"
     function lookup(filename::String,index::Int64)
         prop = Dict()
         prop["1"] = "rho,kg/m3"
@@ -50,7 +44,7 @@ struct lookup
                 reshape(dataframe[!, item.second], n_temperatures, n_pressures)
             i += 1
         end
-        property_lookup = linear_interpolation((temperatures,pressures),values[:,:,1],extrapolation_bc=Line())
+        property_lookup = linear_interpolation((temperatures,pressures),values[:,:,index],extrapolation_bc=Line())
         return new(values, temperatures, pressures, property_lookup )
     end
 end
