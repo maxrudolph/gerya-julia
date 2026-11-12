@@ -1,3 +1,14 @@
+Scripts for Lu et al. (2026) GRL.
+### PlumeModel_lower_eta.jl
+- Script used for plume model with a low viscosity asthenosphere and two components melting of eclogite and peridotite.
+
+### PlumeModel_normal_eta.jl
+- Script used for plume model with a constant viscosity asthenosphere and two components melting of eclogite and peridotite.
+
+### plotting.m
+- Script used for plotting figures from the statistics files of all models. The statistics files and decription of each file can be found in "/model-statistics".
+
+------------------------------------------------------------------------
 This repo contains jupyter notebooks implementing solutions to selected problems from Taras Gerya's *Introduction to Numerical Geodynamic Modeling* in the Julia programming language.
 
 [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/maxrudolph/gerya-julia/HEAD)
@@ -53,3 +64,6 @@ There are some additional notebooks written to demonstrate solutions in curvilin
 
 ### M04-YinYang.ipynb
 - Solution of a Poisson problem on a spherical surface using an overset grid, called the yin-yang grid, described in Kageyama and Sato (2004). The point of this problem was to think about how to set up the constraint equations and indexing for a code like StagYY. It is guaranteed to be far from optimal and the disretization doesn't appear to be well-suited to the use of iterative solvers.
+
+### PlumeModel.jl
+- Script used for original plume model that only consider eclogite melting.
