@@ -58,66 +58,6 @@ include("Visualization.jl")
 #
 # Functions related to model setup
 #
-function compute_adiabatic(filename::String,Tref::Float64,Z::Float64,option::String="press")    
-    gravity = 9.81
-    np1 = 290
-    temp = zeros(Float64, np1)
-    press = zeros(Float64, np1)
-    rho = zeros(Float64, np1)
-    temp[1] = Tref
-    press[1] = 0
-    delta_z = Z/(np1-1)
-    one_over_cp = 1 / 1000.0
-    alpha = 3e-5
-    depth = range(0,Z,np1) 
-    
-    # Read the header and data efficiently
-    dataframe = CSV.File(filename; delim=' ', skipto=14,silencewarnings=true,ntasks=1) |> DataFrame;
-
-    # Assume the header is in the first skipped line
-    header = CSV.File(filename; delim=' ', skipto=13, limit=1,silencewarnings=true,ntasks=1) |> DataFrame |> first |> collect;
-    rename!(dataframe, header)
-
-    # Determine if loop_over_P
-    loop_over_P = dataframe[1, "T(K)"] == dataframe[2, "T(K)"]
-
-    # Extract unique values and compute deltas
-    temperatures = unique(dataframe[!, "T(K)"])
-    pressures = unique(dataframe[!, "P(bar)"]) .* 1e5  # Convert bar to Pa
-    delta_temp = temperatures[2] - temperatures[1]
-    delta_press = pressures[2] - pressures[1]
-    
-    n_temperatures = length(temperatures)
-    n_pressures = length(pressures)
-    # Reshape densities once
-    densities = loop_over_P ?
-        reshape(dataframe[!, "rho,kg/m3"], n_pressures, n_temperatures)' :
-        reshape(dataframe[!, "rho,kg/m3"], n_temperatures, n_pressures)
-    
-    # compute density
-    rho_interp = linear_interpolation((temperatures,pressures),densities,extrapolation_bc=Line())
-    for i in 2:np1
-        rho[i-1] = rho_interp(temp[i-1],press[i-1])
-        press[i] = press[i - 1] + rho[i-1] * gravity * delta_z 
-        temp[i] = temp[i - 1] * (1 + alpha * gravity * delta_z * one_over_cp)
-        # alpha = interp(temp[i - 1], tt[:, i], alphas[:, i])
-        # one_over_cp = 1 / interp(temp[i - 1], tt[:, i], Cps[:, i])
-    end
-    rho[end] = rho_interp(temp[end],press[end])
-    if option == "temp"
-        return linear_interpolation(depth,temp,extrapolation_bc=Line())
-    elseif option == "rho"
-        return linear_interpolation(depth,rho,extrapolation_bc=Line())
-    else
-        return linear_interpolation(depth,press,extrapolation_bc=Line())
-    end
-end
-adb_temperature = compute_adiabatic("data/pyrolite_24.dat",options["mantle temperature"],options["H"],"temp")
-adb_pressure = compute_adiabatic("data/pyrolite_24.dat",options["mantle temperature"],options["H"])
-adb_rho = compute_adiabatic("data/pyrolite_24.dat",options["mantle temperature"],options["H"],"rho")
-
-options["Tcmb"] = adb_temperature(options["H"]) + 1000.
-println("Options: ", options )
 
 using SpecialFunctions
 # function to define plate cooling solution
@@ -224,7 +164,7 @@ function update_melt!(markers::Markers,dt::Float64,mask::BitVector;new_markers::
     Threads.@threads for i in 1:markers.nmark
         if mask[i]            
             # note - melt fraction assumes celsius temperature:  
-            new_melt = markers.integers[mat,i] == 2 ? melt_fraction(melt_model,markers.x[2,i],adiabatic_temperature(markers.x[2,i],markers.scalars[T,i])-273.0) : 0.0
+            new_melt = markers.integers[mat,i] == 2 ? melt_fraction(melt_model,melt_model.pressure(markers.x[2,i]),adiabatic_temperature(markers.x[2,i],markers.scalars[T,i])-273.0) : 0.0
             old_melt = markers.scalars[melt,i]
             markers.scalars[dxdt,i] = new_melt > old_melt ? (new_melt - old_melt)/dt : 0.0
             markers.scalars[melt,i] = new_melt
@@ -245,9 +185,7 @@ function update_melt!(markers::Markers,dt::Float64)
     update_melt!(markers,dt,mask)
 end
 
-model1_rho = lookup("data/pyrolite_24.dat",1)
-model2_rho = lookup("data/basalt_24.dat",1)
-function update_marker_properties!(markers::Markers,materials::Materials,option,frac::Float64)
+function update_marker_properties!(markers::Markers,materials::Materials)
     rho = markers.scalarFields["rho"]
     T = markers.scalarFields["T"]
     mmat = markers.integers[markers.integerFields["material"],:]
@@ -408,8 +346,8 @@ function plume_model(options::Dict;max_step::Int64=-1,max_time::Float64=-1.0)
     markx = options["markx"]
     marky = options["marky"]
     target_markers = markx*marky
-    min_markers = Int(floor(target_markers*0.5))
-    max_markers = Int(ceil(target_markers*2.0))
+    min_markers = Int(floor(target_markers*0.1))
+    max_markers = Int(ceil(target_markers*10.0))
 
     plot_interval = options["plot interval"] # plot interval in seconds
     max_time::Float64 = max_time == -1.0 ? typemax(Float64) : max_time
@@ -418,7 +356,7 @@ function plume_model(options::Dict;max_step::Int64=-1,max_time::Float64=-1.0)
     dtmax = plot_interval
     
     println("Creating Markers...")
-    @time markers = Markers(grid,["alpha","Cp","T","kThermal","rho","eta","Hr","Xmelt_pyr","Xmelt_ecl","dXdt_pyr","dXdt_ecl","carbon","dC","P","delta_rho"],["material"] ; nmx=markx,nmy=marky,random=true,maxmarkfactor=2.0)
+    @time markers = Markers(grid,["alpha","Cp","T","kThermal","rho","eta","Hr","Xmelt","dXdt","carbon","dC"],["material"] ; nmx=markx,nmy=marky,random=true)
     println("Initial condition...")
     @time initial_conditions!(markers, materials, options)
 
@@ -569,10 +507,12 @@ function plume_model(options::Dict;max_step::Int64=-1,max_time::Float64=-1.0)
             # compute the maximum temperature change
             dTmax = maximum(abs.(dTemp[2:end-1,2:end-1]))
             println("dTmax=",dTmax," dt=",dt/3.15e7/1e6)
-            dt = min(dt,dTmax < 10.0 ? dt : dt*10.0/dTmax)
-            if dTmax < 10.0
+            if dTmax < 10.0 || titer == 2
+                # accept this solution. dt must not change after the final solve,
+                # otherwise Tnew and the marker advection would use different timesteps.
                 break
             end
+            dt = dt*10.0/dTmax
         end
         if any(isnan.(markers.scalars[markers.scalarFields["rho"],:]))
             println("nan in density")
@@ -649,7 +589,7 @@ function plume_model(options::Dict;max_step::Int64=-1,max_time::Float64=-1.0)
      return grid,markers,vx,vy,vxc,vyc,rho_c,dTemp,Tnew,Tlast,time
  end
 
-using Profile, FileIO
+using Profile
 @profile grid,markers,vx,vy,vxc,vyc,rho_c,dTemp,Tnew,Tlast,time = plume_model(options,max_time=options["max time"],max_step=options["max step"]);
 #save("test.jlprof",Profile.retrieve() )
 #@time grid,markers,vx,vy,vxc,vyc,rho_c,dTemp,Tnew,Tlast,time = plume_model(options,max_step=1)
