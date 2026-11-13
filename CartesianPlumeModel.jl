@@ -1,7 +1,6 @@
 # Import necessary packages
 using SparseArrays
 using LinearAlgebra
-using Pardiso
 using IterativeSolvers
 using WriteVTK
 using Printf
@@ -106,7 +105,7 @@ function update_melt!(markers::Markers,dt::Float64,mask::BitVector)
     Threads.@threads for i in 1:markers.nmark
         if mask[i]
             # note - melt fraction assumes celsius temperature:  
-            new_melt = melt_fraction(melt_model,markers.x[2,i],adiabatic_temperature(markers.x[2,i],markers.scalars[T,i])-273.0)
+            new_melt = melt_fraction(melt_model,melt_model.pressure(markers.x[2,i]),adiabatic_temperature(markers.x[2,i],markers.scalars[T,i])-273.0)
             old_melt = markers.scalars[melt,i]
             markers.scalars[dxdt,i] = new_melt > old_melt ? (new_melt - old_melt)/dt : 0.0
             markers.scalars[melt,i] = new_melt
@@ -145,6 +144,7 @@ function initial_conditions!(markers::Markers,materials::Materials,options::Dict
     eta = markers.scalarFields["eta"]
     alpha = markers.scalarFields["alpha"]
     cp = markers.scalarFields["Cp"]
+    kThermal = markers.scalarFields["kThermal"]
     Hr = markers.scalarFields["Hr"]
     dxdt = markers.scalarFields["dXdt"]
     Threads.@threads for i in 1:markers.nmark
@@ -179,6 +179,7 @@ function initial_conditions!(markers::Markers,materials::Materials,options::Dict
         markers.scalars[eta,i] = viscosity(materials.eta[ind],markers.x[2,i],markers.scalars[T,i],materials.Ea[ind])
         markers.scalars[alpha,i] = materials.alpha[ind]            
         markers.scalars[cp,i] = materials.Cp[ind]  
+        markers.scalars[kThermal,i] = materials.kThermal[ind]
         markers.scalars[Hr,i] = materials.Hr[ind]  
         markers.scalars[dxdt,i] = 0.0
     end
@@ -199,8 +200,8 @@ function total_melt_rate(grid::CartesianGrid,dXdt::Matrix{Float64})
     total_melt = 0.0
      for j in 2:grid.nx
         for i in 2:grid.ny
-            # 2 pi r dr dz
-            total_melt += dXdt[i,j] > 0.0 ? 2.0*pi*grid.xc[j]*(grid.x[j]-grid.x[j-1])*(grid.y[i]-grid.y[i-1])*dXdt[i,j] : 0.0
+            # dx dz - melt rate per unit length in the out-of-plane direction (m^3/s/m)
+            total_melt += dXdt[i,j] > 0.0 ? (grid.x[j]-grid.x[j-1])*(grid.y[i]-grid.y[i-1])*dXdt[i,j] : 0.0
         end
     end
     return total_melt
@@ -226,6 +227,7 @@ options["Tcmb"] = 1350+500+273.0#2200.0+273.0
 options["plot interval"] = 5e6*seconds_in_year
 options["melting plot interval"] = 5e5*seconds_in_year
 options["output directory"] = "plume_test3_cart"
+options["max step"] = -1
 
 function plume_model(options::Dict;max_step::Int64=-1,max_time::Float64=-1.0)
     nx = options["nx"]#51#101
@@ -236,6 +238,7 @@ function plume_model(options::Dict;max_step::Int64=-1,max_time::Float64=-1.0)
     gy = options["g"]
 
     #Tbcval = [0.0,0.0,273.0,1350.0+273.0]
+    Tbctype = [-1,-1,1,1] #left, right, top, bottom
     Tbcval = [0.0,0.0,273.0,options["Tcmb"]]
     bc = BoundaryConditions(0,0,0,0) # currently does nothing but is required argument to stokes solver.
     materials = Materials()
@@ -253,7 +256,7 @@ function plume_model(options::Dict;max_step::Int64=-1,max_time::Float64=-1.0)
     dtmax = plot_interval
     grid = CartesianGrid(W,H,nx,ny)
     println("Creating Markers...")
-    @time markers = Markers(grid,["alpha","Cp","T","rho","eta","Hr","Xmelt","dXdt"],["material"] ; nmx=markx,nmy=marky,random=false)
+    @time markers = Markers(grid,["alpha","Cp","T","kThermal","rho","eta","Hr","Xmelt","dXdt"],["material"] ; nmx=markx,nmy=marky,random=false)
     println("Initial condition...")
     @time initial_conditions!(markers, materials, options)
 
@@ -288,8 +291,6 @@ function plume_model(options::Dict;max_step::Int64=-1,max_time::Float64=-1.0)
     local Xlast
     local Xnew
     local dXdt
-    pardiso_solver = MKLPardisoSolver()
-    set_nprocs!(pardiso_solver, 20)
 
     
     output_dir = options["output directory"]
@@ -354,7 +355,7 @@ function plume_model(options::Dict;max_step::Int64=-1,max_time::Float64=-1.0)
         Tlast = copy(Tlast_new)
         # Xlast = copy(Xlast_new)
 
-        Tlast = ghost_temperature_center(grid,Tlast,Tbcval)
+        Tlast = ghost_temperature_center(grid,Tlast,Tbctype,Tbcval)
         
         # 2. Assemble and solve the stokes equations
         L,R = form_stokes(grid,eta_s,eta_n,rho_vx,rho_vy,bc,gx,gy,dt=dt)
@@ -388,11 +389,10 @@ function plume_model(options::Dict;max_step::Int64=-1,max_time::Float64=-1.0)
             # assemble and solve the energy equation
             println("Trying with timestep ",dt/3.15e7/1e6," Myr")
             #L,R = assemble_energy_equation_cylindrical(grid,rho_c,Cp_c,kThermal,H,Tlast,dt,Tbcval);
-	    L,R = assemble_energy_equation_center(grid,rho_c,Cp_c,kThermal,H,Tlast,dt,Tbcval);
-            #Tnew = L\R;
-             Tnew = solve(pardiso_solver,L,R);
+	    L,R = assemble_energy_equation_center(grid,rho_c,Cp_c,kThermal,H,Tlast,dt,Tbctype,Tbcval);
+            Tnew = L\R;
             Tnew = reshape(Tnew,grid.ny,grid.nx);
-            Tnew = ghost_temperature_center(grid,Tnew,Tbcval);
+            Tnew = ghost_temperature_center(grid,Tnew,Tbctype,Tbcval);
 
             T = copy(Tnew)
 
@@ -400,16 +400,18 @@ function plume_model(options::Dict;max_step::Int64=-1,max_time::Float64=-1.0)
             # compute the maximum temperature change
             dTmax = maximum(abs.(dTemp[2:end-1,2:end-1]))
             println("dTmax=",dTmax," dt=",dt/3.15e7/1e6)
-            dt = min(dt,dTmax < 10.0 ? dt : dt*10.0/dTmax)
-            if dTmax < 10.0
+            if dTmax < 10.0 || titer == 2
+                # accept this solution. dt must not change after the final solve,
+                # otherwise Tnew and the marker advection would use different timesteps.
                 break
             end
+            dt = dt*10.0/dTmax
         end
         if any(isnan.(markers.scalars[markers.scalarFields["rho"],:]))
             println("nan in density")
             break
         end
-        dT_subgrid_node = subgrid_temperature_relaxation_center!(markers,grid,dTemp,Cp_c[1,1],kThermal[1,1],dt)
+        dT_subgrid_node = subgrid_temperature_relaxation_center!(markers,grid,Tlast,dt)
         dT_remaining = dTemp - dT_subgrid_node
 
         cell_center_change_to_markers!(markers,grid,dT_remaining,"T")
@@ -442,7 +444,7 @@ function plume_model(options::Dict;max_step::Int64=-1,max_time::Float64=-1.0)
                 
         # Visualization Output
         this_plot_interval = total_melt > 0.0 ? options["melting plot interval"] : options["plot interval"]
-        if time == 0.0 || time - last_plot >= plot_interval || terminate
+        if time == 0.0 || time - last_plot >= this_plot_interval || terminate
             last_plot = time 
             # Eulerian grid output:
             name = @sprintf("%s/viz.%04d.vtr",output_dir,iout)
@@ -470,4 +472,4 @@ function plume_model(options::Dict;max_step::Int64=-1,max_time::Float64=-1.0)
      return grid,markers,vx,vy,vxc,vyc,rho_c,dTemp,Tnew,Tlast,time
  end
 
-@time grid,markers,vx,vy,vxc,vyc,rho_c,dTemp,Tnew,Tlast,time = plume_model(options,max_time=500e6*3.15e7);
+@time grid,markers,vx,vy,vxc,vyc,rho_c,dTemp,Tnew,Tlast,time = plume_model(options,max_time=500e6*3.15e7,max_step=options["max step"]);
