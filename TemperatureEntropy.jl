@@ -36,12 +36,13 @@ function get_y(lambda1::Float64,t::Float64,options::Dict)
     return y
 end
 
-function get_theta(y::Float64,t::Float64,lambda1::Float64)
+function get_theta(y::Float64,t::Float64,lambda1::Float64,options::Dict)
     """
     Arguments:
         y - depth position in units of (meters)
         t - time in units of (seconds)
         lambda1 - constant
+        options - allow the simulation of optional keyword arguments from a dictonary
     """
     kappa = options["thermal diffusivity"] # m^2/s
     eta = y/(2*sqrt(kappa*t))
@@ -64,17 +65,17 @@ function stefan_initial_condition(theta::Float64,options::Dict)
     return T
 end
 
-function compute_stefan_temp_solution(grid::CartesianGrid,Numerical_T::Matrix{Float64},X_contour::Vector{Any},time::Vector{Any},itime::Int64)
+function compute_stefan_temp_solution(grid::CartesianGrid,Numerical_T::Matrix{Float64},X_contour::Vector{Any},time::Vector{Any},itime::Int64,options::Dict)
     # Setting up Stefan conidtion
     lambda1 = get_lambda1(options)
     t = get_t(lambda1,options)
-    y = get_y.(lambda1,time_plot.+t,Ref(options))
+    y = get_y.(lambda1,time.+t,Ref(options))
 
     stefan_T = zeros(grid.ny,grid.nx)
     for k in 1:itime-1
         for j in 1:grid.nx
             for i in 1:grid.ny
-                theta = get_theta(grid.yc[i],time[k]+t,lambda1)
+                theta = get_theta(grid.yc[i],time[k]+t,lambda1,options)
                 stefan_T[i,j] = stefan_initial_condition(theta,options)
             end
         end
@@ -91,8 +92,8 @@ function compute_stefan_temp_solution(grid::CartesianGrid,Numerical_T::Matrix{Fl
 
     figure()
     title("Comparison of Thickness Over Time")
-    plot(time_plot/3.15e7/1e6,y/1e3,"b-",label="Stefan Solution")
-    plot(time_plot/3.15e7/1e6,X_contour/1e3,"r--",label="Numerical Solution")
+    plot(time/3.15e7/1e6,y/1e3,"b-",label="Stefan Solution")
+    plot(time/3.15e7/1e6,X_contour/1e3,"r--",label="Numerical Solution")
     gca().set_ylabel(L"Ice\,Thickness\,(km)")
     gca().set_xlabel(L"Time\,(Myr)")
     legend()
@@ -256,8 +257,10 @@ function ghost_nodes_center_TXS(grid::CartesianGrid,T::Matrix{Float64},X::Matrix
     # -1 = insulating, 1 = constant temp
     if bctop == 1
         Tpad[1,2:grid.nx] = (2.0*bcval[3]) .- Tpad[2,2:grid.nx]
-        Xpad[1,2:grid.nx] = (2.0*Xpad[2,2:grid.nx][1]) .- Xpad[2,2:grid.nx]
-        Sbt = compute_S_from_T_X(Xpad[1,2:grid.nx][1],bcval[3],options)
+        # melt fraction has zero gradient across the boundary; the boundary entropy in each column
+        # uses that column's melt fraction (it matters when the boundary is at the melting temperature)
+        Xpad[1,2:grid.nx] = Xpad[2,2:grid.nx]
+        Sbt = compute_S_from_T_X.(Xpad[2,2:grid.nx],bcval[3],Ref(options))
         Spad[1,2:grid.nx] = (2.0*Sbt) .- Spad[2,2:grid.nx]
     elseif bctop == -1
         # Tpad[1,2:grid.nx] = Tpad[2,2:grid.nx] .- ((grid.yc[2]-grid.yc[1]) * bcval[3])
@@ -270,8 +273,10 @@ function ghost_nodes_center_TXS(grid::CartesianGrid,T::Matrix{Float64},X::Matrix
     # -1 = insulating, 1 = constant temp
     if bcbottom == 1
         Tpad[grid.ny+1,2:grid.nx] = 2.0*bcval[4] .- Tpad[grid.ny,2:grid.nx]
-        Xpad[grid.ny+1,2:grid.nx] = (2.0*Xpad[grid.ny,2:grid.nx][1]) .- Xpad[grid.ny,2:grid.nx]
-        Sbb = compute_S_from_T_X(Xpad[grid.ny+1,2:grid.nx][1],bcval[4],options)
+        # melt fraction has zero gradient across the boundary; the boundary entropy in each column
+        # uses that column's melt fraction (it matters when the boundary is at the melting temperature)
+        Xpad[grid.ny+1,2:grid.nx] = Xpad[grid.ny,2:grid.nx]
+        Sbb = compute_S_from_T_X.(Xpad[grid.ny,2:grid.nx],bcval[4],Ref(options))
         Spad[grid.ny+1,2:grid.nx] = (2.0*Sbb) .- Spad[grid.ny,2:grid.nx]
     elseif bcbottom == -1
         # Tpad[grid.ny+1,2:grid.nx] = Tpad[grid.ny,2:grid.nx] .+ ((grid.yc[grid.ny+1]-grid.yc[grid.ny]) * bcval[4])
@@ -360,8 +365,10 @@ function subgridSdiff(grid::CartesianGrid,markers::Markers,Slast::Matrix{Float64
                  Cpm = Cv
              else
                  # after first iteration
-                 if dT == 0 || dX == 0# if there is no change in melt fraction, use Cv
+                 if dX == 0 # if there is no change in melt fraction, use Cv
                      Cpm = Cv
+                 elseif dT == 0 # melting/freezing at constant T: infinite effective heat capacity, no relaxation
+                     Cpm = Inf
                  else
                      Cpm = markers.scalars[T,i]*(dS/dT)
                  end
@@ -375,7 +382,8 @@ function subgridSdiff(grid::CartesianGrid,markers::Markers,Slast::Matrix{Float64
             Ti,Xi = compute_T_X_from_S(Si,options) # temperature consistent with new marker entropy
             dS = Si - markers.scalars[S,i] # change in marker entropy
             dT = Ti - markers.scalars[T,i] # change in marker temperature
-            dX = Xi - markers.scalars[X,i]           
+            dX = Xi - markers.scalars[X,i]
+            dS == 0.0 && break # no change (e.g. in the mushy zone), so the next guess would not improve
         end
     end
     # update the marker entropy

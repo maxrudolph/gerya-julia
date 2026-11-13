@@ -57,10 +57,23 @@ for ifile in 1:nfiles
 
     filename = output_dirs[ifile] * "/statistics.txt"
     println("Reading from: ",filename)
-    melt_output = CSV.read(filename,DataFrame,comment="#");
-    
+    # statistics.txt has '#' comment lines and no header row. Columns:
+    #   current models (5 columns): step, time (s), pyrolite melt rate, eclogite melt rate, carbon released.
+    #     Both melt rates are in m^3/s and already scaled by the volume fraction of each lithology.
+    #   older models (4 columns): step, time (s), melt rate (scaled here by eclogite_fraction, as before), carbon released.
+    melt_output = CSV.read(filename,DataFrame,comment="#",header=false,delim='\t');
+    if ncol(melt_output) == 5
+        melt_rate = melt_output[:,3] .+ melt_output[:,4]
+        carbon_column = 5
+    elseif ncol(melt_output) == 4
+        melt_rate = melt_output[:,3] .* eclogite_fraction
+        carbon_column = 4
+    else
+        error("unexpected number of columns in $(filename): $(ncol(melt_output))")
+    end
+
     time = melt_output[:,2]/3.15e7/1e6
-    melt_km3yr = melt_output[:,3] .* (3.15e7/1e9)*eclogite_fraction
+    melt_km3yr = melt_rate .* (3.15e7/1e9)
     
     ind = findfirst( melt_km3yr .> 0.0 .&& time .> 2.0 )
     
@@ -70,13 +83,13 @@ for ifile in 1:nfiles
     # melt output is in units of m^3/s
     time = time[mask]
     time = time .- time[1]
-    melt_km3yr = melt_output[mask,3] .* (3.15e7/1e9)*eclogite_fraction
+    melt_km3yr = melt_rate[mask] .* (3.15e7/1e9)
     melt_km3yr = running_median(melt_km3yr, 1)
     # carbon should be measured in units of mol/yr
     # tonne: (integrated wt ppm (ppm*m^3)) * (kg/m^3) * (1 tonne)/(1000 kg)
     # mol: (integrated wt ppm (ppm*m^3)) * (kg/m^3) * (1000 g/kg) * (1 mol/44.01 g)
     #carbon = melt_output[mask,4] .* (1e-6) .* 3300.0 /1e3
-    carbon = melt_output[mask,4] .* (1e-6) .* 3300.0 * 1000.0 / 44.01
+    carbon = melt_output[mask,carbon_column] .* (1e-6) .* 3300.0 * 1000.0 / 44.01
 
     ax1.plot(time,melt_km3yr,label=output_dirs[ifile],color=line_colors[ifile],linestyle=line_styles[ifile])
     ax1.set_yscale("log")

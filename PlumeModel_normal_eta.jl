@@ -18,7 +18,7 @@ options["markx"] = 6#12
 options["marky"] = 12#24
 options["W"] = 2e6
 options["H"] = 2.850e6
-options["g"] = 10.0
+options["g"] = 9.81
 
 # options["Tcmb"] = 1300. + Tex + 273.0
 options["lithosphere thickness"] = h
@@ -67,8 +67,8 @@ include("Visualization.jl")
 #
 # Functions related to model setup
 #
-function compute_adiabatic(filename::String,Tref::Float64,Z::Float64,option::String="press")    
-    gravity = 9.81
+function compute_adiabatic(filename::String,Tref::Float64,Z::Float64,gravity::Float64,option::String="press")
+    # gravity must match the value used in the Stokes and energy equations
     np1 = 290
     temp = zeros(Float64, np1)
     press = zeros(Float64, np1)
@@ -127,9 +127,9 @@ function compute_adiabatic(filename::String,Tref::Float64,Z::Float64,option::Str
         return linear_interpolation(depth,press,extrapolation_bc=Line())
     end
 end
-adb_temperature = compute_adiabatic("data/pyrolite_24.dat",options["mantle temperature"],options["H"],"temp")
-adb_pressure = compute_adiabatic("data/pyrolite_24.dat",options["mantle temperature"],options["H"])
-adb_rho = compute_adiabatic("data/pyrolite_24.dat",options["mantle temperature"],options["H"],"rho")
+adb_temperature = compute_adiabatic("data/pyrolite_24.dat",options["mantle temperature"],options["H"],options["g"],"temp")
+adb_pressure = compute_adiabatic("data/pyrolite_24.dat",options["mantle temperature"],options["H"],options["g"])
+adb_rho = compute_adiabatic("data/pyrolite_24.dat",options["mantle temperature"],options["H"],options["g"],"rho")
 
 options["Tcmb"] = adb_temperature(options["H"]) + Tex
 println("Options: ", options )
