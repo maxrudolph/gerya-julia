@@ -84,7 +84,7 @@ function get_numerical_time_viscous(initial_amplitude::Float64,final_amplitude::
     i_amp --- Initial amplitude
     amp --- Final amplitude
     """   
-    lnratio = log2(final_amplitude)-log2(initial_amplitude)
+    lnratio = log(final_amplitude)-log(initial_amplitude)
     tr = -time/lnratio
     return tr/3.15e7
 end

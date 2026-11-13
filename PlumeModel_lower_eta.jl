@@ -689,7 +689,7 @@ function plume_model(options::Dict;max_step::Int64=-1,max_time::Float64=-1.0)
         shear_heating = compute_shear_heating_cylindrical(grid,vx,vy,eta_n,eta_s,eta_vx[1:end-1,:])
         H = (adiabatic_heating .+ shear_heating)
         sxx,syy,sxy,stt =compute_stress_cylindrical(grid,vx,vy,eta_n,eta_s,eta_vx[1:end-1,:])
-        topography = compute_topography(syy,rho_c,gy,0.0)
+        topography = compute_topography(grid,P,syy,rho_c,gy,0.0,cylindrical=true)
     
         # 3. Compute the advection timestep:
         if itime > 1
@@ -721,10 +721,12 @@ function plume_model(options::Dict;max_step::Int64=-1,max_time::Float64=-1.0)
             # compute the maximum temperature change
             dTmax = maximum(abs.(dTemp[2:end-1,2:end-1]))
             println("dTmax=",dTmax," dt=",dt/3.15e7/1e6)
-            dt = min(dt,dTmax < 10.0 ? dt : dt*10.0/dTmax)
-            if dTmax < 10.0
+            if dTmax < 10.0 || titer == 2
+                # accept this solution. dt must not change after the final solve,
+                # otherwise Tnew and the marker advection would use different timesteps.
                 break
             end
+            dt = dt*10.0/dTmax
         end
         if any(isnan.(markers.scalars[markers.scalarFields["rho"],:]))
             println("nan in density")

@@ -319,12 +319,12 @@ function stag_to_points(x::Matrix{Float64},cell::Matrix{Int64},grid::CartesianGr
     # x should be a vector of x/y coordinates
     # expect field to contain values at ghost nodes outside domain to right and bottom
     npoints = size(x,2)
-    if size(field,1) == grid.nx+1
+    if size(field,2) == grid.nx+1
         cellx_max = grid.nx
     else
         cellx_max = grid.nx-1
     end
-    if size(field,2) == grid.ny+1
+    if size(field,1) == grid.ny+1
         celly_max = grid.ny
     else
         celly_max = grid.ny-1
@@ -761,17 +761,22 @@ function add_remove_markers!(markers::Markers,grid::CartesianGrid,T::Matrix{Floa
             if per_cell[i,j] > max_markers
                 to_remove = per_cell[i,j] - target_markers
                 this_cell = (j-1)*(grid.ny-1) + i
-                ind = findall(marker_cell .== this_cell)                
-                ind_remove = ind[ randperm(per_cell[i,j])[1:target_markers] ]
+                ind = findall(marker_cell .== this_cell)
+                ind_remove = ind[ randperm(per_cell[i,j])[1:to_remove] ]
                 remove[ind_remove] .= true
             end
         end
     end
     #println("found ",sum(remove)," to remove")
     remove_markers!(markers,remove)
-    
+
     new_markers = BitVector(undef,markers.max_mark)#zeros(Bool,markers.max_mark) # array to indicate whether a marker is new.
     new_markers[:] .= false
+    # New markers copy their properties from the nearest surviving marker. The tree is built after
+    # removal (indices are valid for the compacted arrays) and only over the old markers, so it
+    # also works for cells that currently contain no markers.
+    nold = markers.nmark
+    kdtree = nold > 0 && any(per_cell .< min_markers) ? KDTree(markers.x[:,1:nold]) : nothing
     # loop over cells
     for j in 1:grid.nx-1
         for i in 1:grid.ny-1
@@ -781,16 +786,11 @@ function add_remove_markers!(markers::Markers,grid::CartesianGrid,T::Matrix{Floa
                 markers.x[:,markers.nmark+1:markers.nmark+to_add] = new_x
                 cell = [j.*ones(Int64,1,to_add); i.*ones(Int64,1,to_add)]
                 
-                # Interpolate material (integer) from nearest old marker                
-                this_cell = (j-1)*(grid.ny-1) + i
-                ind = findall(marker_cell .== this_cell)
-                kdtree = KDTree(markers.x[:,ind])
+                # Interpolate material (integer) and other fields from nearest old marker
                 idxs,dists = nn(kdtree, new_x)
-                
-                old_ints = markers.integers[:,ind]
-                markers.integers[:,markers.nmark+1:markers.nmark+to_add] = old_ints[idxs]
-                old_scalars = markers.scalars[:,ind]
-                markers.scalars[:,markers.nmark+1:markers.nmark+to_add] = old_scalars[:,idxs]
+
+                markers.integers[:,markers.nmark+1:markers.nmark+to_add] = markers.integers[:,idxs]
+                markers.scalars[:,markers.nmark+1:markers.nmark+to_add] = markers.scalars[:,idxs]
                 # old_mat = markers.integers[markers.integerFields["material"],ind]
                 # markers.integers[markers.integerFields["material"],markers.nmark+1:markers.nmark+to_add] = old_mat[idxs]
                                 

@@ -128,7 +128,7 @@ function get_numerical_time_viscous(initial_amplitude::Float64,final_amplitude::
     # max_ice_shell_thickness = maximum(interface_2-interface_1)
     # avg_ice_shell_thickness = mean(interface_2-interface_1)
     # amplitude = max_ice_shell_thickness-avg_ice_shell_thickness
-    lnratio = log2(final_amplitude)-log2(initial_amplitude)
+    lnratio = log(final_amplitude)-log(initial_amplitude)
     tr = -time/lnratio
     return tr/3.15e7
 end

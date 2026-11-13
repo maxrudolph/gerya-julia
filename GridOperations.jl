@@ -95,17 +95,27 @@ function compute_stress_cylindrical(grid::CartesianGrid,vx::Matrix{Float64},vy::
     return sxx,syy,sxy,stt
 end
 
-function compute_topography(syy::Matrix{Float64},rho_c::Matrix{Float64},g::Float64,rho_surface::Float64)
-    # compute stresses.
+function compute_topography(grid::CartesianGrid,P::Matrix{Float64},syy::Matrix{Float64},rho_c::Matrix{Float64},g::Float64,rho_surface::Float64;cylindrical::Bool=false)
+    # compute dynamic topography from the total normal stress.
     # Inputs:
     # grid
-    # syy at the cell centers
+    # P - pressure at the cell centers (in Pa, i.e. already multiplied by kcont)
+    # syy - deviatoric normal stress at the cell centers
     # rho_c is density at the cell centers
     # g is the radial gravity
-    # rho_surface is the density above the surface, 0 kg/m^3 for air and 1 kg/m^3 for water
+    # rho_surface is the density above the surface, 0 kg/m^3 for air and 1000 kg/m^3 for water
+    # cylindrical - if true, the lateral mean is weighted by radius (axisymmetric geometry)
     # returns:
-    # topography in m at the cell centers
-    topography = -syy ./ (rho_c.- rho_surface) /g
+    # topography in m at the cell centers. Only lateral differences in topography are meaningful,
+    # so the (area-weighted) mean of each row of interior cells is removed.
+    #
+    # With y pointing down, the total normal stress is syy_total = -P + syy and the
+    # surface deflection (positive up) is h = -syy_total/(delta_rho*g).
+    topography = (P .- syy) ./ (rho_c .- rho_surface) ./ g
+    weights = cylindrical ? grid.xc[2:grid.nx] : ones(grid.nx-1)
+    for i in 2:grid.ny
+        topography[i,2:grid.nx] .-= sum(weights .* topography[i,2:grid.nx])/sum(weights)
+    end
     return topography
 end
 

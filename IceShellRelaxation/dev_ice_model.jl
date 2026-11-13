@@ -282,7 +282,9 @@ function run(options::Dict)
         # 1a. Basic Nodes
         eta_s_new, = marker_to_stag(markers,grid,["eta",],"basic",method="logarithmic")
         # 1b. Cell Centers
-        rho_c_new,Cp_c_new,alpha_new,Hr_new,kThermal_new = marker_to_stag(markers,grid,["rho","Cp","alpha","Hr","kThermal"],"center")
+        rho_c_new,Cp_c_new,alpha_new,Hr_new = marker_to_stag(markers,grid,["rho","Cp","alpha","Hr"],"center")
+        # assemble_energy_equation_center expects conductivity at the basic nodes
+        kThermal_new, = marker_to_stag(markers,grid,["kThermal",],"basic")
         eta_n_new, = marker_to_stag(markers,grid,["eta",],"center",method="logarithmic")
         # interpolate temperature using rhocp as weight
         rhocp = markers.scalars[markers.scalarFields["rho"],:] .* markers.scalars[markers.scalarFields["Cp"],:]
@@ -320,12 +322,7 @@ function run(options::Dict)
         eta_n = copy(eta_n_new)
         Tlast = copy(Tlast_new)
 
-        if itime == 1 
-            ghost_temperature_center(grid,Tlast,Tbctype,Tbcval)
-            #cell_center_to_markers!(markers,grid,Tlast,markers.scalars[[markers.scalarFields["T"],],:])
-        else
-            ghost_temperature_center(grid,Tlast,Tbctype,Tbcval)
-        end
+        Tlast = ghost_temperature_center(grid,Tlast,Tbctype,Tbcval)
 
         # 2. Assemble and solve the stokes equations
         L,R = form_stokes(grid,eta_s,eta_n,rho_vx,rho_vy,bc,gx,gy;dt=dt)
@@ -368,10 +365,12 @@ function run(options::Dict)
             # compute the maximum temperature change
             dTmax = maximum(abs.(dTemp[2:end-1,2:end-1]))
             println("dTmax=",dTmax," dt=",dt/seconds_in_year/1e3," kyr")
-            dt = min(dt,dTmax < 10.0 ? dt : dt*10.0/dTmax)
-            if dTmax < 10.0
+            if dTmax < 10.0 || titer == 2
+                # accept this solution. dt must not change after the final solve,
+                # otherwise Tnew and the marker advection would use different timesteps.
                 break
             end
+            dt = dt*10.0/dTmax
         end
         
         dT_subgrid_node = subgrid_temperature_relaxation_center!(markers,grid,Tlast,dt)

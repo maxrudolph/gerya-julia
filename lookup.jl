@@ -11,12 +11,10 @@ struct lookup
     property_lookup
     
     function lookup(filename::String,index::Int64)
-        prop = Dict()
-        prop["1"] = "rho,kg/m3"
-        prop["2"] = "alpha,1/K"
-        prop["3"] = "cp,J/K/kg"
-        # prop["4"] = "vp,km/s"
-        # prop["5"] = "vs,km/s"
+        # column names in table order - index selects one of these.
+        # (a Dict must not be used here because its iteration order is not guaranteed)
+        prop = ["rho,kg/m3", "alpha,1/K", "cp,J/K/kg"]
+        # "vp,km/s", "vs,km/s"
         # Read the header and data efficiently
         dataframe = CSV.File(filename; delim=' ', skipto=14, silencewarnings=true,ntasks=1) |> DataFrame
     
@@ -37,12 +35,10 @@ struct lookup
         values = zeros(n_temperatures,n_pressures,length(prop))
         
         # Reshape densities once
-        i=1
-        for item in prop
+        for (i,column) in enumerate(prop)
             values[:,:,i] = loop_over_P ?
-                reshape(dataframe[!, item.second], n_pressures, n_temperatures)' :
-                reshape(dataframe[!, item.second], n_temperatures, n_pressures)
-            i += 1
+                reshape(dataframe[!, column], n_pressures, n_temperatures)' :
+                reshape(dataframe[!, column], n_temperatures, n_pressures)
         end
         property_lookup = linear_interpolation((temperatures,pressures),values[:,:,index],extrapolation_bc=Line())
         return new(values, temperatures, pressures, property_lookup )
