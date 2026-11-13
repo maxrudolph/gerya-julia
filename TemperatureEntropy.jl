@@ -354,36 +354,20 @@ function subgridSdiff(grid::CartesianGrid,markers::Markers,Slast::Matrix{Float64
     Threads.@threads for i in 1:markers.nmark
         dx2 = (grid.x[markers.cell[1,i]+1] - grid.x[markers.cell[1,i]])^2
         dy2 = (grid.y[markers.cell[2,i]+1] - grid.y[markers.cell[2,i]])^2
-        dS::Float64=0.0
-        dT::Float64=0.0
-        dX::Float64=0.0
-               
-        for iter in 1:3
-             if iter == 1
-                 # initial iteration - guess heat capacity equal to Cv
-                 Cpm = Cv
-             else
-                 # after first iteration
-                 if dX == 0 # if there is no change in melt fraction, use Cv
-                     Cpm = Cv
-                 elseif dT == 0 # melting/freezing at constant T: infinite effective heat capacity, no relaxation
-                     Cpm = Inf
-                 else
-                     Cpm = markers.scalars[T,i]*(dS/dT)
-                 end
-             end
-
-            tdiff = markers.scalars[rho,i]*Cpm/markers.scalars[kThermal,i]/(2/dx2 + 2/dy2)
-
-                        
-            dS_subgrid_Sm[i] = (Sm_nodal[i] - markers.scalars[S,i])*( 1.0 - exp(-d*dt/tdiff) )
-            Si = markers.scalars[S,i] + dS_subgrid_Sm[i] # new guess of marker entropy
-            Ti,Xi = compute_T_X_from_S(Si,options) # temperature consistent with new marker entropy
-            dS = Si - markers.scalars[S,i] # change in marker entropy
-            dT = Ti - markers.scalars[T,i] # change in marker temperature
-            dX = Xi - markers.scalars[X,i]
-            dS == 0.0 && break # no change (e.g. in the mushy zone), so the next guess would not improve
+        # effective heat capacity from the chord between the marker state and the nodal state.
+        # Heat flow is driven by the temperature difference, so markers at the nodal temperature
+        # (e.g. both in the mushy zone) do not relax.
+        Tn,Xn = compute_T_X_from_S(Sm_nodal[i],options)
+        Tmk = markers.scalars[T,i]
+        if Tn == Tmk
+            Cpm = Inf
+        elseif Xn == markers.scalars[X,i]
+            Cpm = Cv  # same phase: no latent heat between the two states
+        else
+            Cpm = Tmk*(Sm_nodal[i]-markers.scalars[S,i])/(Tn-Tmk)
         end
+        tdiff = markers.scalars[rho,i]*Cpm/markers.scalars[kThermal,i]/(2/dx2 + 2/dy2)
+        dS_subgrid_Sm[i] = (Sm_nodal[i] - markers.scalars[S,i])*( 1.0 - exp(-d*dt/tdiff) )
     end
     # update the marker entropy
     markers.scalars[S,1:markers.nmark] += dS_subgrid_Sm[1,:]

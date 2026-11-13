@@ -8,6 +8,7 @@ Profile = "9abbd945-dff8-562f-b5e8-e1ebf5ef1b79"
 ProfileSVG = "132c30aa-f267-4189-9183-c8a63c7e05e6"
 ProfileVega = "4391764f-db79-4bd7-a4c6-f9062de4300e"
 PyPlot = "d330b81b-6aea-500a-939a-2ce795aea3ee"
+SpecialFunctions = "276daf66-3868-5448-9aa4-cd146d93841b"
 StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 WriteVTK = "64499a7a-5c06-52f2-abe2-ccb03c286192"
 
