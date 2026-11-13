@@ -36,15 +36,14 @@ function get_y(lambda1::Float64,t::Float64,options::Dict)
     return y
 end
 
-function get_theta(y::Float64,t::Float64,lambda1::Float64,options::Dict)
+function get_theta(y::Float64,t::Float64,lambda1::Float64,kappa::Float64)
     """
     Arguments:
         y - depth position in units of (meters)
         t - time in units of (seconds)
         lambda1 - constant
-        options - allow the simulation of optional keyword arguments from a dictonary
+        kappa - thermal diffusivity in units of (m^2/s)
     """
-    kappa = options["thermal diffusivity"] # m^2/s
     eta = y/(2*sqrt(kappa*t))
     theta = erf(eta)/erf(lambda1)
     return theta
@@ -75,7 +74,7 @@ function compute_stefan_temp_solution(grid::CartesianGrid,Numerical_T::Matrix{Fl
     for k in 1:itime-1
         for j in 1:grid.nx
             for i in 1:grid.ny
-                theta = get_theta(grid.yc[i],time[k]+t,lambda1,options)
+                theta = get_theta(grid.yc[i],time[k]+t,lambda1,options["thermal diffusivity"])
                 stefan_T[i,j] = stefan_initial_condition(theta,options)
             end
         end
